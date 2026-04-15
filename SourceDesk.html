@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SourceDesk — Procurement Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e0c;
+    --surface: #191816;
+    --surface2: #22201e;
+    --border: #2e2c28;
+    --border-light: #3a3834;
+    --accent: #c9a84c;
+    --accent-dim: #7a6430;
+    --accent-glow: rgba(201,168,76,0.12);
+    --text: #e8e4dc;
+    --text-dim: #8a8578;
+    --text-muted: #504e49;
+    --danger: #c0513a;
+    --success: #5a9e6f;
+    --tag-rfp: #3d5a8a;
+    --tag-rfi: #5a3d8a;
+    --tag-vendor: #3d8a5a;
+    --tag-contract: #8a5a3d;
+    --radius: 6px;
+    --radius-lg: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: 'Instrument Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+  /* ─── LAYOUT ─────────────────────────────────── */
+  #app { display: grid; grid-template-columns: 240px 1fr; grid-template-rows: 48px 1fr; height: 100vh; }
+  #topbar { grid-column: 1/-1; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--surface); gap: 12px; }
+  #sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  #main { display: flex; overflow: hidden; }
+
+  /* ─── TOPBAR ──────────────────────────────────── */
+  .logo { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--accent); letter-spacing: -0.3px; }
+  .logo span { color: var(--text-dim); font-style: italic; }
+  .topbar-sep { flex: 1; }
+  #project-title { font-family: 'DM Serif Display', serif; font-size: 15px; color: var(--text); }
+  #project-type-badge { font-size: 10px; font-family: 'DM Mono', monospace; padding: 2px 8px; border-radius: 20px; background: var(--accent-glow); color: var(--accent); border: 1px solid var(--accent-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .btn-icon { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--radius); padding: 5px 10px; cursor: pointer; font-size: 12px; font-family: 'Instrument Sans', sans-serif; transition: all 0.15s; display: flex; align-items: center; gap: 5px; }
+  .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-icon svg { width: 13px; height: 13px; }
+
+  /* ─── SIDEBAR ─────────────────────────────────── */
+  .sidebar-section { padding: 10px 12px 6px; font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; }
+  .sidebar-add { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; transition: color 0.15s; }
+  .sidebar-add:hover { color: var(--accent); }
+  .sidebar-list { overflow-y: auto; flex-shrink: 0; max-height: 200px; }
+  .sidebar-item { padding: 7px 12px; cursor: pointer; font-size: 12px; color: var(--text-dim); border-left: 2px solid transparent; transition: all 0.15s; display: flex; align-items: center; gap: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidebar-item:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-item.active { background: var(--accent-glow); border-left-color: var(--accent); color: var(--accent); }
+  .sidebar-item .item-icon { flex-shrink: 0; opacity: 0.6; font-size: 11px; }
+  .sidebar-item .item-name { overflow: hidden; text-overflow: ellipsis; flex: 1; }
+  .sidebar-divider { height: 1px; background: var(--border); margin: 8px 0; }
+  .sidebar-scroll { flex: 1; overflow-y: auto; }
+
+  /* ─── MAIN PANELS ─────────────────────────────── */
+  #panel-chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #panel-right { width: 280px; border-left: 1px solid var(--border); display: flex; flex-direction: column; background: var(--surface); transition: width 0.2s; overflow: hidden; }
+  #panel-right.collapsed { width: 0; }
+
+  /* ─── CHAT ────────────────────────────────────── */
+  #chat-messages { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .msg { display: flex; gap: 10px; align-items: flex-start; animation: fadeIn 0.2s ease; }
+  .msg.user { flex-direction: row-reverse; }
+  .msg-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-family: 'DM Mono', monospace; }
+  .msg.assistant .msg-avatar { background: var(--accent-glow); border: 1px solid var(--accent-dim); color: var(--accent); }
+  .msg.user .msg-avatar { background: var(--surface2); border: 1px solid var(--border); color: var(--text-dim); }
+  .msg-bubble { max-width: 72%; padding: 10px 14px; border-radius: var(--radius-lg); font-size: 13.5px; line-height: 1.6; }
+  .msg.assistant .msg-bubble { background: var(--surface2); border: 1px solid var(--border); }
+  .msg.user .msg-bubble { background: var(--accent-glow); border: 1px solid var(--accent-dim); }
+  .msg-bubble p { margin-bottom: 8px; } .msg-bubble p:last-child { margin-bottom: 0; }
+  .msg-bubble ul, .msg-bubble ol { padding-left: 18px; margin-bottom: 8px; }
+  .msg-bubble li { margin-bottom: 3px; }
+  .msg-bubble strong { color: var(--accent); font-weight: 600; }
+  .msg-bubble code { font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg); padding: 1px 5px; border-radius: 3px; color: var(--accent); }
+  .msg-bubble pre { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; margin: 8px 0; overflow-x: auto; }
+  .msg-bubble pre code { background: none; padding: 0; }
+  .typing-indicator { display: flex; gap: 4px; padding: 4px 0; }
+  .typing-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-dim); animation: typingPulse 1.2s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  #chat-input-area { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-end; }
+  #chat-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 10px 14px; color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 13.5px; resize: none; min-height: 42px; max-height: 120px; outline: none; transition: border-color 0.15s; line-height: 1.5; }
+  #chat-input:focus { border-color: var(--accent-dim); }
+  #chat-input::placeholder { color: var(--text-muted); }
+  #send-btn { background: var(--accent); border: none; color: var(--bg); border-radius: var(--radius); padding: 10px 14px; cursor: pointer; font-size: 13px; font-family: 'Instrument Sans', sans-serif; font-weight: 600; transition: opacity 0.15s; flex-shrink: 0; }
+  #send-btn:hover { opacity: 0.85; }
+  #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ─── RIGHT PANEL ─────────────────────────────── */
+  .rpanel-header { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; }
+  .rpanel-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .rpanel-label { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .context-doc { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--surface2); border-radius: var(--radius); margin-bottom: 4px; font-size: 11px; color: var(--text-dim); border: 1px solid var(--border); cursor: pointer; transition: all 0.15s; }
+  .context-doc.active { border-color: var(--accent-dim); color: var(--text); }
+  .context-doc .doc-toggle { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border-light); background: var(--surface); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .context-doc.active .doc-toggle { background: var(--accent); border-color: var(--accent); }
+  .context-doc .doc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doc-upload-btn { width: 100%; padding: 7px; background: none; border: 1px dashed var(--border-light); border-radius: var(--radius); color: var(--text-muted); cursor: pointer; font-size: 11px; font-family: 'Instrument Sans', sans-serif; transition: all 0.15s; text-align: center; }
+  .doc-upload-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+  .other-project-item { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: var(--radius); font-size: 11px; color: var(--text-dim); cursor: pointer; transition: all 0.15s; }
+  .other-project-item:hover { background: var(--surface2); }
+  .other-project-item input[type=checkbox] { accent-color: var(--accent); }
+  .template-ref { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--accent-glow); border: 1px solid var(--accent-dim); border-radius: var(--radius); font-size: 11px; color: var(--accent); }
+
+  /* ─── MODALS ──────────────────────────────────── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+  .modal { background: var(--surface); border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 24px; width: 520px; max-width: 95vw; max-height: 85vh; overflow-y: auto; }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 4px; color: var(--text); }
+  .modal-subtitle { font-size: 12px; color: var(--text-dim); margin-bottom: 20px; }
+  .form-row { margin-bottom: 14px; }
+  .form-label { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-bottom: 5px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.15s; }
+  .form-input:focus { border-color: var(--accent-dim); }
+  .form-textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; outline: none; resize: vertical; min-height: 160px; line-height: 1.5; transition: border-color 0.15s; }
+  .form-textarea:focus { border-color: var(--accent-dim); }
+  .form-select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 13px; outline: none; cursor: pointer; }
+  .type-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .type-pill { padding: 5px 12px; border-radius: 20px; font-size: 11px; border: 1px solid var(--border); cursor: pointer; transition: all 0.15s; font-family: 'DM Mono', monospace; color: var(--text-dim); background: var(--surface2); }
+  .type-pill.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-primary { background: var(--accent); border: none; color: var(--bg); border-radius: var(--radius); padding: 8px 18px; cursor: pointer; font-size: 13px; font-family: 'Instrument Sans', sans-serif; font-weight: 600; transition: opacity 0.15s; }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-secondary { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--radius); padding: 8px 18px; cursor: pointer; font-size: 13px; font-family: 'Instrument Sans', sans-serif; transition: all 0.15s; }
+  .btn-secondary:hover { border-color: var(--text-dim); color: var(--text); }
+  .btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); border-radius: var(--radius); padding: 8px 18px; cursor: pointer; font-size: 13px; font-family: 'Instrument Sans', sans-serif; transition: all 0.15s; }
+  .btn-danger:hover { background: var(--danger); color: white; }
+
+  /* Templates view */
+  #templates-view { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+  .templates-grid { flex: 1; overflow-y: auto; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; align-content: start; }
+  .template-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; cursor: pointer; transition: all 0.15s; position: relative; }
+  .template-card:hover { border-color: var(--accent-dim); }
+  .template-card-type { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding: 2px 7px; border-radius: 20px; display: inline-block; }
+  .type-skeleton { background: rgba(61,90,138,0.2); color: #7a9fd4; border: 1px solid rgba(61,90,138,0.4); }
+  .type-example { background: rgba(90,158,111,0.15); color: #7ac990; border: 1px solid rgba(90,158,111,0.3); }
+  .template-card-name { font-family: 'DM Serif Display', serif; font-size: 15px; margin-bottom: 6px; }
+  .template-card-category { font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+  .template-card-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+  .template-card:hover .template-card-actions { opacity: 1; }
+  .tcard-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-dim); border-radius: 4px; padding: 3px 7px; font-size: 10px; cursor: pointer; transition: all 0.15s; font-family: 'DM Mono', monospace; }
+  .tcard-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+  .tcard-btn.del:hover { border-color: var(--danger); color: var(--danger); }
+  .view-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; background: var(--surface); }
+  .view-title { font-family: 'DM Serif Display', serif; font-size: 17px; flex: 1; }
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; color: var(--text-muted); font-size: 13px; gap: 10px; }
+  .empty-state svg { opacity: 0.3; }
+
+  /* Settings */
+  .api-key-status { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 10px; border-radius: var(--radius); background: var(--surface2); border: 1px solid var(--border); margin-top: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
+  .status-dot.ok { background: var(--success); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+  /* Animations */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes typingPulse { 0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
+  .hidden { display: none !important; }
+
+  /* welcome screen */
+  #welcome-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-muted); text-align: center; padding: 40px; }
+  #welcome-screen h2 { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--text-dim); }
+  #welcome-screen p { font-size: 13px; max-width: 340px; line-height: 1.7; }
+  .welcome-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+  .chunk-used { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-muted); margin-top: 8px; padding: 4px 8px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); }
+  .chunk-source { color: var(--accent-dim); }
+  .no-key-banner { background: rgba(192,81,58,0.1); border: 1px solid rgba(192,81,58,0.3); border-radius: var(--radius); padding: 8px 12px; font-size: 12px; color: #e07a65; display: flex; align-items: center; gap: 8px; margin: 8px 16px 0; }
+  .no-key-banner button { background: none; border: 1px solid rgba(192,81,58,0.5); color: #e07a65; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: 'Instrument Sans', sans-serif; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="logo">Source<span>Desk</span></div>
+    <div class="topbar-sep"></div>
+    <span id="project-title" style="color:var(--text-muted);font-size:13px">No project selected</span>
+    <span id="project-type-badge" class="hidden"></span>
+    <div style="flex:1"></div>
+    <button class="btn-icon" onclick="showView('templates')">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      Templates
+    </button>
+    <button class="btn-icon" onclick="openSettings()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.22 3.22l1.41 1.41M11.36 11.36l1.41 1.41M3.22 12.78l1.41-1.41M11.36 4.64l1.41-1.41"/></svg>
+      Settings
+    </button>
+    <button class="btn-icon" id="toggle-right-panel" onclick="toggleRightPanel()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="14" height="14" rx="1.5"/><line x1="10" y1="1" x2="10" y2="15"/></svg>
+      Context
+    </button>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-section">
+      Projects
+      <button class="sidebar-add" onclick="openNewProject()" title="New project">+</button>
+    </div>
+    <div class="sidebar-list" id="projects-list"></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section" style="flex-shrink:0">Recent</div>
+    <div class="sidebar-scroll" id="recent-list" style="padding-bottom:8px"></div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <!-- Templates View -->
+    <div id="templates-view">
+      <div class="view-header">
+        <div class="view-title">Templates Library</div>
+        <button class="btn-icon" onclick="showView('chat')">← Back</button>
+        <button class="btn-primary" onclick="openNewTemplate()">+ New Template</button>
+      </div>
+      <div class="templates-grid" id="templates-grid"></div>
+    </div>
+
+    <!-- Chat View -->
+    <div id="chat-view" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <div id="no-key-banner" class="no-key-banner hidden">
+        ⚠ No API key set — chat won't work.
+        <button onclick="openSettings()">Add key</button>
+      </div>
+      <div id="welcome-screen">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.3"><rect x="6" y="6" width="36" height="36" rx="4"/><line x1="14" y1="16" x2="34" y2="16"/><line x1="14" y1="24" x2="34" y2="24"/><line x1="14" y1="32" x2="24" y2="32"/></svg>
+        <h2>SourceDesk</h2>
+        <p>Select a project from the sidebar, or create one from a template to get started.</p>
+        <div class="welcome-actions">
+          <button class="btn-primary" onclick="openNewProject()">New Project</button>
+          <button class="btn-secondary" onclick="showView('templates')">Browse Templates</button>
+        </div>
+      </div>
+      <div id="chat-messages" class="hidden"></div>
+      <div id="chat-input-area" class="hidden">
+        <textarea id="chat-input" placeholder="Ask Claude anything about this project…" rows="1"></textarea>
+        <button id="send-btn" onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div id="panel-right">
+      <div class="rpanel-header">
+        Context
+        <span id="ctx-doc-count" style="color:var(--accent)">0 docs</span>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label">Template</div>
+        <div id="ctx-template">
+          <div style="font-size:11px;color:var(--text-muted)">No template</div>
+        </div>
+      </div>
+      <div class="rpanel-section">
+        <div class="rpanel-label" style="display:flex;align-items:center;justify-content:space-between">
+          Project Docs
+          <label style="cursor:pointer">
+            <input type="file" id="doc-upload-input" multiple accept=".txt,.md,.pdf,.docx,.csv" style="display:none" onchange="handleDocUpload(event)">
+            <span class="tcard-btn" onclick="document.getElementById('doc-upload-input').click()">+ Upload</span>
+          </label>
+        </div>
+        <div id="ctx-project-docs"></div>
+      </div>
+      <div class="rpanel-section" style="flex:1;overflow-y:auto">
+        <div class="rpanel-label">Other Projects (toggle to include)</div>
+        <div id="ctx-other-projects"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="modal-overlay" class="modal-overlay hidden" onclick="closeModalOnOverlay(event)">
+
+  <!-- New/Edit Template Modal -->
+  <div id="modal-template" class="modal hidden">
+    <div class="modal-title" id="modal-template-title">New Template</div>
+    <div class="modal-subtitle">Templates are available globally across all projects.</div>
+    <div class="form-row">
+      <label class="form-label">Template Name</label>
+      <input class="form-input" id="tmpl-name" placeholder="e.g. Standard RFP — IT Services">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Category</label>
+      <div class="type-pills" id="tmpl-category-pills">
+        <div class="type-pill active" data-val="RFP" onclick="selectPill(this,'tmpl-category-pills')">RFP</div>
+        <div class="type-pill" data-val="RFI" onclick="selectPill(this,'tmpl-category-pills')">RFI</div>
+        <div class="type-pill" data-val="Vendor Q" onclick="selectPill(this,'tmpl-category-pills')">Vendor Q</div>
+        <div class="type-pill" data-val="Contract" onclick="selectPill(this,'tmpl-category-pills')">Contract</div>
+        <div class="type-pill" data-val="Other" onclick="selectPill(this,'tmpl-category-pills')">Other</div>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Type</label>
+      <div class="type-pills" id="tmpl-type-pills">
+        <div class="type-pill active" data-val="skeleton" onclick="selectPill(this,'tmpl-type-pills')">Skeleton (with {{placeholders}})</div>
+        <div class="type-pill" data-val="example" onclick="selectPill(this,'tmpl-type-pills')">Example Doc</div>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Content <span style="color:var(--text-muted);font-size:10px">— Use {{PLACEHOLDER}} syntax for skeleton templates</span></label>
+      <textarea class="form-textarea" id="tmpl-content" placeholder="Paste or write your template content here..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveTemplate()">Save Template</button>
+    </div>
+  </div>
+
+  <!-- New Project Modal -->
+  <div id="modal-project" class="modal hidden">
+    <div class="modal-title">New Project</div>
+    <div class="modal-subtitle">Create a project from a template or start blank.</div>
+    <div class="form-row">
+      <label class="form-label">Project Name</label>
+      <input class="form-input" id="proj-name" placeholder="e.g. Cloud Storage Vendor Selection Q2">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Category</label>
+      <div class="type-pills" id="proj-category-pills">
+        <div class="type-pill active" data-val="RFP" onclick="selectPill(this,'proj-category-pills')">RFP</div>
+        <div class="type-pill" data-val="RFI" onclick="selectPill(this,'proj-category-pills')">RFI</div>
+        <div class="type-pill" data-val="Vendor Q" onclick="selectPill(this,'proj-category-pills')">Vendor Q</div>
+        <div class="type-pill" data-val="Contract" onclick="selectPill(this,'proj-category-pills')">Contract</div>
+        <div class="type-pill" data-val="Other" onclick="selectPill(this,'proj-category-pills')">Other</div>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Start From Template (optional)</label>
+      <select class="form-select" id="proj-template-select">
+        <option value="">— Start blank —</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Notes / Context</label>
+      <textarea class="form-textarea" id="proj-notes" placeholder="Any background context, vendor names, specific requirements…" style="min-height:80px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveProject()">Create Project</button>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="modal-settings" class="modal hidden">
+    <div class="modal-title">Settings</div>
+    <div class="modal-subtitle">Stored locally in your browser — never sent anywhere except the Anthropic API.</div>
+    <div class="form-row">
+      <label class="form-label">Anthropic API Key</label>
+      <input class="form-input" id="settings-apikey" type="password" placeholder="sk-ant-...">
+      <div id="apikey-status" class="api-key-status">
+        <div class="status-dot" id="apikey-dot"></div>
+        <span id="apikey-status-text">No key saved</span>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Model</label>
+      <select class="form-select" id="settings-model">
+        <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (recommended)</option>
+        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (faster / cheaper)</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Sourcing Context <span style="color:var(--text-muted);font-size:10px">— Added to every chat</span></label>
+      <textarea class="form-textarea" id="settings-context" style="min-height:80px" placeholder="e.g. University procurement policy: net-60 payment terms, 3-bid rule required over $25k, preferred vendor list attached..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-danger" onclick="clearAllData()" style="margin-right:auto">Clear All Data</button>
+      <button class="btn-primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+
+  <!-- Fill Template Modal -->
+  <div id="modal-fill" class="modal hidden">
+    <div class="modal-title">Fill Template</div>
+    <div class="modal-subtitle" id="modal-fill-subtitle"></div>
+    <div id="fill-fields"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="applyFill()">Insert into Chat</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── IndexedDB ────────────────────────────────────────────────────────────────
+const DB_NAME = 'sourcedesk', DB_VERSION = 1;
+let db;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('templates')) d.createObjectStore('templates', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('projects')) d.createObjectStore('projects', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('docs')) { const s = d.createObjectStore('docs', { keyPath: 'id' }); s.createIndex('projectId', 'projectId', { unique: false }); }
+      if (!d.objectStoreNames.contains('chats')) { const s = d.createObjectStore('chats', { keyPath: 'id' }); s.createIndex('projectId', 'projectId', { unique: false }); }
+      if (!d.objectStoreNames.contains('settings')) d.createObjectStore('settings', { keyPath: 'key' });
+    };
+    req.onsuccess = e => { db = e.target.result; res(db); };
+    req.onerror = () => rej(req.error);
+  });
+}
+
+function dbGet(store, key) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+
+function dbPut(store, val) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(val);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+
+function dbDelete(store, key) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).delete(key);
+    req.onsuccess = () => res();
+    req.onerror = () => rej(req.error);
+  });
+}
+
+function dbGetAll(store) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+
+function dbGetByIndex(store, index, val) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).index(index).getAll(val);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let state = {
+  projects: [],
+  templates: [],
+  settings: { apiKey: '', model: 'claude-sonnet-4-20250514', globalContext: '' },
+  activeProject: null,
+  activeDocs: new Set(),        // doc IDs toggled on
+  activeOtherProjects: new Set(), // other project IDs whose docs to include
+  messages: [],                 // current chat
+  streaming: false,
+  rightPanelOpen: true,
+  editingTemplateId: null,
+};
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+async function boot() {
+  await openDB();
+  state.templates = await dbGetAll('templates');
+  state.projects = await dbGetAll('projects');
+  const apiKey = await dbGet('settings', 'apiKey');
+  const model = await dbGet('settings', 'model');
+  const globalContext = await dbGet('settings', 'globalContext');
+  if (apiKey) state.settings.apiKey = apiKey.value;
+  if (model) state.settings.model = model.value;
+  if (globalContext) state.settings.globalContext = globalContext.value;
+  renderSidebar();
+  checkApiKey();
+}
+
+// ─── VIEWS ────────────────────────────────────────────────────────────────────
+function showView(v) {
+  document.getElementById('templates-view').style.display = v === 'templates' ? 'flex' : 'none';
+  document.getElementById('chat-view').style.display = v === 'chat' ? 'flex' : 'none';
+  if (v === 'templates') renderTemplatesGrid();
+}
+
+// ─── SIDEBAR ──────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('projects-list');
+  list.innerHTML = '';
+  const icons = { RFP: '📋', RFI: '📄', 'Vendor Q': '🏢', Contract: '📑', Other: '📁' };
+  state.projects.slice().reverse().forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'sidebar-item' + (state.activeProject?.id === p.id ? ' active' : '');
+    item.innerHTML = `<span class="item-icon">${icons[p.category] || '📁'}</span><span class="item-name">${p.name}</span>`;
+    item.onclick = () => loadProject(p.id);
+    list.appendChild(item);
+  });
+}
+
+// ─── LOAD PROJECT ─────────────────────────────────────────────────────────────
+async function loadProject(id) {
+  const proj = state.projects.find(p => p.id === id);
+  if (!proj) return;
+  state.activeProject = proj;
+  state.messages = [];
+  state.activeDocs = new Set();
+  state.activeOtherProjects = new Set();
+
+  // load chat history
+  const chats = await dbGetByIndex('chats', 'projectId', id);
+  if (chats.length) state.messages = chats[0].messages || [];
+
+  // load docs for project — enable all by default
+  const docs = await dbGetByIndex('docs', 'projectId', id);
+  docs.forEach(d => state.activeDocs.add(d.id));
+
+  document.getElementById('welcome-screen').classList.add('hidden');
+  document.getElementById('chat-messages').classList.remove('hidden');
+  document.getElementById('chat-input-area').classList.remove('hidden');
+
+  const badge = document.getElementById('project-type-badge');
+  document.getElementById('project-title').textContent = proj.name;
+  badge.textContent = proj.category;
+  badge.classList.remove('hidden');
+
+  renderSidebar();
+  renderMessages();
+  await renderRightPanel();
+  checkApiKey();
+}
+
+// ─── MESSAGES ────────────────────────────────────────────────────────────────
+function renderMessages() {
+  const container = document.getElementById('chat-messages');
+  container.innerHTML = '';
+  state.messages.forEach(m => appendMessageEl(m.role, m.content, m.sources));
+  container.scrollTop = container.scrollHeight;
+}
+
+function appendMessageEl(role, content, sources) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  const avatarLabel = role === 'assistant' ? 'SD' : 'You';
+  let sourcesHtml = '';
+  if (sources && sources.length) {
+    sourcesHtml = `<div class="chunk-used">Referenced: ${sources.map(s => `<span class="chunk-source">${s}</span>`).join(', ')}</div>`;
+  }
+  div.innerHTML = `
+    <div class="msg-avatar">${avatarLabel}</div>
+    <div>
+      <div class="msg-bubble">${formatMarkdown(content)}</div>
+      ${sourcesHtml}
+    </div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function formatMarkdown(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/^### (.*$)/gm, '<h4 style="margin:10px 0 4px;font-family:DM Serif Display,serif;color:var(--accent)">$1</h4>')
+    .replace(/^## (.*$)/gm, '<h3 style="margin:10px 0 4px;font-family:DM Serif Display,serif">$1</h3>')
+    .replace(/^- (.*$)/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^(?!<[hup])(.+)$/gm, '<p>$1</p>');
+}
+
+// ─── BM25 SEARCH ──────────────────────────────────────────────────────────────
+function tokenize(text) {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+}
+
+function buildIndex(chunks) {
+  const idf = {}, N = chunks.length;
+  const tfs = chunks.map(c => {
+    const tokens = tokenize(c.text), freq = {};
+    tokens.forEach(t => { freq[t] = (freq[t] || 0) + 1; });
+    return { freq, len: tokens.length };
+  });
+  const df = {};
+  tfs.forEach(({ freq }) => { Object.keys(freq).forEach(t => { df[t] = (df[t] || 0) + 1; }); });
+  Object.keys(df).forEach(t => { idf[t] = Math.log((N - df[t] + 0.5) / (df[t] + 0.5) + 1); });
+  return { tfs, idf, avgLen: tfs.reduce((s, x) => s + x.len, 0) / (N || 1) };
+}
+
+function bm25Score(query, idx, i, k1 = 1.5, b = 0.75) {
+  const { tfs, idf, avgLen } = idx;
+  const { freq, len } = tfs[i];
+  return tokenize(query).reduce((score, t) => {
+    const tf = freq[t] || 0;
+    const idfVal = idf[t] || 0;
+    return score + idfVal * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * len / avgLen));
+  }, 0);
+}
+
+function chunkText(text, size = 400, overlap = 60) {
+  const words = text.split(/\s+/);
+  const chunks = [];
+  for (let i = 0; i < words.length; i += size - overlap) {
+    chunks.push(words.slice(i, i + size).join(' '));
+    if (i + size >= words.length) break;
+  }
+  return chunks;
+}
+
+async function retrieveContext(query, topK = 4) {
+  if (!state.activeProject) return { context: '', sources: [] };
+
+  // Gather all active doc IDs
+  const docIds = [...state.activeDocs];
+  // Add toggled-in other project docs
+  for (const pid of state.activeOtherProjects) {
+    const otherDocs = await dbGetByIndex('docs', 'projectId', pid);
+    otherDocs.forEach(d => docIds.push(d.id));
+  }
+  // Add template content if project has one
+  const templateChunks = [];
+  if (state.activeProject.templateId) {
+    const tmpl = state.templates.find(t => t.id === state.activeProject.templateId);
+    if (tmpl) templateChunks.push({ text: tmpl.content, source: `Template: ${tmpl.name}` });
+  }
+
+  if (!docIds.length && !templateChunks.length) return { context: '', sources: [] };
+
+  const allChunks = [...templateChunks];
+  for (const id of docIds) {
+    const doc = await dbGet('docs', id);
+    if (!doc) continue;
+    const chunks = chunkText(doc.content);
+    chunks.forEach(c => allChunks.push({ text: c, source: doc.name }));
+  }
+
+  if (!allChunks.length) return { context: '', sources: [] };
+
+  const idx = buildIndex(allChunks);
+  const scores = allChunks.map((_, i) => ({ i, score: bm25Score(query, idx, i) }));
+  scores.sort((a, b) => b.score - a.score);
+  const top = scores.slice(0, topK).filter(s => s.score > 0);
+  const sources = [...new Set(top.map(s => allChunks[s.i].source))];
+  const context = top.map(s => `[from: ${allChunks[s.i].source}]\n${allChunks[s.i].text}`).join('\n\n---\n\n');
+  return { context, sources };
+}
+
+// ─── SEND MESSAGE ─────────────────────────────────────────────────────────────
+async function sendMessage() {
+  if (state.streaming || !state.activeProject) return;
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  if (!state.settings.apiKey) { alert('Please add your Anthropic API key in Settings.'); return; }
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  state.messages.push({ role: 'user', content: text });
+  appendMessageEl('user', text);
+
+  // Retrieve context
+  const { context, sources } = await retrieveContext(text);
+
+  // Build system prompt
+  let systemPrompt = `You are SourceDesk, an expert AI assistant for strategic sourcing and procurement at a university. You help with RFPs, RFIs, vendor questionnaires, contract review, and supplier analysis.
+
+Be precise, professional, and concise. Use procurement terminology correctly. When filling in templates, follow the structure exactly. Flag any compliance concerns relevant to higher-education procurement.`;
+
+  if (state.settings.globalContext) systemPrompt += `\n\n## Institutional Context\n${state.settings.globalContext}`;
+  if (state.activeProject) {
+    systemPrompt += `\n\n## Current Project\nName: ${state.activeProject.name}\nCategory: ${state.activeProject.category}`;
+    if (state.activeProject.notes) systemPrompt += `\nNotes: ${state.activeProject.notes}`;
+    if (state.activeProject.workingContent) systemPrompt += `\n\n## Working Document (current draft)\n${state.activeProject.workingContent}`;
+  }
+  if (context) systemPrompt += `\n\n## Retrieved Context (from project documents)\n${context}`;
+
+  // Build messages for API
+  const apiMessages = state.messages.map(m => ({ role: m.role, content: m.content }));
+
+  // Show typing indicator
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'msg assistant';
+  typingDiv.innerHTML = `<div class="msg-avatar">SD</div><div class="msg-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
+  document.getElementById('chat-messages').appendChild(typingDiv);
+  document.getElementById('chat-messages').scrollTop = 99999;
+  document.getElementById('send-btn').disabled = true;
+  state.streaming = true;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': state.settings.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: state.settings.model,
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages: apiMessages,
+        stream: true
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error ${resp.status}`);
+    }
+
+    typingDiv.remove();
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'msg assistant';
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    msgDiv.innerHTML = `<div class="msg-avatar">SD</div>`;
+    msgDiv.appendChild(bubble);
+    document.getElementById('chat-messages').appendChild(msgDiv);
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+              fullText += parsed.delta.text;
+              bubble.innerHTML = formatMarkdown(fullText);
+              document.getElementById('chat-messages').scrollTop = 99999;
+            }
+          } catch {}
+        }
+      }
+    }
+
+    if (sources.length) {
+      const src = document.createElement('div');
+      src.className = 'chunk-used';
+      src.innerHTML = `Referenced: ${sources.map(s => `<span class="chunk-source">${s}</span>`).join(', ')}`;
+      msgDiv.appendChild(src);
+    }
+
+    state.messages.push({ role: 'assistant', content: fullText, sources });
+    await saveChat();
+
+  } catch (e) {
+    typingDiv.remove();
+    appendMessageEl('assistant', `⚠ Error: ${e.message}`);
+  }
+
+  state.streaming = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+async function saveChat() {
+  if (!state.activeProject) return;
+  await dbPut('chats', { id: state.activeProject.id, projectId: state.activeProject.id, messages: state.messages });
+}
+
+// ─── RIGHT PANEL ──────────────────────────────────────────────────────────────
+async function renderRightPanel() {
+  if (!state.activeProject) return;
+
+  // Template ref
+  const tmplEl = document.getElementById('ctx-template');
+  if (state.activeProject.templateId) {
+    const tmpl = state.templates.find(t => t.id === state.activeProject.templateId);
+    if (tmpl) {
+      tmplEl.innerHTML = `<div class="template-ref">
+        <span style="flex:1">${tmpl.name}</span>
+        <span class="tcard-btn" onclick="openFillTemplate('${tmpl.id}')">Fill</span>
+        <span class="tcard-btn" onclick="viewTemplateContent('${tmpl.id}')">View</span>
+      </div>`;
+    }
+  } else {
+    tmplEl.innerHTML = `<div style="font-size:11px;color:var(--text-muted)">No template — <span style="color:var(--accent);cursor:pointer" onclick="promptAttachTemplate()">attach one</span></div>`;
+  }
+
+  // Project docs
+  const docs = await dbGetByIndex('docs', 'projectId', state.activeProject.id);
+  const docsEl = document.getElementById('ctx-project-docs');
+  docsEl.innerHTML = '';
+  if (!docs.length) {
+    docsEl.innerHTML = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">No docs yet — upload files to give Claude context.</div>`;
+  }
+  docs.forEach(doc => {
+    const active = state.activeDocs.has(doc.id);
+    const el = document.createElement('div');
+    el.className = `context-doc${active ? ' active' : ''}`;
+    el.innerHTML = `<div class="doc-toggle">${active ? '✓' : ''}</div><div class="doc-name">${doc.name}</div><span class="tcard-btn del" onclick="deleteDoc('${doc.id}',event)" style="opacity:0.5;margin-left:4px">✕</span>`;
+    el.onclick = (e) => { if (e.target.classList.contains('tcard-btn')) return; toggleDoc(doc.id, el); };
+    docsEl.appendChild(el);
+  });
+
+  // Other projects
+  const otherEl = document.getElementById('ctx-other-projects');
+  otherEl.innerHTML = '';
+  const others = state.projects.filter(p => p.id !== state.activeProject.id);
+  if (!others.length) {
+    otherEl.innerHTML = `<div style="font-size:11px;color:var(--text-muted)">No other projects yet.</div>`;
+  }
+  others.forEach(p => {
+    const checked = state.activeOtherProjects.has(p.id);
+    const el = document.createElement('div');
+    el.className = 'other-project-item';
+    el.innerHTML = `<input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleOtherProject('${p.id}', this.checked)"> <span>${p.name}</span> <span style="font-size:10px;color:var(--text-muted);font-family:DM Mono,monospace">${p.category}</span>`;
+    otherEl.appendChild(el);
+  });
+
+  // Doc count
+  document.getElementById('ctx-doc-count').textContent = `${docs.length} doc${docs.length !== 1 ? 's' : ''}`;
+}
+
+function toggleDoc(id, el) {
+  if (state.activeDocs.has(id)) { state.activeDocs.delete(id); el.classList.remove('active'); el.querySelector('.doc-toggle').textContent = ''; }
+  else { state.activeDocs.add(id); el.classList.add('active'); el.querySelector('.doc-toggle').textContent = '✓'; }
+}
+
+function toggleOtherProject(id, checked) {
+  if (checked) state.activeOtherProjects.add(id); else state.activeOtherProjects.delete(id);
+}
+
+async function deleteDoc(id, e) {
+  e.stopPropagation();
+  if (!confirm('Remove this document?')) return;
+  await dbDelete('docs', id);
+  state.activeDocs.delete(id);
+  await renderRightPanel();
+}
+
+function toggleRightPanel() {
+  state.rightPanelOpen = !state.rightPanelOpen;
+  document.getElementById('panel-right').classList.toggle('collapsed', !state.rightPanelOpen);
+}
+
+// ─── DOC UPLOAD ───────────────────────────────────────────────────────────────
+async function handleDocUpload(event) {
+  if (!state.activeProject) return;
+  const files = Array.from(event.target.files);
+  for (const file of files) {
+    const text = await readFileAsText(file);
+    const doc = { id: uid(), projectId: state.activeProject.id, name: file.name, content: text, uploadedAt: Date.now() };
+    await dbPut('docs', doc);
+    state.activeDocs.add(doc.id);
+  }
+  event.target.value = '';
+  await renderRightPanel();
+}
+
+function readFileAsText(file) {
+  return new Promise((res) => {
+    const reader = new FileReader();
+    reader.onload = e => res(e.target.result);
+    reader.onerror = () => res(`[Could not read file: ${file.name}]`);
+    reader.readAsText(file);
+  });
+}
+
+// ─── TEMPLATES ────────────────────────────────────────────────────────────────
+function renderTemplatesGrid() {
+  const grid = document.getElementById('templates-grid');
+  grid.innerHTML = '';
+  if (!state.templates.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="5" y="5" width="30" height="30" rx="3"/><line x1="12" y1="14" x2="28" y2="14"/><line x1="12" y1="20" x2="28" y2="20"/><line x1="12" y1="26" x2="20" y2="26"/></svg><span>No templates yet — create your first one.</span></div>`;
+    return;
+  }
+  state.templates.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'template-card';
+    card.innerHTML = `
+      <div class="template-card-actions">
+        <span class="tcard-btn" onclick="openEditTemplate('${t.id}')">Edit</span>
+        <span class="tcard-btn del" onclick="deleteTemplate('${t.id}')">Delete</span>
+      </div>
+      <div class="template-card-type ${t.type === 'skeleton' ? 'type-skeleton' : 'type-example'}">${t.type}</div>
+      <div class="template-card-name">${t.name}</div>
+      <div class="template-card-category">${t.category}</div>`;
+    grid.appendChild(card);
+  });
+}
+
+function openNewTemplate() {
+  state.editingTemplateId = null;
+  document.getElementById('modal-template-title').textContent = 'New Template';
+  document.getElementById('tmpl-name').value = '';
+  document.getElementById('tmpl-content').value = '';
+  selectPillByVal('tmpl-category-pills', 'RFP');
+  selectPillByVal('tmpl-type-pills', 'skeleton');
+  showModal('modal-template');
+}
+
+function openEditTemplate(id) {
+  const t = state.templates.find(x => x.id === id);
+  if (!t) return;
+  state.editingTemplateId = id;
+  document.getElementById('modal-template-title').textContent = 'Edit Template';
+  document.getElementById('tmpl-name').value = t.name;
+  document.getElementById('tmpl-content').value = t.content;
+  selectPillByVal('tmpl-category-pills', t.category);
+  selectPillByVal('tmpl-type-pills', t.type);
+  showModal('modal-template');
+}
+
+async function saveTemplate() {
+  const name = document.getElementById('tmpl-name').value.trim();
+  const content = document.getElementById('tmpl-content').value.trim();
+  const category = getActivePill('tmpl-category-pills');
+  const type = getActivePill('tmpl-type-pills');
+  if (!name || !content) { alert('Please fill in the name and content.'); return; }
+  const id = state.editingTemplateId || uid();
+  const tmpl = { id, name, category, type, content, updatedAt: Date.now() };
+  await dbPut('templates', tmpl);
+  if (state.editingTemplateId) {
+    state.templates = state.templates.map(t => t.id === id ? tmpl : t);
+  } else {
+    state.templates.push(tmpl);
+  }
+  closeModal();
+  renderTemplatesGrid();
+}
+
+async function deleteTemplate(id) {
+  if (!confirm('Delete this template?')) return;
+  await dbDelete('templates', id);
+  state.templates = state.templates.filter(t => t.id !== id);
+  renderTemplatesGrid();
+}
+
+// ─── PROJECTS ────────────────────────────────────────────────────────────────
+function openNewProject() {
+  document.getElementById('proj-name').value = '';
+  document.getElementById('proj-notes').value = '';
+  selectPillByVal('proj-category-pills', 'RFP');
+  // populate template select
+  const sel = document.getElementById('proj-template-select');
+  sel.innerHTML = '<option value="">— Start blank —</option>';
+  state.templates.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = `[${t.category}] ${t.name}`;
+    sel.appendChild(opt);
+  });
+  showModal('modal-project');
+}
+
+async function saveProject() {
+  const name = document.getElementById('proj-name').value.trim();
+  const notes = document.getElementById('proj-notes').value.trim();
+  const category = getActivePill('proj-category-pills');
+  const templateId = document.getElementById('proj-template-select').value || null;
+  if (!name) { alert('Please enter a project name.'); return; }
+
+  let workingContent = '';
+  if (templateId) {
+    const tmpl = state.templates.find(t => t.id === templateId);
+    if (tmpl) workingContent = tmpl.content;
+  }
+
+  const proj = { id: uid(), name, category, templateId, notes, workingContent, createdAt: Date.now() };
+  await dbPut('projects', proj);
+  state.projects.push(proj);
+  closeModal();
+  renderSidebar();
+  await loadProject(proj.id);
+}
+
+// ─── FILL TEMPLATE ────────────────────────────────────────────────────────────
+function openFillTemplate(templateId) {
+  const tmpl = state.templates.find(t => t.id === templateId);
+  if (!tmpl || tmpl.type !== 'skeleton') {
+    viewTemplateContent(templateId); return;
+  }
+  const placeholders = [...new Set([...tmpl.content.matchAll(/\{\{([^}]+)\}\}/g)].map(m => m[1]))];
+  if (!placeholders.length) { viewTemplateContent(templateId); return; }
+
+  document.getElementById('modal-fill-subtitle').textContent = `Fill in the blanks for "${tmpl.name}"`;
+  const fields = document.getElementById('fill-fields');
+  fields.innerHTML = '';
+  placeholders.forEach(ph => {
+    const row = document.createElement('div');
+    row.className = 'form-row';
+    row.innerHTML = `<label class="form-label">${ph}</label><input class="form-input" data-placeholder="${ph}" placeholder="Enter ${ph}…">`;
+    fields.appendChild(row);
+  });
+  fields.dataset.templateId = templateId;
+  showModal('modal-fill');
+}
+
+function applyFill() {
+  const fields = document.getElementById('fill-fields');
+  const tmpl = state.templates.find(t => t.id === fields.dataset.templateId);
+  if (!tmpl) return;
+  let filled = tmpl.content;
+  fields.querySelectorAll('[data-placeholder]').forEach(inp => {
+    const val = inp.value.trim() || `[${inp.dataset.placeholder}]`;
+    filled = filled.split(`{{${inp.dataset.placeholder}}}`).join(val);
+  });
+  document.getElementById('chat-input').value = `Please help me review and complete this document:\n\n${filled}`;
+  closeModal();
+  document.getElementById('chat-input').focus();
+}
+
+function viewTemplateContent(templateId) {
+  const tmpl = state.templates.find(t => t.id === templateId);
+  if (!tmpl) return;
+  document.getElementById('chat-input').value = `I'd like to work on the "${tmpl.name}" template. Here's the content:\n\n${tmpl.content}`;
+  closeModal();
+  document.getElementById('chat-input').focus();
+}
+
+function promptAttachTemplate() {
+  openNewProject();
+}
+
+// ─── SETTINGS ────────────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('settings-apikey').value = state.settings.apiKey || '';
+  document.getElementById('settings-model').value = state.settings.model;
+  document.getElementById('settings-context').value = state.settings.globalContext || '';
+  updateApiKeyStatus(!!state.settings.apiKey);
+  showModal('modal-settings');
+}
+
+async function saveSettings() {
+  const key = document.getElementById('settings-apikey').value.trim();
+  const model = document.getElementById('settings-model').value;
+  const ctx = document.getElementById('settings-context').value.trim();
+  state.settings.apiKey = key;
+  state.settings.model = model;
+  state.settings.globalContext = ctx;
+  await dbPut('settings', { key: 'apiKey', value: key });
+  await dbPut('settings', { key: 'model', value: model });
+  await dbPut('settings', { key: 'globalContext', value: ctx });
+  closeModal();
+  checkApiKey();
+}
+
+function updateApiKeyStatus(hasKey) {
+  document.getElementById('apikey-dot').classList.toggle('ok', hasKey);
+  document.getElementById('apikey-status-text').textContent = hasKey ? 'API key saved' : 'No key saved';
+}
+
+function checkApiKey() {
+  const banner = document.getElementById('no-key-banner');
+  banner.classList.toggle('hidden', !!state.settings.apiKey || !state.activeProject);
+}
+
+async function clearAllData() {
+  if (!confirm('This will delete ALL projects, templates, documents, and chat history. Are you sure?')) return;
+  const stores = ['templates', 'projects', 'docs', 'chats', 'settings'];
+  for (const s of stores) {
+    const items = await dbGetAll(s);
+    for (const item of items) await dbDelete(s, item[s === 'settings' ? 'key' : 'id']);
+  }
+  location.reload();
+}
+
+// ─── MODAL HELPERS ────────────────────────────────────────────────────────────
+function showModal(id) {
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+function closeModalOnOverlay(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+function selectPill(el, groupId) {
+  document.querySelectorAll(`#${groupId} .type-pill`).forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+function selectPillByVal(groupId, val) {
+  document.querySelectorAll(`#${groupId} .type-pill`).forEach(p => {
+    p.classList.toggle('active', p.dataset.val === val);
+  });
+}
+function getActivePill(groupId) {
+  return document.querySelector(`#${groupId} .type-pill.active`)?.dataset.val || '';
+}
+
+// ─── INPUT RESIZE ────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = document.getElementById('chat-input');
+  ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; });
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+  showView('chat');
+  boot();
+});
+</script>
+</body>
+</html>
