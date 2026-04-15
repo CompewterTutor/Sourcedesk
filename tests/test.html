@@ -577,6 +577,201 @@
                 });
             });
 
+            /* ── parseStreamDelta ───────────────────────────────────────────────────── */
+            describe("parseStreamDelta", () => {
+                // Save and restore state.settings.provider around each test
+                const origProvider = state.settings.provider;
+
+                it("Anthropic: extracts text from content_block_delta event", () => {
+                    state.settings.provider = "anthropic";
+                    const data = JSON.stringify({
+                        type: "content_block_delta",
+                        index: 0,
+                        delta: { type: "text_delta", text: "Hello" },
+                    });
+                    expect(parseStreamDelta(data)).toBe("Hello");
+                    state.settings.provider = origProvider;
+                });
+
+                it("Anthropic: returns null for non-delta events", () => {
+                    state.settings.provider = "anthropic";
+                    const data = JSON.stringify({
+                        type: "message_start",
+                        message: {},
+                    });
+                    expect(parseStreamDelta(data)).toBe(null);
+                    state.settings.provider = origProvider;
+                });
+
+                it("OpenAI-compat: extracts content from choices[0].delta.content", () => {
+                    state.settings.provider = "openai";
+                    const data = JSON.stringify({
+                        id: "chatcmpl-abc",
+                        choices: [{ delta: { content: "World" }, index: 0 }],
+                    });
+                    expect(parseStreamDelta(data)).toBe("World");
+                    state.settings.provider = origProvider;
+                });
+
+                it("OpenRouter: extracts content (same format as OpenAI)", () => {
+                    state.settings.provider = "openrouter";
+                    const data = JSON.stringify({
+                        choices: [{ delta: { content: "Hi" }, index: 0 }],
+                    });
+                    expect(parseStreamDelta(data)).toBe("Hi");
+                    state.settings.provider = origProvider;
+                });
+
+                it("returns null for [DONE] sentinel", () => {
+                    state.settings.provider = "anthropic";
+                    expect(parseStreamDelta("[DONE]")).toBe(null);
+                    state.settings.provider = origProvider;
+                });
+
+                it("returns null for invalid JSON", () => {
+                    state.settings.provider = "openai";
+                    expect(parseStreamDelta("not json at all")).toBe(null);
+                    state.settings.provider = origProvider;
+                });
+            });
+
+            /* ── buildApiCall ───────────────────────────────────────────────────────── */
+            describe("buildApiCall", () => {
+                const origSettings = JSON.parse(JSON.stringify(state.settings));
+
+                function restoreSettings() {
+                    Object.assign(state.settings, origSettings);
+                }
+
+                it("Anthropic: url is api.anthropic.com/v1/messages", () => {
+                    state.settings.provider = "anthropic";
+                    state.settings.anthropicKey = "sk-ant-test";
+                    state.settings.model = "claude-sonnet-4-6";
+                    const { url } = buildApiCall("sys", []);
+                    expect(url).toBe("https://api.anthropic.com/v1/messages");
+                    restoreSettings();
+                });
+
+                it("Anthropic: x-api-key header is set, not Authorization", () => {
+                    state.settings.provider = "anthropic";
+                    state.settings.anthropicKey = "sk-ant-test";
+                    state.settings.model = "claude-sonnet-4-6";
+                    const { headers } = buildApiCall("sys", []);
+                    expect(headers["x-api-key"]).toBe("sk-ant-test");
+                    if (headers["Authorization"])
+                        throw new Error(
+                            "Authorization header should not be set for Anthropic",
+                        );
+                    restoreSettings();
+                });
+
+                it("Anthropic: body has top-level system field", () => {
+                    state.settings.provider = "anthropic";
+                    state.settings.anthropicKey = "sk-ant-test";
+                    state.settings.model = "claude-sonnet-4-6";
+                    const { body } = buildApiCall("MySysPrompt", [
+                        { role: "user", content: "hi" },
+                    ]);
+                    const parsed = JSON.parse(body);
+                    expect(parsed.system).toBe("MySysPrompt");
+                    restoreSettings();
+                });
+
+                it("OpenAI: url is api.openai.com/v1/chat/completions", () => {
+                    state.settings.provider = "openai";
+                    state.settings.openaiKey = "sk-test";
+                    state.settings.model = "gpt-4o";
+                    const { url } = buildApiCall("sys", []);
+                    expect(url).toBe(
+                        "https://api.openai.com/v1/chat/completions",
+                    );
+                    restoreSettings();
+                });
+
+                it("OpenAI: Authorization header uses Bearer scheme", () => {
+                    state.settings.provider = "openai";
+                    state.settings.openaiKey = "sk-test";
+                    state.settings.model = "gpt-4o";
+                    const { headers } = buildApiCall("sys", []);
+                    expect(headers["Authorization"]).toBe("Bearer sk-test");
+                    restoreSettings();
+                });
+
+                it("OpenAI: system prompt is first message with role=system", () => {
+                    state.settings.provider = "openai";
+                    state.settings.openaiKey = "sk-test";
+                    state.settings.model = "gpt-4o";
+                    const { body } = buildApiCall("SysContent", [
+                        { role: "user", content: "hello" },
+                    ]);
+                    const parsed = JSON.parse(body);
+                    expect(parsed.messages[0].role).toBe("system");
+                    expect(parsed.messages[0].content).toBe("SysContent");
+                    expect(parsed.messages[1].role).toBe("user");
+                    restoreSettings();
+                });
+
+                it("OpenRouter: url is openrouter.ai and has HTTP-Referer header", () => {
+                    state.settings.provider = "openrouter";
+                    state.settings.openrouterKey = "sk-or-test";
+                    state.settings.model = "anthropic/claude-sonnet-4-5";
+                    const { url, headers } = buildApiCall("sys", []);
+                    expect(url).toBe(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                    );
+                    expect(headers["HTTP-Referer"]).toBe(
+                        "https://sourcedesk.app",
+                    );
+                    restoreSettings();
+                });
+
+                it("GitHub Models: url is models.inference.ai.azure.com", () => {
+                    state.settings.provider = "github";
+                    state.settings.githubKey = "ghp_test";
+                    state.settings.model = "gpt-4o";
+                    const { url } = buildApiCall("sys", []);
+                    expect(url).toBe(
+                        "https://models.inference.ai.azure.com/chat/completions",
+                    );
+                    restoreSettings();
+                });
+            });
+
+            /* ── PROVIDERS constant ─────────────────────────────────────────────────── */
+            describe("PROVIDERS config", () => {
+                it("all four providers are defined", () => {
+                    expect(typeof PROVIDERS.anthropic).toBe("object");
+                    expect(typeof PROVIDERS.openai).toBe("object");
+                    expect(typeof PROVIDERS.openrouter).toBe("object");
+                    expect(typeof PROVIDERS.github).toBe("object");
+                });
+
+                it("each provider has at least one model", () => {
+                    ["anthropic", "openai", "openrouter", "github"].forEach(
+                        (p) => {
+                            if (!PROVIDERS[p].models.length)
+                                throw new Error(`${p} has no models`);
+                        },
+                    );
+                });
+
+                it("each provider defaultModel exists in its models list", () => {
+                    ["anthropic", "openai", "openrouter", "github"].forEach(
+                        (p) => {
+                            const cfg = PROVIDERS[p];
+                            if (
+                                !cfg.models.some(
+                                    (m) => m.id === cfg.defaultModel,
+                                )
+                            )
+                                throw new Error(
+                                    `${p} defaultModel '${cfg.defaultModel}' not in models list`,
+                                );
+                        },
+                    );
+                });
+            });
+
             /* ═══════════════════════════════════════════════════════════════════════════
    RENDER RESULTS
    ═══════════════════════════════════════════════════════════════════════════ */

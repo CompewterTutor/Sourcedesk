@@ -1,404 +1,1473 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SourceDesk — Procurement Intelligence</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #0f0e0c;
-    --surface: #191816;
-    --surface2: #22201e;
-    --border: #2e2c28;
-    --border-light: #3a3834;
-    --accent: #c9a84c;
-    --accent-dim: #7a6430;
-    --accent-glow: rgba(201,168,76,0.12);
-    --text: #e8e4dc;
-    --text-dim: #8a8578;
-    --text-muted: #504e49;
-    --danger: #c0513a;
-    --success: #5a9e6f;
-    --tag-rfp: #3d5a8a;
-    --tag-rfi: #5a3d8a;
-    --tag-vendor: #3d8a5a;
-    --tag-contract: #8a5a3d;
-    --radius: 6px;
-    --radius-lg: 10px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; font-family: 'Instrument Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>SourceDesk — Procurement Intelligence</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --bg: #0f0e0c;
+                --surface: #191816;
+                --surface2: #22201e;
+                --border: #2e2c28;
+                --border-light: #3a3834;
+                --accent: #c9a84c;
+                --accent-dim: #7a6430;
+                --accent-glow: rgba(201, 168, 76, 0.12);
+                --text: #e8e4dc;
+                --text-dim: #8a8578;
+                --text-muted: #504e49;
+                --danger: #c0513a;
+                --success: #5a9e6f;
+                --tag-rfp: #3d5a8a;
+                --tag-rfi: #5a3d8a;
+                --tag-vendor: #3d8a5a;
+                --tag-contract: #8a5a3d;
+                --radius: 6px;
+                --radius-lg: 10px;
+            }
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            html,
+            body {
+                height: 100%;
+                font-family: "Instrument Sans", sans-serif;
+                background: var(--bg);
+                color: var(--text);
+                overflow: hidden;
+            }
 
-  /* ─── LAYOUT ─────────────────────────────────── */
-  #app { display: grid; grid-template-columns: 240px 1fr; grid-template-rows: 48px 1fr; height: 100vh; }
-  #topbar { grid-column: 1/-1; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--surface); gap: 12px; }
-  #sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
-  #main { display: flex; overflow: hidden; }
+            /* ─── LAYOUT ─────────────────────────────────── */
+            #app {
+                display: grid;
+                grid-template-columns: 240px 1fr;
+                grid-template-rows: 48px 1fr;
+                height: 100vh;
+            }
+            #topbar {
+                grid-column: 1/-1;
+                display: flex;
+                align-items: center;
+                padding: 0 16px;
+                border-bottom: 1px solid var(--border);
+                background: var(--surface);
+                gap: 12px;
+            }
+            #sidebar {
+                background: var(--surface);
+                border-right: 1px solid var(--border);
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            #main {
+                display: flex;
+                overflow: hidden;
+            }
 
-  /* ─── TOPBAR ──────────────────────────────────── */
-  .logo { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--accent); letter-spacing: -0.3px; }
-  .logo span { color: var(--text-dim); font-style: italic; }
-  .topbar-sep { flex: 1; }
-  #project-title { font-family: 'DM Serif Display', serif; font-size: 15px; color: var(--text); }
-  #project-type-badge { font-size: 10px; font-family: 'DM Mono', monospace; padding: 2px 8px; border-radius: 20px; background: var(--accent-glow); color: var(--accent); border: 1px solid var(--accent-dim); text-transform: uppercase; letter-spacing: 0.5px; }
-  .btn-icon { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--radius); padding: 5px 10px; cursor: pointer; font-size: 12px; font-family: 'Instrument Sans', sans-serif; transition: all 0.15s; display: flex; align-items: center; gap: 5px; }
-  .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
-  .btn-icon svg { width: 13px; height: 13px; }
+            /* ─── TOPBAR ──────────────────────────────────── */
+            .logo {
+                font-family: "DM Serif Display", serif;
+                font-size: 18px;
+                color: var(--accent);
+                letter-spacing: -0.3px;
+            }
+            .logo span {
+                color: var(--text-dim);
+                font-style: italic;
+            }
+            .topbar-sep {
+                flex: 1;
+            }
+            #project-title {
+                font-family: "DM Serif Display", serif;
+                font-size: 15px;
+                color: var(--text);
+            }
+            #project-type-badge {
+                font-size: 10px;
+                font-family: "DM Mono", monospace;
+                padding: 2px 8px;
+                border-radius: 20px;
+                background: var(--accent-glow);
+                color: var(--accent);
+                border: 1px solid var(--accent-dim);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .btn-icon {
+                background: none;
+                border: 1px solid var(--border);
+                color: var(--text-dim);
+                border-radius: var(--radius);
+                padding: 5px 10px;
+                cursor: pointer;
+                font-size: 12px;
+                font-family: "Instrument Sans", sans-serif;
+                transition: all 0.15s;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .btn-icon:hover {
+                border-color: var(--accent);
+                color: var(--accent);
+            }
+            .btn-icon svg {
+                width: 13px;
+                height: 13px;
+            }
 
-  /* ─── SIDEBAR ─────────────────────────────────── */
-  .sidebar-section { padding: 10px 12px 6px; font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; }
-  .sidebar-add { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; transition: color 0.15s; }
-  .sidebar-add:hover { color: var(--accent); }
-  .sidebar-list { overflow-y: auto; flex-shrink: 0; max-height: 200px; }
-  .sidebar-item { padding: 7px 12px; cursor: pointer; font-size: 12px; color: var(--text-dim); border-left: 2px solid transparent; transition: all 0.15s; display: flex; align-items: center; gap: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sidebar-item:hover { background: var(--surface2); color: var(--text); }
-  .sidebar-item.active { background: var(--accent-glow); border-left-color: var(--accent); color: var(--accent); }
-  .sidebar-item .item-icon { flex-shrink: 0; opacity: 0.6; font-size: 11px; }
-  .sidebar-item .item-name { overflow: hidden; text-overflow: ellipsis; flex: 1; }
-  .sidebar-divider { height: 1px; background: var(--border); margin: 8px 0; }
-  .sidebar-scroll { flex: 1; overflow-y: auto; }
+            /* ─── SIDEBAR ─────────────────────────────────── */
+            .sidebar-section {
+                padding: 10px 12px 6px;
+                font-size: 9px;
+                font-family: "DM Mono", monospace;
+                color: var(--text-muted);
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .sidebar-add {
+                background: none;
+                border: none;
+                color: var(--text-muted);
+                cursor: pointer;
+                font-size: 16px;
+                line-height: 1;
+                padding: 0 2px;
+                transition: color 0.15s;
+            }
+            .sidebar-add:hover {
+                color: var(--accent);
+            }
+            .sidebar-list {
+                overflow-y: auto;
+                flex-shrink: 0;
+                max-height: 200px;
+            }
+            .sidebar-item {
+                padding: 7px 12px;
+                cursor: pointer;
+                font-size: 12px;
+                color: var(--text-dim);
+                border-left: 2px solid transparent;
+                transition: all 0.15s;
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .sidebar-item:hover {
+                background: var(--surface2);
+                color: var(--text);
+            }
+            .sidebar-item.active {
+                background: var(--accent-glow);
+                border-left-color: var(--accent);
+                color: var(--accent);
+            }
+            .sidebar-item .item-icon {
+                flex-shrink: 0;
+                opacity: 0.6;
+                font-size: 11px;
+            }
+            .sidebar-item .item-name {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                flex: 1;
+            }
+            .sidebar-divider {
+                height: 1px;
+                background: var(--border);
+                margin: 8px 0;
+            }
+            .sidebar-scroll {
+                flex: 1;
+                overflow-y: auto;
+            }
 
-  /* ─── MAIN PANELS ─────────────────────────────── */
-  #panel-chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  #panel-right { width: 280px; border-left: 1px solid var(--border); display: flex; flex-direction: column; background: var(--surface); transition: width 0.2s; overflow: hidden; }
-  #panel-right.collapsed { width: 0; }
+            /* ─── MAIN PANELS ─────────────────────────────── */
+            #panel-chat {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            #panel-right {
+                width: 280px;
+                border-left: 1px solid var(--border);
+                display: flex;
+                flex-direction: column;
+                background: var(--surface);
+                transition: width 0.2s;
+                overflow: hidden;
+            }
+            #panel-right.collapsed {
+                width: 0;
+            }
 
-  /* ─── CHAT ────────────────────────────────────── */
-  #chat-messages { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-  .msg { display: flex; gap: 10px; align-items: flex-start; animation: fadeIn 0.2s ease; }
-  .msg.user { flex-direction: row-reverse; }
-  .msg-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-family: 'DM Mono', monospace; }
-  .msg.assistant .msg-avatar { background: var(--accent-glow); border: 1px solid var(--accent-dim); color: var(--accent); }
-  .msg.user .msg-avatar { background: var(--surface2); border: 1px solid var(--border); color: var(--text-dim); }
-  .msg-bubble { max-width: 72%; padding: 10px 14px; border-radius: var(--radius-lg); font-size: 13.5px; line-height: 1.6; }
-  .msg.assistant .msg-bubble { background: var(--surface2); border: 1px solid var(--border); }
-  .msg.user .msg-bubble { background: var(--accent-glow); border: 1px solid var(--accent-dim); }
-  .msg-bubble p { margin-bottom: 8px; } .msg-bubble p:last-child { margin-bottom: 0; }
-  .msg-bubble ul, .msg-bubble ol { padding-left: 18px; margin-bottom: 8px; }
-  .msg-bubble li { margin-bottom: 3px; }
-  .msg-bubble strong { color: var(--accent); font-weight: 600; }
-  .msg-bubble code { font-family: 'DM Mono', monospace; font-size: 12px; background: var(--bg); padding: 1px 5px; border-radius: 3px; color: var(--accent); }
-  .msg-bubble pre { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; margin: 8px 0; overflow-x: auto; }
-  .msg-bubble pre code { background: none; padding: 0; }
-  .typing-indicator { display: flex; gap: 4px; padding: 4px 0; }
-  .typing-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-dim); animation: typingPulse 1.2s infinite; }
-  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+            /* ─── CHAT ────────────────────────────────────── */
+            #chat-messages {
+                flex: 1;
+                overflow-y: auto;
+                padding: 20px 24px;
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+            }
+            .msg {
+                display: flex;
+                gap: 10px;
+                align-items: flex-start;
+                animation: fadeIn 0.2s ease;
+            }
+            .msg.user {
+                flex-direction: row-reverse;
+            }
+            .msg-avatar {
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 11px;
+                font-family: "DM Mono", monospace;
+            }
+            .msg.assistant .msg-avatar {
+                background: var(--accent-glow);
+                border: 1px solid var(--accent-dim);
+                color: var(--accent);
+            }
+            .msg.user .msg-avatar {
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                color: var(--text-dim);
+            }
+            .msg-bubble {
+                max-width: 72%;
+                padding: 10px 14px;
+                border-radius: var(--radius-lg);
+                font-size: 13.5px;
+                line-height: 1.6;
+            }
+            .msg.assistant .msg-bubble {
+                background: var(--surface2);
+                border: 1px solid var(--border);
+            }
+            .msg.user .msg-bubble {
+                background: var(--accent-glow);
+                border: 1px solid var(--accent-dim);
+            }
+            .msg-bubble p {
+                margin-bottom: 8px;
+            }
+            .msg-bubble p:last-child {
+                margin-bottom: 0;
+            }
+            .msg-bubble ul,
+            .msg-bubble ol {
+                padding-left: 18px;
+                margin-bottom: 8px;
+            }
+            .msg-bubble li {
+                margin-bottom: 3px;
+            }
+            .msg-bubble strong {
+                color: var(--accent);
+                font-weight: 600;
+            }
+            .msg-bubble code {
+                font-family: "DM Mono", monospace;
+                font-size: 12px;
+                background: var(--bg);
+                padding: 1px 5px;
+                border-radius: 3px;
+                color: var(--accent);
+            }
+            .msg-bubble pre {
+                background: var(--bg);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 10px;
+                margin: 8px 0;
+                overflow-x: auto;
+            }
+            .msg-bubble pre code {
+                background: none;
+                padding: 0;
+            }
+            .typing-indicator {
+                display: flex;
+                gap: 4px;
+                padding: 4px 0;
+            }
+            .typing-dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: var(--accent-dim);
+                animation: typingPulse 1.2s infinite;
+            }
+            .typing-dot:nth-child(2) {
+                animation-delay: 0.2s;
+            }
+            .typing-dot:nth-child(3) {
+                animation-delay: 0.4s;
+            }
 
-  #chat-input-area { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-end; }
-  #chat-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 10px 14px; color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 13.5px; resize: none; min-height: 42px; max-height: 120px; outline: none; transition: border-color 0.15s; line-height: 1.5; }
-  #chat-input:focus { border-color: var(--accent-dim); }
-  #chat-input::placeholder { color: var(--text-muted); }
-  #send-btn { background: var(--accent); border: none; color: var(--bg); border-radius: var(--radius); padding: 10px 14px; cursor: pointer; font-size: 13px; font-family: 'Instrument Sans', sans-serif; font-weight: 600; transition: opacity 0.15s; flex-shrink: 0; }
-  #send-btn:hover { opacity: 0.85; }
-  #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+            #chat-input-area {
+                padding: 12px 16px;
+                border-top: 1px solid var(--border);
+                display: flex;
+                gap: 8px;
+                align-items: flex-end;
+            }
+            #chat-input {
+                flex: 1;
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-lg);
+                padding: 10px 14px;
+                color: var(--text);
+                font-family: "Instrument Sans", sans-serif;
+                font-size: 13.5px;
+                resize: none;
+                min-height: 42px;
+                max-height: 120px;
+                outline: none;
+                transition: border-color 0.15s;
+                line-height: 1.5;
+            }
+            #chat-input:focus {
+                border-color: var(--accent-dim);
+            }
+            #chat-input::placeholder {
+                color: var(--text-muted);
+            }
+            #send-btn {
+                background: var(--accent);
+                border: none;
+                color: var(--bg);
+                border-radius: var(--radius);
+                padding: 10px 14px;
+                cursor: pointer;
+                font-size: 13px;
+                font-family: "Instrument Sans", sans-serif;
+                font-weight: 600;
+                transition: opacity 0.15s;
+                flex-shrink: 0;
+            }
+            #send-btn:hover {
+                opacity: 0.85;
+            }
+            #send-btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
 
-  /* ─── RIGHT PANEL ─────────────────────────────── */
-  .rpanel-header { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; }
-  .rpanel-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .rpanel-label { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .context-doc { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--surface2); border-radius: var(--radius); margin-bottom: 4px; font-size: 11px; color: var(--text-dim); border: 1px solid var(--border); cursor: pointer; transition: all 0.15s; }
-  .context-doc.active { border-color: var(--accent-dim); color: var(--text); }
-  .context-doc .doc-toggle { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border-light); background: var(--surface); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-  .context-doc.active .doc-toggle { background: var(--accent); border-color: var(--accent); }
-  .context-doc .doc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .doc-upload-btn { width: 100%; padding: 7px; background: none; border: 1px dashed var(--border-light); border-radius: var(--radius); color: var(--text-muted); cursor: pointer; font-size: 11px; font-family: 'Instrument Sans', sans-serif; transition: all 0.15s; text-align: center; }
-  .doc-upload-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
-  .other-project-item { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: var(--radius); font-size: 11px; color: var(--text-dim); cursor: pointer; transition: all 0.15s; }
-  .other-project-item:hover { background: var(--surface2); }
-  .other-project-item input[type=checkbox] { accent-color: var(--accent); }
-  .template-ref { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--accent-glow); border: 1px solid var(--accent-dim); border-radius: var(--radius); font-size: 11px; color: var(--accent); }
+            /* ─── RIGHT PANEL ─────────────────────────────── */
+            .rpanel-header {
+                padding: 12px 14px;
+                border-bottom: 1px solid var(--border);
+                font-size: 10px;
+                font-family: "DM Mono", monospace;
+                color: var(--text-muted);
+                letter-spacing: 1px;
+                text-transform: uppercase;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .rpanel-section {
+                padding: 10px 14px;
+                border-bottom: 1px solid var(--border);
+            }
+            .rpanel-label {
+                font-size: 9px;
+                font-family: "DM Mono", monospace;
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 6px;
+            }
+            .context-doc {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 5px 8px;
+                background: var(--surface2);
+                border-radius: var(--radius);
+                margin-bottom: 4px;
+                font-size: 11px;
+                color: var(--text-dim);
+                border: 1px solid var(--border);
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            .context-doc.active {
+                border-color: var(--accent-dim);
+                color: var(--text);
+            }
+            .context-doc .doc-toggle {
+                width: 14px;
+                height: 14px;
+                border-radius: 3px;
+                border: 1px solid var(--border-light);
+                background: var(--surface);
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.15s;
+            }
+            .context-doc.active .doc-toggle {
+                background: var(--accent);
+                border-color: var(--accent);
+            }
+            .context-doc .doc-name {
+                flex: 1;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .doc-upload-btn {
+                width: 100%;
+                padding: 7px;
+                background: none;
+                border: 1px dashed var(--border-light);
+                border-radius: var(--radius);
+                color: var(--text-muted);
+                cursor: pointer;
+                font-size: 11px;
+                font-family: "Instrument Sans", sans-serif;
+                transition: all 0.15s;
+                text-align: center;
+            }
+            .doc-upload-btn:hover {
+                border-color: var(--accent-dim);
+                color: var(--accent);
+            }
+            .other-project-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px 6px;
+                border-radius: var(--radius);
+                font-size: 11px;
+                color: var(--text-dim);
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            .other-project-item:hover {
+                background: var(--surface2);
+            }
+            .other-project-item input[type="checkbox"] {
+                accent-color: var(--accent);
+            }
+            .template-ref {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 6px 8px;
+                background: var(--accent-glow);
+                border: 1px solid var(--accent-dim);
+                border-radius: var(--radius);
+                font-size: 11px;
+                color: var(--accent);
+            }
 
-  /* ─── MODALS ──────────────────────────────────── */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
-  .modal { background: var(--surface); border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 24px; width: 520px; max-width: 95vw; max-height: 85vh; overflow-y: auto; }
-  .modal-title { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 4px; color: var(--text); }
-  .modal-subtitle { font-size: 12px; color: var(--text-dim); margin-bottom: 20px; }
-  .form-row { margin-bottom: 14px; }
-  .form-label { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text-dim); margin-bottom: 5px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
-  .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.15s; }
-  .form-input:focus { border-color: var(--accent-dim); }
-  .form-textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; outline: none; resize: vertical; min-height: 160px; line-height: 1.5; transition: border-color 0.15s; }
-  .form-textarea:focus { border-color: var(--accent-dim); }
-  .form-select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 13px; outline: none; cursor: pointer; }
-  .type-pills { display: flex; gap: 6px; flex-wrap: wrap; }
-  .type-pill { padding: 5px 12px; border-radius: 20px; font-size: 11px; border: 1px solid var(--border); cursor: pointer; transition: all 0.15s; font-family: 'DM Mono', monospace; color: var(--text-dim); background: var(--surface2); }
-  .type-pill.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
-  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
-  .btn-primary { background: var(--accent); border: none; color: var(--bg); border-radius: var(--radius); padding: 8px 18px; cursor: pointer; font-size: 13px; font-family: 'Instrument Sans', sans-serif; font-weight: 600; transition: opacity 0.15s; }
-  .btn-primary:hover { opacity: 0.85; }
-  .btn-secondary { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: var(--radius); padding: 8px 18px; cursor: pointer; font-size: 13px; font-family: 'Instrument Sans', sans-serif; transition: all 0.15s; }
-  .btn-secondary:hover { border-color: var(--text-dim); color: var(--text); }
-  .btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); border-radius: var(--radius); padding: 8px 18px; cursor: pointer; font-size: 13px; font-family: 'Instrument Sans', sans-serif; transition: all 0.15s; }
-  .btn-danger:hover { background: var(--danger); color: white; }
+            /* ─── MODALS ──────────────────────────────────── */
+            .modal-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 100;
+                backdrop-filter: blur(4px);
+            }
+            .modal {
+                background: var(--surface);
+                border: 1px solid var(--border-light);
+                border-radius: var(--radius-lg);
+                padding: 24px;
+                width: 520px;
+                max-width: 95vw;
+                max-height: 85vh;
+                overflow-y: auto;
+            }
+            .modal-title {
+                font-family: "DM Serif Display", serif;
+                font-size: 20px;
+                margin-bottom: 4px;
+                color: var(--text);
+            }
+            .modal-subtitle {
+                font-size: 12px;
+                color: var(--text-dim);
+                margin-bottom: 20px;
+            }
+            .form-row {
+                margin-bottom: 14px;
+            }
+            .form-label {
+                font-size: 11px;
+                font-family: "DM Mono", monospace;
+                color: var(--text-dim);
+                margin-bottom: 5px;
+                display: block;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .form-input {
+                width: 100%;
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 8px 12px;
+                color: var(--text);
+                font-family: "Instrument Sans", sans-serif;
+                font-size: 13px;
+                outline: none;
+                transition: border-color 0.15s;
+            }
+            .form-input:focus {
+                border-color: var(--accent-dim);
+            }
+            .form-textarea {
+                width: 100%;
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 8px 12px;
+                color: var(--text);
+                font-family: "DM Mono", monospace;
+                font-size: 12px;
+                outline: none;
+                resize: vertical;
+                min-height: 160px;
+                line-height: 1.5;
+                transition: border-color 0.15s;
+            }
+            .form-textarea:focus {
+                border-color: var(--accent-dim);
+            }
+            .form-select {
+                width: 100%;
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 8px 12px;
+                color: var(--text);
+                font-family: "Instrument Sans", sans-serif;
+                font-size: 13px;
+                outline: none;
+                cursor: pointer;
+            }
+            .type-pills {
+                display: flex;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .type-pill {
+                padding: 5px 12px;
+                border-radius: 20px;
+                font-size: 11px;
+                border: 1px solid var(--border);
+                cursor: pointer;
+                transition: all 0.15s;
+                font-family: "DM Mono", monospace;
+                color: var(--text-dim);
+                background: var(--surface2);
+            }
+            .type-pill.active {
+                border-color: var(--accent);
+                color: var(--accent);
+                background: var(--accent-glow);
+            }
+            .modal-actions {
+                display: flex;
+                gap: 8px;
+                justify-content: flex-end;
+                margin-top: 20px;
+                padding-top: 16px;
+                border-top: 1px solid var(--border);
+            }
+            .btn-primary {
+                background: var(--accent);
+                border: none;
+                color: var(--bg);
+                border-radius: var(--radius);
+                padding: 8px 18px;
+                cursor: pointer;
+                font-size: 13px;
+                font-family: "Instrument Sans", sans-serif;
+                font-weight: 600;
+                transition: opacity 0.15s;
+            }
+            .btn-primary:hover {
+                opacity: 0.85;
+            }
+            .btn-secondary {
+                background: none;
+                border: 1px solid var(--border);
+                color: var(--text-dim);
+                border-radius: var(--radius);
+                padding: 8px 18px;
+                cursor: pointer;
+                font-size: 13px;
+                font-family: "Instrument Sans", sans-serif;
+                transition: all 0.15s;
+            }
+            .btn-secondary:hover {
+                border-color: var(--text-dim);
+                color: var(--text);
+            }
+            .btn-danger {
+                background: none;
+                border: 1px solid var(--danger);
+                color: var(--danger);
+                border-radius: var(--radius);
+                padding: 8px 18px;
+                cursor: pointer;
+                font-size: 13px;
+                font-family: "Instrument Sans", sans-serif;
+                transition: all 0.15s;
+            }
+            .btn-danger:hover {
+                background: var(--danger);
+                color: white;
+            }
 
-  /* Templates view */
-  #templates-view { display: none; flex-direction: column; height: 100%; overflow: hidden; }
-  .templates-grid { flex: 1; overflow-y: auto; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; align-content: start; }
-  .template-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; cursor: pointer; transition: all 0.15s; position: relative; }
-  .template-card:hover { border-color: var(--accent-dim); }
-  .template-card-type { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding: 2px 7px; border-radius: 20px; display: inline-block; }
-  .type-skeleton { background: rgba(61,90,138,0.2); color: #7a9fd4; border: 1px solid rgba(61,90,138,0.4); }
-  .type-example { background: rgba(90,158,111,0.15); color: #7ac990; border: 1px solid rgba(90,158,111,0.3); }
-  .template-card-name { font-family: 'DM Serif Display', serif; font-size: 15px; margin-bottom: 6px; }
-  .template-card-category { font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
-  .template-card-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
-  .template-card:hover .template-card-actions { opacity: 1; }
-  .tcard-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-dim); border-radius: 4px; padding: 3px 7px; font-size: 10px; cursor: pointer; transition: all 0.15s; font-family: 'DM Mono', monospace; }
-  .tcard-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
-  .tcard-btn.del:hover { border-color: var(--danger); color: var(--danger); }
-  .view-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; background: var(--surface); }
-  .view-title { font-family: 'DM Serif Display', serif; font-size: 17px; flex: 1; }
-  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; color: var(--text-muted); font-size: 13px; gap: 10px; }
-  .empty-state svg { opacity: 0.3; }
+            /* Templates view */
+            #templates-view {
+                display: none;
+                flex-direction: column;
+                height: 100%;
+                overflow: hidden;
+            }
+            .templates-grid {
+                flex: 1;
+                overflow-y: auto;
+                padding: 20px;
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                gap: 14px;
+                align-content: start;
+            }
+            .template-card {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-lg);
+                padding: 16px;
+                cursor: pointer;
+                transition: all 0.15s;
+                position: relative;
+            }
+            .template-card:hover {
+                border-color: var(--accent-dim);
+            }
+            .template-card-type {
+                font-size: 9px;
+                font-family: "DM Mono", monospace;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 8px;
+                padding: 2px 7px;
+                border-radius: 20px;
+                display: inline-block;
+            }
+            .type-skeleton {
+                background: rgba(61, 90, 138, 0.2);
+                color: #7a9fd4;
+                border: 1px solid rgba(61, 90, 138, 0.4);
+            }
+            .type-example {
+                background: rgba(90, 158, 111, 0.15);
+                color: #7ac990;
+                border: 1px solid rgba(90, 158, 111, 0.3);
+            }
+            .template-card-name {
+                font-family: "DM Serif Display", serif;
+                font-size: 15px;
+                margin-bottom: 6px;
+            }
+            .template-card-category {
+                font-size: 11px;
+                color: var(--text-muted);
+                font-family: "DM Mono", monospace;
+            }
+            .template-card-actions {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                display: flex;
+                gap: 4px;
+                opacity: 0;
+                transition: opacity 0.15s;
+            }
+            .template-card:hover .template-card-actions {
+                opacity: 1;
+            }
+            .tcard-btn {
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                color: var(--text-dim);
+                border-radius: 4px;
+                padding: 3px 7px;
+                font-size: 10px;
+                cursor: pointer;
+                transition: all 0.15s;
+                font-family: "DM Mono", monospace;
+            }
+            .tcard-btn:hover {
+                border-color: var(--accent-dim);
+                color: var(--accent);
+            }
+            .tcard-btn.del:hover {
+                border-color: var(--danger);
+                color: var(--danger);
+            }
+            .view-header {
+                padding: 14px 20px;
+                border-bottom: 1px solid var(--border);
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                background: var(--surface);
+            }
+            .view-title {
+                font-family: "DM Serif Display", serif;
+                font-size: 17px;
+                flex: 1;
+            }
+            .empty-state {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 200px;
+                color: var(--text-muted);
+                font-size: 13px;
+                gap: 10px;
+            }
+            .empty-state svg {
+                opacity: 0.3;
+            }
 
-  /* Settings */
-  .api-key-status { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 10px; border-radius: var(--radius); background: var(--surface2); border: 1px solid var(--border); margin-top: 6px; }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
-  .status-dot.ok { background: var(--success); }
+            /* Settings */
+            .api-key-status {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 12px;
+                padding: 6px 10px;
+                border-radius: var(--radius);
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                margin-top: 6px;
+            }
+            .status-dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: var(--danger);
+            }
+            .status-dot.ok {
+                background: var(--success);
+            }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+            /* Scrollbar */
+            ::-webkit-scrollbar {
+                width: 4px;
+            }
+            ::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: var(--border-light);
+                border-radius: 2px;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: var(--accent-dim);
+            }
 
-  /* Animations */
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes typingPulse { 0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
-  .hidden { display: none !important; }
+            /* Animations */
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(6px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            @keyframes typingPulse {
+                0%,
+                80%,
+                100% {
+                    opacity: 0.3;
+                    transform: scale(0.8);
+                }
+                40% {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+            .hidden {
+                display: none !important;
+            }
 
-  /* welcome screen */
-  #welcome-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-muted); text-align: center; padding: 40px; }
-  #welcome-screen h2 { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--text-dim); }
-  #welcome-screen p { font-size: 13px; max-width: 340px; line-height: 1.7; }
-  .welcome-actions { display: flex; gap: 10px; margin-top: 16px; }
+            /* welcome screen */
+            #welcome-screen {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                color: var(--text-muted);
+                text-align: center;
+                padding: 40px;
+            }
+            #welcome-screen h2 {
+                font-family: "DM Serif Display", serif;
+                font-size: 28px;
+                color: var(--text-dim);
+            }
+            #welcome-screen p {
+                font-size: 13px;
+                max-width: 340px;
+                line-height: 1.7;
+            }
+            .welcome-actions {
+                display: flex;
+                gap: 10px;
+                margin-top: 16px;
+            }
 
-  .chunk-used { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-muted); margin-top: 8px; padding: 4px 8px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); }
-  .chunk-source { color: var(--accent-dim); }
-  .no-key-banner { background: rgba(192,81,58,0.1); border: 1px solid rgba(192,81,58,0.3); border-radius: var(--radius); padding: 8px 12px; font-size: 12px; color: #e07a65; display: flex; align-items: center; gap: 8px; margin: 8px 16px 0; }
-  .no-key-banner button { background: none; border: 1px solid rgba(192,81,58,0.5); color: #e07a65; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: 'Instrument Sans', sans-serif; }
-</style>
-</head>
-<body>
-<div id="app">
-  <!-- TOPBAR -->
-  <div id="topbar">
-    <div class="logo">Source<span>Desk</span></div>
-    <div class="topbar-sep"></div>
-    <span id="project-title" style="color:var(--text-muted);font-size:13px">No project selected</span>
-    <span id="project-type-badge" class="hidden"></span>
-    <div style="flex:1"></div>
-    <button class="btn-icon" onclick="showView('templates')">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
-      Templates
-    </button>
-    <button class="btn-icon" onclick="openSettings()">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.22 3.22l1.41 1.41M11.36 11.36l1.41 1.41M3.22 12.78l1.41-1.41M11.36 4.64l1.41-1.41"/></svg>
-      Settings
-    </button>
-    <button class="btn-icon" id="toggle-right-panel" onclick="toggleRightPanel()">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="14" height="14" rx="1.5"/><line x1="10" y1="1" x2="10" y2="15"/></svg>
-      Context
-    </button>
-  </div>
+            .chunk-used {
+                font-size: 10px;
+                font-family: "DM Mono", monospace;
+                color: var(--text-muted);
+                margin-top: 8px;
+                padding: 4px 8px;
+                background: var(--surface);
+                border-radius: var(--radius);
+                border: 1px solid var(--border);
+            }
+            .chunk-source {
+                color: var(--accent-dim);
+            }
+            .no-key-banner {
+                background: rgba(192, 81, 58, 0.1);
+                border: 1px solid rgba(192, 81, 58, 0.3);
+                border-radius: var(--radius);
+                padding: 8px 12px;
+                font-size: 12px;
+                color: #e07a65;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin: 8px 16px 0;
+            }
+            .no-key-banner button {
+                background: none;
+                border: 1px solid rgba(192, 81, 58, 0.5);
+                color: #e07a65;
+                padding: 2px 8px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 11px;
+                font-family: "Instrument Sans", sans-serif;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <!-- TOPBAR -->
+            <div id="topbar">
+                <div class="logo">Source<span>Desk</span></div>
+                <div class="topbar-sep"></div>
+                <span
+                    id="app-version"
+                    style="
+                        font-size: 10px;
+                        font-family: &quot;DM Mono&quot;, monospace;
+                        color: var(--text-muted);
+                        opacity: 0.7;
+                    "
+                ></span>
+                <span
+                    id="project-title"
+                    style="color: var(--text-muted); font-size: 13px"
+                    >No project selected</span
+                >
+                <span id="project-type-badge" class="hidden"></span>
+                <div style="flex: 1"></div>
+                <button class="btn-icon" onclick="showView('templates')">
+                    <svg
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                    >
+                        <rect x="1" y="1" width="6" height="6" rx="1" />
+                        <rect x="9" y="1" width="6" height="6" rx="1" />
+                        <rect x="1" y="9" width="6" height="6" rx="1" />
+                        <rect x="9" y="9" width="6" height="6" rx="1" />
+                    </svg>
+                    Templates
+                </button>
+                <button class="btn-icon" onclick="openSettings()">
+                    <svg
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                    >
+                        <circle cx="8" cy="8" r="2.5" />
+                        <path
+                            d="M8 1v2M8 13v2M1 8h2M13 8h2M3.22 3.22l1.41 1.41M11.36 11.36l1.41 1.41M3.22 12.78l1.41-1.41M11.36 4.64l1.41-1.41"
+                        />
+                    </svg>
+                    Settings
+                </button>
+                <button
+                    class="btn-icon"
+                    id="toggle-right-panel"
+                    onclick="toggleRightPanel()"
+                >
+                    <svg
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                    >
+                        <rect x="1" y="1" width="14" height="14" rx="1.5" />
+                        <line x1="10" y1="1" x2="10" y2="15" />
+                    </svg>
+                    Context
+                </button>
+            </div>
 
-  <!-- SIDEBAR -->
-  <div id="sidebar">
-    <div class="sidebar-section">
-      Projects
-      <button class="sidebar-add" onclick="openNewProject()" title="New project">+</button>
-    </div>
-    <div class="sidebar-list" id="projects-list"></div>
-    <div class="sidebar-divider"></div>
-    <div class="sidebar-section" style="flex-shrink:0">Recent</div>
-    <div class="sidebar-scroll" id="recent-list" style="padding-bottom:8px"></div>
-  </div>
+            <!-- SIDEBAR -->
+            <div id="sidebar">
+                <div class="sidebar-section">
+                    Projects
+                    <button
+                        class="sidebar-add"
+                        onclick="openNewProject()"
+                        title="New project"
+                    >
+                        +
+                    </button>
+                </div>
+                <div class="sidebar-list" id="projects-list"></div>
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-section" style="flex-shrink: 0">Recent</div>
+                <div
+                    class="sidebar-scroll"
+                    id="recent-list"
+                    style="padding-bottom: 8px"
+                ></div>
+            </div>
 
-  <!-- MAIN -->
-  <div id="main">
-    <!-- Templates View -->
-    <div id="templates-view">
-      <div class="view-header">
-        <div class="view-title">Templates Library</div>
-        <button class="btn-icon" onclick="showView('chat')">← Back</button>
-        <button class="btn-primary" onclick="openNewTemplate()">+ New Template</button>
-      </div>
-      <div class="templates-grid" id="templates-grid"></div>
-    </div>
+            <!-- MAIN -->
+            <div id="main">
+                <!-- Templates View -->
+                <div id="templates-view">
+                    <div class="view-header">
+                        <div class="view-title">Templates Library</div>
+                        <button class="btn-icon" onclick="showView('chat')">
+                            ← Back
+                        </button>
+                        <button class="btn-primary" onclick="openNewTemplate()">
+                            + New Template
+                        </button>
+                    </div>
+                    <div class="templates-grid" id="templates-grid"></div>
+                </div>
 
-    <!-- Chat View -->
-    <div id="chat-view" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
-      <div id="no-key-banner" class="no-key-banner hidden">
-        ⚠ No API key set — chat won't work.
-        <button onclick="openSettings()">Add key</button>
-      </div>
-      <div id="welcome-screen">
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.3"><rect x="6" y="6" width="36" height="36" rx="4"/><line x1="14" y1="16" x2="34" y2="16"/><line x1="14" y1="24" x2="34" y2="24"/><line x1="14" y1="32" x2="24" y2="32"/></svg>
-        <h2>SourceDesk</h2>
-        <p>Select a project from the sidebar, or create one from a template to get started.</p>
-        <div class="welcome-actions">
-          <button class="btn-primary" onclick="openNewProject()">New Project</button>
-          <button class="btn-secondary" onclick="showView('templates')">Browse Templates</button>
+                <!-- Chat View -->
+                <div
+                    id="chat-view"
+                    style="
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        overflow: hidden;
+                    "
+                >
+                    <div id="no-key-banner" class="no-key-banner hidden">
+                        ⚠ No API key set — chat won't work.
+                        <button onclick="openSettings()">Add key</button>
+                    </div>
+                    <div id="welcome-screen">
+                        <svg
+                            width="48"
+                            height="48"
+                            viewBox="0 0 48 48"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.2"
+                            opacity="0.3"
+                        >
+                            <rect x="6" y="6" width="36" height="36" rx="4" />
+                            <line x1="14" y1="16" x2="34" y2="16" />
+                            <line x1="14" y1="24" x2="34" y2="24" />
+                            <line x1="14" y1="32" x2="24" y2="32" />
+                        </svg>
+                        <h2>SourceDesk</h2>
+                        <p>
+                            Select a project from the sidebar, or create one
+                            from a template to get started.
+                        </p>
+                        <div class="welcome-actions">
+                            <button
+                                class="btn-primary"
+                                onclick="openNewProject()"
+                            >
+                                New Project
+                            </button>
+                            <button
+                                class="btn-secondary"
+                                onclick="showView('templates')"
+                            >
+                                Browse Templates
+                            </button>
+                        </div>
+                    </div>
+                    <div id="chat-messages" class="hidden"></div>
+                    <div id="chat-input-area" class="hidden">
+                        <textarea
+                            id="chat-input"
+                            placeholder="Ask Claude anything about this project…"
+                            rows="1"
+                        ></textarea>
+                        <button id="send-btn" onclick="sendMessage()">
+                            Send
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Panel -->
+                <div id="panel-right">
+                    <div class="rpanel-header">
+                        Context
+                        <span id="ctx-doc-count" style="color: var(--accent)"
+                            >0 docs</span
+                        >
+                    </div>
+                    <div class="rpanel-section">
+                        <div class="rpanel-label">Template</div>
+                        <div id="ctx-template">
+                            <div
+                                style="
+                                    font-size: 11px;
+                                    color: var(--text-muted);
+                                "
+                            >
+                                No template
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rpanel-section">
+                        <div
+                            class="rpanel-label"
+                            style="
+                                display: flex;
+                                align-items: center;
+                                justify-content: space-between;
+                            "
+                        >
+                            Project Docs
+                            <label style="cursor: pointer">
+                                <input
+                                    type="file"
+                                    id="doc-upload-input"
+                                    multiple
+                                    accept=".txt,.md,.pdf,.docx,.csv"
+                                    style="display: none"
+                                    onchange="handleDocUpload(event)"
+                                />
+                                <span
+                                    class="tcard-btn"
+                                    onclick="
+                                        document
+                                            .getElementById('doc-upload-input')
+                                            .click()
+                                    "
+                                    >+ Upload</span
+                                >
+                            </label>
+                        </div>
+                        <div id="ctx-project-docs"></div>
+                    </div>
+                    <div
+                        class="rpanel-section"
+                        style="flex: 1; overflow-y: auto"
+                    >
+                        <div class="rpanel-label">
+                            Other Projects (toggle to include)
+                        </div>
+                        <div id="ctx-other-projects"></div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-      <div id="chat-messages" class="hidden"></div>
-      <div id="chat-input-area" class="hidden">
-        <textarea id="chat-input" placeholder="Ask Claude anything about this project…" rows="1"></textarea>
-        <button id="send-btn" onclick="sendMessage()">Send</button>
-      </div>
-    </div>
 
-    <!-- Right Panel -->
-    <div id="panel-right">
-      <div class="rpanel-header">
-        Context
-        <span id="ctx-doc-count" style="color:var(--accent)">0 docs</span>
-      </div>
-      <div class="rpanel-section">
-        <div class="rpanel-label">Template</div>
-        <div id="ctx-template">
-          <div style="font-size:11px;color:var(--text-muted)">No template</div>
+        <!-- MODALS -->
+        <div
+            id="modal-overlay"
+            class="modal-overlay hidden"
+            onclick="closeModalOnOverlay(event)"
+        >
+            <!-- New/Edit Template Modal -->
+            <div id="modal-template" class="modal hidden">
+                <div class="modal-title" id="modal-template-title">
+                    New Template
+                </div>
+                <div class="modal-subtitle">
+                    Templates are available globally across all projects.
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Template Name</label>
+                    <input
+                        class="form-input"
+                        id="tmpl-name"
+                        placeholder="e.g. Standard RFP — IT Services"
+                    />
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Category</label>
+                    <div class="type-pills" id="tmpl-category-pills">
+                        <div
+                            class="type-pill active"
+                            data-val="RFP"
+                            onclick="selectPill(this, 'tmpl-category-pills')"
+                        >
+                            RFP
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="RFI"
+                            onclick="selectPill(this, 'tmpl-category-pills')"
+                        >
+                            RFI
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="Vendor Q"
+                            onclick="selectPill(this, 'tmpl-category-pills')"
+                        >
+                            Vendor Q
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="Contract"
+                            onclick="selectPill(this, 'tmpl-category-pills')"
+                        >
+                            Contract
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="Other"
+                            onclick="selectPill(this, 'tmpl-category-pills')"
+                        >
+                            Other
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Type</label>
+                    <div class="type-pills" id="tmpl-type-pills">
+                        <div
+                            class="type-pill active"
+                            data-val="skeleton"
+                            onclick="selectPill(this, 'tmpl-type-pills')"
+                        >
+                            Skeleton (with {{placeholders}})
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="example"
+                            onclick="selectPill(this, 'tmpl-type-pills')"
+                        >
+                            Example Doc
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="form-label"
+                        >Content
+                        <span style="color: var(--text-muted); font-size: 10px"
+                            >— Use {{PLACEHOLDER}} syntax for skeleton
+                            templates</span
+                        ></label
+                    >
+                    <textarea
+                        class="form-textarea"
+                        id="tmpl-content"
+                        placeholder="Paste or write your template content here..."
+                    ></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeModal()">
+                        Cancel
+                    </button>
+                    <button class="btn-primary" onclick="saveTemplate()">
+                        Save Template
+                    </button>
+                </div>
+            </div>
+
+            <!-- New Project Modal -->
+            <div id="modal-project" class="modal hidden">
+                <div class="modal-title">New Project</div>
+                <div class="modal-subtitle">
+                    Create a project from a template or start blank.
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Project Name</label>
+                    <input
+                        class="form-input"
+                        id="proj-name"
+                        placeholder="e.g. Cloud Storage Vendor Selection Q2"
+                    />
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Category</label>
+                    <div class="type-pills" id="proj-category-pills">
+                        <div
+                            class="type-pill active"
+                            data-val="RFP"
+                            onclick="selectPill(this, 'proj-category-pills')"
+                        >
+                            RFP
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="RFI"
+                            onclick="selectPill(this, 'proj-category-pills')"
+                        >
+                            RFI
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="Vendor Q"
+                            onclick="selectPill(this, 'proj-category-pills')"
+                        >
+                            Vendor Q
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="Contract"
+                            onclick="selectPill(this, 'proj-category-pills')"
+                        >
+                            Contract
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="Other"
+                            onclick="selectPill(this, 'proj-category-pills')"
+                        >
+                            Other
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="form-label"
+                        >Start From Template (optional)</label
+                    >
+                    <select class="form-select" id="proj-template-select">
+                        <option value="">— Start blank —</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Notes / Context</label>
+                    <textarea
+                        class="form-textarea"
+                        id="proj-notes"
+                        placeholder="Any background context, vendor names, specific requirements…"
+                        style="min-height: 80px"
+                    ></textarea>
+                </div>
+                <div class="form-row">
+                    <label class="form-label"
+                        >Project Instructions
+                        <span style="color: var(--text-muted); font-size: 10px"
+                            >— Added to system prompt for this project
+                            only</span
+                        ></label
+                    >
+                    <textarea
+                        class="form-textarea"
+                        id="proj-instructions"
+                        placeholder="e.g. Always format responses as formal procurement memos. Reference vendor name as provided in project notes."
+                        style="min-height: 70px"
+                    ></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeModal()">
+                        Cancel
+                    </button>
+                    <button class="btn-primary" onclick="saveProject()">
+                        Create Project
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settings Modal -->
+            <div id="modal-settings" class="modal hidden">
+                <div class="modal-title">Settings</div>
+                <div class="modal-subtitle">
+                    Stored locally in your browser — never sent anywhere except
+                    the selected AI provider.
+                </div>
+                <div class="form-row">
+                    <label class="form-label">AI Provider</label>
+                    <div class="type-pills" id="provider-pills">
+                        <div
+                            class="type-pill active"
+                            data-val="anthropic"
+                            onclick="
+                                selectPill(this, 'provider-pills');
+                                onProviderChange('anthropic');
+                            "
+                        >
+                            Anthropic
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="openai"
+                            onclick="
+                                selectPill(this, 'provider-pills');
+                                onProviderChange('openai');
+                            "
+                        >
+                            OpenAI
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="openrouter"
+                            onclick="
+                                selectPill(this, 'provider-pills');
+                                onProviderChange('openrouter');
+                            "
+                        >
+                            OpenRouter
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="github"
+                            onclick="
+                                selectPill(this, 'provider-pills');
+                                onProviderChange('github');
+                            "
+                        >
+                            GitHub Models
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="form-label" id="apikey-label"
+                        >Anthropic API Key</label
+                    >
+                    <input
+                        class="form-input"
+                        id="settings-apikey"
+                        type="password"
+                        placeholder="sk-ant-..."
+                    />
+                    <div
+                        id="apikey-hint"
+                        style="
+                            font-size: 11px;
+                            color: var(--text-muted);
+                            margin-top: 5px;
+                            line-height: 1.5;
+                        "
+                    ></div>
+                    <div
+                        id="apikey-status"
+                        class="api-key-status"
+                        style="margin-top: 6px"
+                    >
+                        <div class="status-dot" id="apikey-dot"></div>
+                        <span id="apikey-status-text">No key saved</span>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Model</label>
+                    <select class="form-select" id="settings-model"></select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label"
+                        >Global Instructions
+                        <span style="color: var(--text-muted); font-size: 10px"
+                            >— Added to every chat</span
+                        ></label
+                    >
+                    <textarea
+                        class="form-textarea"
+                        id="settings-context"
+                        style="min-height: 80px"
+                        placeholder="e.g. University procurement policy: net-60 payment terms, 3-bid rule required over $25k…"
+                    ></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeModal()">
+                        Cancel
+                    </button>
+                    <button
+                        class="btn-danger"
+                        onclick="clearAllData()"
+                        style="margin-right: auto"
+                    >
+                        Clear All Data
+                    </button>
+                    <button class="btn-primary" onclick="saveSettings()">
+                        Save
+                    </button>
+                </div>
+            </div>
+
+            <!-- Fill Template Modal -->
+            <div id="modal-fill" class="modal hidden">
+                <div class="modal-title">Fill Template</div>
+                <div class="modal-subtitle" id="modal-fill-subtitle"></div>
+                <div id="fill-fields"></div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeModal()">
+                        Cancel
+                    </button>
+                    <button class="btn-primary" onclick="applyFill()">
+                        Insert into Chat
+                    </button>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="rpanel-section">
-        <div class="rpanel-label" style="display:flex;align-items:center;justify-content:space-between">
-          Project Docs
-          <label style="cursor:pointer">
-            <input type="file" id="doc-upload-input" multiple accept=".txt,.md,.pdf,.docx,.csv" style="display:none" onchange="handleDocUpload(event)">
-            <span class="tcard-btn" onclick="document.getElementById('doc-upload-input').click()">+ Upload</span>
-          </label>
-        </div>
-        <div id="ctx-project-docs"></div>
-      </div>
-      <div class="rpanel-section" style="flex:1;overflow-y:auto">
-        <div class="rpanel-label">Other Projects (toggle to include)</div>
-        <div id="ctx-other-projects"></div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- MODALS -->
-<div id="modal-overlay" class="modal-overlay hidden" onclick="closeModalOnOverlay(event)">
-
-  <!-- New/Edit Template Modal -->
-  <div id="modal-template" class="modal hidden">
-    <div class="modal-title" id="modal-template-title">New Template</div>
-    <div class="modal-subtitle">Templates are available globally across all projects.</div>
-    <div class="form-row">
-      <label class="form-label">Template Name</label>
-      <input class="form-input" id="tmpl-name" placeholder="e.g. Standard RFP — IT Services">
-    </div>
-    <div class="form-row">
-      <label class="form-label">Category</label>
-      <div class="type-pills" id="tmpl-category-pills">
-        <div class="type-pill active" data-val="RFP" onclick="selectPill(this,'tmpl-category-pills')">RFP</div>
-        <div class="type-pill" data-val="RFI" onclick="selectPill(this,'tmpl-category-pills')">RFI</div>
-        <div class="type-pill" data-val="Vendor Q" onclick="selectPill(this,'tmpl-category-pills')">Vendor Q</div>
-        <div class="type-pill" data-val="Contract" onclick="selectPill(this,'tmpl-category-pills')">Contract</div>
-        <div class="type-pill" data-val="Other" onclick="selectPill(this,'tmpl-category-pills')">Other</div>
-      </div>
-    </div>
-    <div class="form-row">
-      <label class="form-label">Type</label>
-      <div class="type-pills" id="tmpl-type-pills">
-        <div class="type-pill active" data-val="skeleton" onclick="selectPill(this,'tmpl-type-pills')">Skeleton (with {{placeholders}})</div>
-        <div class="type-pill" data-val="example" onclick="selectPill(this,'tmpl-type-pills')">Example Doc</div>
-      </div>
-    </div>
-    <div class="form-row">
-      <label class="form-label">Content <span style="color:var(--text-muted);font-size:10px">— Use {{PLACEHOLDER}} syntax for skeleton templates</span></label>
-      <textarea class="form-textarea" id="tmpl-content" placeholder="Paste or write your template content here..."></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="saveTemplate()">Save Template</button>
-    </div>
-  </div>
-
-  <!-- New Project Modal -->
-  <div id="modal-project" class="modal hidden">
-    <div class="modal-title">New Project</div>
-    <div class="modal-subtitle">Create a project from a template or start blank.</div>
-    <div class="form-row">
-      <label class="form-label">Project Name</label>
-      <input class="form-input" id="proj-name" placeholder="e.g. Cloud Storage Vendor Selection Q2">
-    </div>
-    <div class="form-row">
-      <label class="form-label">Category</label>
-      <div class="type-pills" id="proj-category-pills">
-        <div class="type-pill active" data-val="RFP" onclick="selectPill(this,'proj-category-pills')">RFP</div>
-        <div class="type-pill" data-val="RFI" onclick="selectPill(this,'proj-category-pills')">RFI</div>
-        <div class="type-pill" data-val="Vendor Q" onclick="selectPill(this,'proj-category-pills')">Vendor Q</div>
-        <div class="type-pill" data-val="Contract" onclick="selectPill(this,'proj-category-pills')">Contract</div>
-        <div class="type-pill" data-val="Other" onclick="selectPill(this,'proj-category-pills')">Other</div>
-      </div>
-    </div>
-    <div class="form-row">
-      <label class="form-label">Start From Template (optional)</label>
-      <select class="form-select" id="proj-template-select">
-        <option value="">— Start blank —</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label class="form-label">Notes / Context</label>
-      <textarea class="form-textarea" id="proj-notes" placeholder="Any background context, vendor names, specific requirements…" style="min-height:80px"></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="saveProject()">Create Project</button>
-    </div>
-  </div>
-
-  <!-- Settings Modal -->
-  <div id="modal-settings" class="modal hidden">
-    <div class="modal-title">Settings</div>
-    <div class="modal-subtitle">Stored locally in your browser — never sent anywhere except the Anthropic API.</div>
-    <div class="form-row">
-      <label class="form-label">Anthropic API Key</label>
-      <input class="form-input" id="settings-apikey" type="password" placeholder="sk-ant-...">
-      <div id="apikey-status" class="api-key-status">
-        <div class="status-dot" id="apikey-dot"></div>
-        <span id="apikey-status-text">No key saved</span>
-      </div>
-    </div>
-    <div class="form-row">
-      <label class="form-label">Model</label>
-      <select class="form-select" id="settings-model">
-        <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (recommended)</option>
-        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (faster / cheaper)</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label class="form-label">Sourcing Context <span style="color:var(--text-muted);font-size:10px">— Added to every chat</span></label>
-      <textarea class="form-textarea" id="settings-context" style="min-height:80px" placeholder="e.g. University procurement policy: net-60 payment terms, 3-bid rule required over $25k, preferred vendor list attached..."></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn-danger" onclick="clearAllData()" style="margin-right:auto">Clear All Data</button>
-      <button class="btn-primary" onclick="saveSettings()">Save</button>
-    </div>
-  </div>
-
-  <!-- Fill Template Modal -->
-  <div id="modal-fill" class="modal hidden">
-    <div class="modal-title">Fill Template</div>
-    <div class="modal-subtitle" id="modal-fill-subtitle"></div>
-    <div id="fill-fields"></div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="applyFill()">Insert into Chat</button>
-    </div>
-  </div>
-
-</div>
-
-
-<script>
-const DEBUG=window.__SOURCEDESK_DEBUG__||!1,TEST=window.__SOURCEDESK_TEST__||!1,APP_VERSION="0.2.0";function log(...e){DEBUG&&console.log("[SD]",...e)}const DB_NAME="sourcedesk",DB_VERSION=1;let db;function openDB(){return new Promise((e,t)=>{const n=indexedDB.open(DB_NAME,1);n.onupgradeneeded=e=>{const t=e.target.result;t.objectStoreNames.contains("templates")||t.createObjectStore("templates",{keyPath:"id"}),t.objectStoreNames.contains("projects")||t.createObjectStore("projects",{keyPath:"id"}),t.objectStoreNames.contains("docs")||t.createObjectStore("docs",{keyPath:"id"}).createIndex("projectId","projectId",{unique:!1}),t.objectStoreNames.contains("chats")||t.createObjectStore("chats",{keyPath:"id"}).createIndex("projectId","projectId",{unique:!1}),t.objectStoreNames.contains("settings")||t.createObjectStore("settings",{keyPath:"key"})},n.onsuccess=t=>{db=t.target.result,e(db)},n.onerror=()=>t(n.error)})}function dbGet(e,t){return new Promise((n,a)=>{const s=db.transaction(e,"readonly").objectStore(e).get(t);s.onsuccess=()=>n(s.result),s.onerror=()=>a(s.error)})}function dbPut(e,t){return new Promise((n,a)=>{const s=db.transaction(e,"readwrite").objectStore(e).put(t);s.onsuccess=()=>n(s.result),s.onerror=()=>a(s.error)})}function dbDelete(e,t){return new Promise((n,a)=>{const s=db.transaction(e,"readwrite").objectStore(e).delete(t);s.onsuccess=()=>n(),s.onerror=()=>a(s.error)})}function dbGetAll(e){return new Promise((t,n)=>{const a=db.transaction(e,"readonly").objectStore(e).getAll();a.onsuccess=()=>t(a.result),a.onerror=()=>n(a.error)})}function dbGetByIndex(e,t,n){return new Promise((a,s)=>{const o=db.transaction(e,"readonly").objectStore(e).index(t).getAll(n);o.onsuccess=()=>a(o.result),o.onerror=()=>s(o.error)})}function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}let state={projects:[],templates:[],settings:{apiKey:"",model:"claude-sonnet-4-20250514",globalContext:""},activeProject:null,activeDocs:new Set,activeOtherProjects:new Set,messages:[],streaming:!1,rightPanelOpen:!0,editingTemplateId:null};async function boot(){await openDB(),state.templates=await dbGetAll("templates"),state.projects=await dbGetAll("projects");const e=await dbGet("settings","apiKey"),t=await dbGet("settings","model"),n=await dbGet("settings","globalContext");e&&(state.settings.apiKey=e.value),t&&(state.settings.model=t.value),n&&(state.settings.globalContext=n.value),renderSidebar(),checkApiKey()}function showView(e){document.getElementById("templates-view").style.display="templates"===e?"flex":"none",document.getElementById("chat-view").style.display="chat"===e?"flex":"none","templates"===e&&renderTemplatesGrid()}function renderSidebar(){const e=document.getElementById("projects-list");e.innerHTML="";const t={RFP:"📋",RFI:"📄","Vendor Q":"🏢",Contract:"📑",Other:"📁"};state.projects.slice().reverse().forEach(n=>{const a=document.createElement("div");a.className="sidebar-item"+(state.activeProject?.id===n.id?" active":""),a.innerHTML=`<span class="item-icon">${t[n.category]||"📁"}</span><span class="item-name">${n.name}</span>`,a.onclick=()=>loadProject(n.id),e.appendChild(a)})}async function loadProject(e){const t=state.projects.find(t=>t.id===e);if(!t)return;state.activeProject=t,state.messages=[],state.activeDocs=new Set,state.activeOtherProjects=new Set;const n=await dbGetByIndex("chats","projectId",e);n.length&&(state.messages=n[0].messages||[]),(await dbGetByIndex("docs","projectId",e)).forEach(e=>state.activeDocs.add(e.id)),document.getElementById("welcome-screen").classList.add("hidden"),document.getElementById("chat-messages").classList.remove("hidden"),document.getElementById("chat-input-area").classList.remove("hidden");const a=document.getElementById("project-type-badge");document.getElementById("project-title").textContent=t.name,a.textContent=t.category,a.classList.remove("hidden"),renderSidebar(),renderMessages(),await renderRightPanel(),checkApiKey()}function renderMessages(){const e=document.getElementById("chat-messages");e.innerHTML="",state.messages.forEach(e=>appendMessageEl(e.role,e.content,e.sources)),e.scrollTop=e.scrollHeight}function appendMessageEl(e,t,n){const a=document.getElementById("chat-messages"),s=document.createElement("div");s.className=`msg ${e}`;const o="assistant"===e?"SD":"You";let c="";return n&&n.length&&(c=`<div class="chunk-used">Referenced: ${n.map(e=>`<span class="chunk-source">${e}</span>`).join(", ")}</div>`),s.innerHTML=`\n    <div class="msg-avatar">${o}</div>\n    <div>\n      <div class="msg-bubble">${formatMarkdown(t)}</div>\n      ${c}\n    </div>`,a.appendChild(s),a.scrollTop=a.scrollHeight,s}function formatMarkdown(e){return e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/```([\s\S]*?)```/g,"<pre><code>$1</code></pre>").replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>").replace(/\*(.*?)\*/g,"<em>$1</em>").replace(/^### (.*$)/gm,'<h4 style="margin:10px 0 4px;font-family:DM Serif Display,serif;color:var(--accent)">$1</h4>').replace(/^## (.*$)/gm,'<h3 style="margin:10px 0 4px;font-family:DM Serif Display,serif">$1</h3>').replace(/^- (.*$)/gm,"<li>$1</li>").replace(/(<li>.*<\/li>)/gs,"<ul>$1</ul>").replace(/\n\n/g,"</p><p>").replace(/^(?!<[hup])(.+)$/gm,"<p>$1</p>")}function tokenize(e){return e.toLowerCase().replace(/[^a-z0-9\s]/g," ").split(/\s+/).filter(Boolean)}function buildIndex(e){const t={},n=e.length,a=e.map(e=>{const t=tokenize(e.text),n={};return t.forEach(e=>{n[e]=(n[e]||0)+1}),{freq:n,len:t.length}}),s={};return a.forEach(({freq:e})=>{Object.keys(e).forEach(e=>{s[e]=(s[e]||0)+1})}),Object.keys(s).forEach(e=>{t[e]=Math.log((n-s[e]+.5)/(s[e]+.5)+1)}),{tfs:a,idf:t,avgLen:a.reduce((e,t)=>e+t.len,0)/(n||1)}}function bm25Score(e,t,n,a=1.5,s=.75){const{tfs:o,idf:c,avgLen:l}=t,{freq:i,len:r}=o[n];return tokenize(e).reduce((e,t)=>{const n=i[t]||0;return e+(c[t]||0)*(n*(a+1))/(n+a*(1-s+s*r/l))},0)}function chunkText(e,t=400,n=60){const a=e.split(/\s+/),s=[];for(let e=0;e<a.length&&(s.push(a.slice(e,e+t).join(" ")),!(e+t>=a.length));e+=t-n);return s}async function retrieveContext(e,t=4){if(!state.activeProject)return{context:"",sources:[]};const n=[...state.activeDocs];for(const e of state.activeOtherProjects)(await dbGetByIndex("docs","projectId",e)).forEach(e=>n.push(e.id));const a=[];if(state.activeProject.templateId){const e=state.templates.find(e=>e.id===state.activeProject.templateId);e&&a.push({text:e.content,source:`Template: ${e.name}`})}if(!n.length&&!a.length)return{context:"",sources:[]};const s=[...a];for(const e of n){const t=await dbGet("docs",e);t&&chunkText(t.content).forEach(e=>s.push({text:e,source:t.name}))}if(!s.length)return{context:"",sources:[]};const o=buildIndex(s),c=s.map((t,n)=>({i:n,score:bm25Score(e,o,n)}));c.sort((e,t)=>t.score-e.score);const l=c.slice(0,t).filter(e=>e.score>0),i=[...new Set(l.map(e=>s[e.i].source))];return{context:l.map(e=>`[from: ${s[e.i].source}]\n${s[e.i].text}`).join("\n\n---\n\n"),sources:i}}async function sendMessage(){if(state.streaming||!state.activeProject)return;const e=document.getElementById("chat-input"),t=e.value.trim();if(!t)return;if(!state.settings.apiKey)return void alert("Please add your Anthropic API key in Settings.");e.value="",e.style.height="auto",state.messages.push({role:"user",content:t}),appendMessageEl("user",t);const{context:n,sources:a}=await retrieveContext(t);let s="You are SourceDesk, an expert AI assistant for strategic sourcing and procurement at a university. You help with RFPs, RFIs, vendor questionnaires, contract review, and supplier analysis.\n\nBe precise, professional, and concise. Use procurement terminology correctly. When filling in templates, follow the structure exactly. Flag any compliance concerns relevant to higher-education procurement.";state.settings.globalContext&&(s+=`\n\n## Institutional Context\n${state.settings.globalContext}`),state.activeProject&&(s+=`\n\n## Current Project\nName: ${state.activeProject.name}\nCategory: ${state.activeProject.category}`,state.activeProject.notes&&(s+=`\nNotes: ${state.activeProject.notes}`),state.activeProject.workingContent&&(s+=`\n\n## Working Document (current draft)\n${state.activeProject.workingContent}`)),n&&(s+=`\n\n## Retrieved Context (from project documents)\n${n}`);const o=state.messages.map(e=>({role:e.role,content:e.content})),c=document.createElement("div");c.className="msg assistant",c.innerHTML='<div class="msg-avatar">SD</div><div class="msg-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>',document.getElementById("chat-messages").appendChild(c),document.getElementById("chat-messages").scrollTop=99999,document.getElementById("send-btn").disabled=!0,state.streaming=!0;try{const e=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":state.settings.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:state.settings.model,max_tokens:2048,system:s,messages:o,stream:!0})});if(!e.ok){const t=await e.json().catch(()=>({}));throw new Error(t.error?.message||`API error ${e.status}`)}c.remove();const t=document.createElement("div");t.className="msg assistant";const n=document.createElement("div");n.className="msg-bubble",t.innerHTML='<div class="msg-avatar">SD</div>',t.appendChild(n),document.getElementById("chat-messages").appendChild(t);const l=e.body.getReader(),i=new TextDecoder;let r="";for(;;){const{done:e,value:t}=await l.read();if(e)break;const a=i.decode(t).split("\n");for(const e of a)if(e.startsWith("data: ")){const t=e.slice(6).trim();if("[DONE]"===t)continue;try{const e=JSON.parse(t);"content_block_delta"===e.type&&e.delta?.text&&(r+=e.delta.text,n.innerHTML=formatMarkdown(r),document.getElementById("chat-messages").scrollTop=99999)}catch{}}}if(a.length){const e=document.createElement("div");e.className="chunk-used",e.innerHTML=`Referenced: ${a.map(e=>`<span class="chunk-source">${e}</span>`).join(", ")}`,t.appendChild(e)}state.messages.push({role:"assistant",content:r,sources:a}),await saveChat()}catch(e){c.remove(),appendMessageEl("assistant",`⚠ Error: ${e.message}`)}state.streaming=!1,document.getElementById("send-btn").disabled=!1}async function saveChat(){state.activeProject&&await dbPut("chats",{id:state.activeProject.id,projectId:state.activeProject.id,messages:state.messages})}async function renderRightPanel(){if(!state.activeProject)return;const e=document.getElementById("ctx-template");if(state.activeProject.templateId){const t=state.templates.find(e=>e.id===state.activeProject.templateId);t&&(e.innerHTML=`<div class="template-ref">\n        <span style="flex:1">${t.name}</span>\n        <span class="tcard-btn" onclick="openFillTemplate('${t.id}')">Fill</span>\n        <span class="tcard-btn" onclick="viewTemplateContent('${t.id}')">View</span>\n      </div>`)}else e.innerHTML='<div style="font-size:11px;color:var(--text-muted)">No template — <span style="color:var(--accent);cursor:pointer" onclick="promptAttachTemplate()">attach one</span></div>';const t=await dbGetByIndex("docs","projectId",state.activeProject.id),n=document.getElementById("ctx-project-docs");n.innerHTML="",t.length||(n.innerHTML='<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">No docs yet — upload files to give Claude context.</div>'),t.forEach(e=>{const t=state.activeDocs.has(e.id),a=document.createElement("div");a.className="context-doc"+(t?" active":""),a.innerHTML=`<div class="doc-toggle">${t?"✓":""}</div><div class="doc-name">${e.name}</div><span class="tcard-btn del" onclick="deleteDoc('${e.id}',event)" style="opacity:0.5;margin-left:4px">✕</span>`,a.onclick=t=>{t.target.classList.contains("tcard-btn")||toggleDoc(e.id,a)},n.appendChild(a)});const a=document.getElementById("ctx-other-projects");a.innerHTML="";const s=state.projects.filter(e=>e.id!==state.activeProject.id);s.length||(a.innerHTML='<div style="font-size:11px;color:var(--text-muted)">No other projects yet.</div>'),s.forEach(e=>{const t=state.activeOtherProjects.has(e.id),n=document.createElement("div");n.className="other-project-item",n.innerHTML=`<input type="checkbox" ${t?"checked":""} onchange="toggleOtherProject('${e.id}', this.checked)"> <span>${e.name}</span> <span style="font-size:10px;color:var(--text-muted);font-family:DM Mono,monospace">${e.category}</span>`,a.appendChild(n)}),document.getElementById("ctx-doc-count").textContent=`${t.length} doc${1!==t.length?"s":""}`}function toggleDoc(e,t){state.activeDocs.has(e)?(state.activeDocs.delete(e),t.classList.remove("active"),t.querySelector(".doc-toggle").textContent=""):(state.activeDocs.add(e),t.classList.add("active"),t.querySelector(".doc-toggle").textContent="✓")}function toggleOtherProject(e,t){t?state.activeOtherProjects.add(e):state.activeOtherProjects.delete(e)}async function deleteDoc(e,t){t.stopPropagation(),confirm("Remove this document?")&&(await dbDelete("docs",e),state.activeDocs.delete(e),await renderRightPanel())}function toggleRightPanel(){state.rightPanelOpen=!state.rightPanelOpen,document.getElementById("panel-right").classList.toggle("collapsed",!state.rightPanelOpen)}async function handleDocUpload(e){if(!state.activeProject)return;const t=Array.from(e.target.files);for(const e of t){const t=await readFileAsText(e),n={id:uid(),projectId:state.activeProject.id,name:e.name,content:t,uploadedAt:Date.now()};await dbPut("docs",n),state.activeDocs.add(n.id)}e.target.value="",await renderRightPanel()}function readFileAsText(e){return new Promise(t=>{const n=new FileReader;n.onload=e=>t(e.target.result),n.onerror=()=>t(`[Could not read file: ${e.name}]`),n.readAsText(e)})}function renderTemplatesGrid(){const e=document.getElementById("templates-grid");e.innerHTML="",state.templates.length?state.templates.forEach(t=>{const n=document.createElement("div");n.className="template-card",n.innerHTML=`\n      <div class="template-card-actions">\n        <span class="tcard-btn" onclick="openEditTemplate('${t.id}')">Edit</span>\n        <span class="tcard-btn del" onclick="deleteTemplate('${t.id}')">Delete</span>\n      </div>\n      <div class="template-card-type ${"skeleton"===t.type?"type-skeleton":"type-example"}">${t.type}</div>\n      <div class="template-card-name">${t.name}</div>\n      <div class="template-card-category">${t.category}</div>`,e.appendChild(n)}):e.innerHTML='<div class="empty-state" style="grid-column:1/-1"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="5" y="5" width="30" height="30" rx="3"/><line x1="12" y1="14" x2="28" y2="14"/><line x1="12" y1="20" x2="28" y2="20"/><line x1="12" y1="26" x2="20" y2="26"/></svg><span>No templates yet — create your first one.</span></div>'}function openNewTemplate(){state.editingTemplateId=null,document.getElementById("modal-template-title").textContent="New Template",document.getElementById("tmpl-name").value="",document.getElementById("tmpl-content").value="",selectPillByVal("tmpl-category-pills","RFP"),selectPillByVal("tmpl-type-pills","skeleton"),showModal("modal-template")}function openEditTemplate(e){const t=state.templates.find(t=>t.id===e);t&&(state.editingTemplateId=e,document.getElementById("modal-template-title").textContent="Edit Template",document.getElementById("tmpl-name").value=t.name,document.getElementById("tmpl-content").value=t.content,selectPillByVal("tmpl-category-pills",t.category),selectPillByVal("tmpl-type-pills",t.type),showModal("modal-template"))}async function saveTemplate(){const e=document.getElementById("tmpl-name").value.trim(),t=document.getElementById("tmpl-content").value.trim(),n=getActivePill("tmpl-category-pills"),a=getActivePill("tmpl-type-pills");if(!e||!t)return void alert("Please fill in the name and content.");const s=state.editingTemplateId||uid(),o={id:s,name:e,category:n,type:a,content:t,updatedAt:Date.now()};await dbPut("templates",o),state.editingTemplateId?state.templates=state.templates.map(e=>e.id===s?o:e):state.templates.push(o),closeModal(),renderTemplatesGrid()}async function deleteTemplate(e){confirm("Delete this template?")&&(await dbDelete("templates",e),state.templates=state.templates.filter(t=>t.id!==e),renderTemplatesGrid())}function openNewProject(){document.getElementById("proj-name").value="",document.getElementById("proj-notes").value="",selectPillByVal("proj-category-pills","RFP");const e=document.getElementById("proj-template-select");e.innerHTML='<option value="">— Start blank —</option>',state.templates.forEach(t=>{const n=document.createElement("option");n.value=t.id,n.textContent=`[${t.category}] ${t.name}`,e.appendChild(n)}),showModal("modal-project")}async function saveProject(){const e=document.getElementById("proj-name").value.trim(),t=document.getElementById("proj-notes").value.trim(),n=getActivePill("proj-category-pills"),a=document.getElementById("proj-template-select").value||null;if(!e)return void alert("Please enter a project name.");let s="";if(a){const e=state.templates.find(e=>e.id===a);e&&(s=e.content)}const o={id:uid(),name:e,category:n,templateId:a,notes:t,workingContent:s,createdAt:Date.now()};await dbPut("projects",o),state.projects.push(o),closeModal(),renderSidebar(),await loadProject(o.id)}function openFillTemplate(e){const t=state.templates.find(t=>t.id===e);if(!t||"skeleton"!==t.type)return void viewTemplateContent(e);const n=[...new Set([...t.content.matchAll(/\{\{([^}]+)\}\}/g)].map(e=>e[1]))];if(!n.length)return void viewTemplateContent(e);document.getElementById("modal-fill-subtitle").textContent=`Fill in the blanks for "${t.name}"`;const a=document.getElementById("fill-fields");a.innerHTML="",n.forEach(e=>{const t=document.createElement("div");t.className="form-row",t.innerHTML=`<label class="form-label">${e}</label><input class="form-input" data-placeholder="${e}" placeholder="Enter ${e}…">`,a.appendChild(t)}),a.dataset.templateId=e,showModal("modal-fill")}function applyFill(){const e=document.getElementById("fill-fields"),t=state.templates.find(t=>t.id===e.dataset.templateId);if(!t)return;let n=t.content;e.querySelectorAll("[data-placeholder]").forEach(e=>{const t=e.value.trim()||`[${e.dataset.placeholder}]`;n=n.split(`{{${e.dataset.placeholder}}}`).join(t)}),document.getElementById("chat-input").value=`Please help me review and complete this document:\n\n${n}`,closeModal(),document.getElementById("chat-input").focus()}function viewTemplateContent(e){const t=state.templates.find(t=>t.id===e);t&&(document.getElementById("chat-input").value=`I'd like to work on the "${t.name}" template. Here's the content:\n\n${t.content}`,closeModal(),document.getElementById("chat-input").focus())}function promptAttachTemplate(){openNewProject()}function openSettings(){document.getElementById("settings-apikey").value=state.settings.apiKey||"",document.getElementById("settings-model").value=state.settings.model,document.getElementById("settings-context").value=state.settings.globalContext||"",updateApiKeyStatus(!!state.settings.apiKey),showModal("modal-settings")}async function saveSettings(){const e=document.getElementById("settings-apikey").value.trim(),t=document.getElementById("settings-model").value,n=document.getElementById("settings-context").value.trim();state.settings.apiKey=e,state.settings.model=t,state.settings.globalContext=n,await dbPut("settings",{key:"apiKey",value:e}),await dbPut("settings",{key:"model",value:t}),await dbPut("settings",{key:"globalContext",value:n}),closeModal(),checkApiKey()}function updateApiKeyStatus(e){document.getElementById("apikey-dot").classList.toggle("ok",e),document.getElementById("apikey-status-text").textContent=e?"API key saved":"No key saved"}function checkApiKey(){document.getElementById("no-key-banner").classList.toggle("hidden",!!state.settings.apiKey||!state.activeProject)}async function clearAllData(){if(!confirm("This will delete ALL projects, templates, documents, and chat history. Are you sure?"))return;const e=["templates","projects","docs","chats","settings"];for(const t of e){const e=await dbGetAll(t);for(const n of e)await dbDelete(t,n["settings"===t?"key":"id"])}location.reload()}function showModal(e){document.getElementById("modal-overlay").classList.remove("hidden"),document.querySelectorAll(".modal").forEach(e=>e.classList.add("hidden")),document.getElementById(e).classList.remove("hidden")}function closeModal(){document.getElementById("modal-overlay").classList.add("hidden")}function closeModalOnOverlay(e){e.target===document.getElementById("modal-overlay")&&closeModal()}function selectPill(e,t){document.querySelectorAll(`#${t} .type-pill`).forEach(e=>e.classList.remove("active")),e.classList.add("active")}function selectPillByVal(e,t){document.querySelectorAll(`#${e} .type-pill`).forEach(e=>{e.classList.toggle("active",e.dataset.val===t)})}function getActivePill(e){return document.querySelector(`#${e} .type-pill.active`)?.dataset.val||""}TEST||document.addEventListener("DOMContentLoaded",()=>{const e=document.getElementById("chat-input");e.addEventListener("input",()=>{e.style.height="auto",e.style.height=Math.min(e.scrollHeight,120)+"px"}),e.addEventListener("keydown",e=>{"Enter"!==e.key||e.shiftKey||(e.preventDefault(),sendMessage())}),showView("chat"),boot()});
+      <script>
+const DEBUG=window.__SOURCEDESK_DEBUG__||!1,TEST=window.__SOURCEDESK_TEST__||!1,APP_VERSION="0.2.0";function log(...e){DEBUG&&console.log("[SD]",...e)}const PROVIDERS={anthropic:{label:"Anthropic",keyLabel:"Anthropic API Key",keyPlaceholder:"sk-ant-...",keyHint:'Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a>',models:[{id:"claude-sonnet-4-6",label:"Claude Sonnet 4.6 (recommended)"},{id:"claude-opus-4-6",label:"Claude Opus 4.6 (most capable)"},{id:"claude-haiku-4-5-20251001",label:"Claude Haiku 4.5 (fastest/cheapest)"}],defaultModel:"claude-sonnet-4-6"},openai:{label:"OpenAI",keyLabel:"OpenAI API Key",keyPlaceholder:"sk-...",keyHint:'Get your key at <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--accent)">platform.openai.com/api-keys</a>',models:[{id:"gpt-5.4",label:"GPT-5.4 (flagship)"},{id:"gpt-5.4-mini",label:"GPT-5.4 mini (fast)"},{id:"gpt-5.4-nano",label:"GPT-5.4 nano (cheapest)"},{id:"gpt-4o",label:"GPT-4o"},{id:"gpt-4o-mini",label:"GPT-4o mini"},{id:"o4-mini",label:"o4-mini (reasoning)"}],defaultModel:"gpt-4o"},openrouter:{label:"OpenRouter",keyLabel:"OpenRouter API Key",keyPlaceholder:"sk-or-...",keyHint:'Get your key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent)">openrouter.ai/keys</a> — access 300+ models from one key',models:[{id:"anthropic/claude-sonnet-4-5",label:"Claude Sonnet 4.5 (via OR)"},{id:"openai/gpt-4o",label:"GPT-4o (via OR)"},{id:"google/gemini-2.5-pro-preview",label:"Gemini 2.5 Pro"},{id:"google/gemini-2.5-flash-preview",label:"Gemini 2.5 Flash"},{id:"meta-llama/llama-3.3-70b-instruct",label:"Llama 3.3 70B"},{id:"deepseek/deepseek-r1",label:"DeepSeek R1"},{id:"x-ai/grok-3-beta",label:"Grok 3"},{id:"mistralai/mistral-large",label:"Mistral Large"}],defaultModel:"anthropic/claude-sonnet-4-5"},github:{label:"GitHub Models",keyLabel:"GitHub Personal Access Token",keyPlaceholder:"ghp_... or github_pat_...",keyHint:'Create a PAT with <code>models:read</code> at <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--accent)">github.com/settings/tokens</a> — free tier available',models:[{id:"gpt-4o",label:"GPT-4o"},{id:"gpt-4o-mini",label:"GPT-4o mini"},{id:"Meta-Llama-3.3-70B-Instruct",label:"Llama 3.3 70B"},{id:"Phi-4",label:"Phi-4"},{id:"DeepSeek-V3-0324",label:"DeepSeek V3"},{id:"Mistral-Large-2411",label:"Mistral Large"}],defaultModel:"gpt-4o"}},DB_NAME="sourcedesk",DB_VERSION=1;let db;function openDB(){return new Promise((e,t)=>{const n=indexedDB.open(DB_NAME,1);n.onupgradeneeded=e=>{const t=e.target.result;t.objectStoreNames.contains("templates")||t.createObjectStore("templates",{keyPath:"id"}),t.objectStoreNames.contains("projects")||t.createObjectStore("projects",{keyPath:"id"}),t.objectStoreNames.contains("docs")||t.createObjectStore("docs",{keyPath:"id"}).createIndex("projectId","projectId",{unique:!1}),t.objectStoreNames.contains("chats")||t.createObjectStore("chats",{keyPath:"id"}).createIndex("projectId","projectId",{unique:!1}),t.objectStoreNames.contains("settings")||t.createObjectStore("settings",{keyPath:"key"})},n.onsuccess=t=>{db=t.target.result,e(db)},n.onerror=()=>t(n.error)})}function dbGet(e,t){return new Promise((n,a)=>{const o=db.transaction(e,"readonly").objectStore(e).get(t);o.onsuccess=()=>n(o.result),o.onerror=()=>a(o.error)})}function dbPut(e,t){return new Promise((n,a)=>{const o=db.transaction(e,"readwrite").objectStore(e).put(t);o.onsuccess=()=>n(o.result),o.onerror=()=>a(o.error)})}function dbDelete(e,t){return new Promise((n,a)=>{const o=db.transaction(e,"readwrite").objectStore(e).delete(t);o.onsuccess=()=>n(),o.onerror=()=>a(o.error)})}function dbGetAll(e){return new Promise((t,n)=>{const a=db.transaction(e,"readonly").objectStore(e).getAll();a.onsuccess=()=>t(a.result),a.onerror=()=>n(a.error)})}function dbGetByIndex(e,t,n){return new Promise((a,o)=>{const s=db.transaction(e,"readonly").objectStore(e).index(t).getAll(n);s.onsuccess=()=>a(s.result),s.onerror=()=>o(s.error)})}function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}let state={projects:[],templates:[],settings:{provider:"anthropic",model:"claude-sonnet-4-6",globalContext:"",anthropicKey:"",openaiKey:"",openrouterKey:"",githubKey:""},activeProject:null,activeDocs:new Set,activeOtherProjects:new Set,messages:[],streaming:!1,rightPanelOpen:!0,editingTemplateId:null};function getCurrentProviderKey(){const e=state.settings.provider||"anthropic";return state.settings[e+"Key"]||""}function setProviderKey(e,t){state.settings[e+"Key"]=t}async function boot(){await openDB(),state.templates=await dbGetAll("templates"),state.projects=await dbGetAll("projects");const e=await dbGet("settings","provider"),t=await dbGet("settings","model"),n=await dbGet("settings","globalContext"),a=await dbGet("settings","apiKey_anthropic"),o=await dbGet("settings","apiKey_openai"),s=await dbGet("settings","apiKey_openrouter"),l=await dbGet("settings","apiKey_github"),i=await dbGet("settings","apiKey");e&&(state.settings.provider=e.value),t&&(state.settings.model=t.value),n&&(state.settings.globalContext=n.value),a?state.settings.anthropicKey=a.value:i&&(state.settings.anthropicKey=i.value),o&&(state.settings.openaiKey=o.value),s&&(state.settings.openrouterKey=s.value),l&&(state.settings.githubKey=l.value);const c=document.getElementById("app-version");c&&(c.textContent="v0.2.0"),renderSidebar(),checkApiKey()}function showView(e){document.getElementById("templates-view").style.display="templates"===e?"flex":"none",document.getElementById("chat-view").style.display="chat"===e?"flex":"none","templates"===e&&renderTemplatesGrid()}function renderSidebar(){const e=document.getElementById("projects-list");e.innerHTML="";const t={RFP:"📋",RFI:"📄","Vendor Q":"🏢",Contract:"📑",Other:"📁"};state.projects.slice().reverse().forEach(n=>{const a=document.createElement("div");a.className="sidebar-item"+(state.activeProject?.id===n.id?" active":""),a.innerHTML=`<span class="item-icon">${t[n.category]||"📁"}</span><span class="item-name">${n.name}</span>`,a.onclick=()=>loadProject(n.id),e.appendChild(a)})}async function loadProject(e){const t=state.projects.find(t=>t.id===e);if(!t)return;state.activeProject=t,state.messages=[],state.activeDocs=new Set,state.activeOtherProjects=new Set;const n=await dbGetByIndex("chats","projectId",e);n.length&&(state.messages=n[0].messages||[]),(await dbGetByIndex("docs","projectId",e)).forEach(e=>state.activeDocs.add(e.id)),document.getElementById("welcome-screen").classList.add("hidden"),document.getElementById("chat-messages").classList.remove("hidden"),document.getElementById("chat-input-area").classList.remove("hidden");const a=document.getElementById("project-type-badge");document.getElementById("project-title").textContent=t.name,a.textContent=t.category,a.classList.remove("hidden"),renderSidebar(),renderMessages(),await renderRightPanel(),checkApiKey()}function renderMessages(){const e=document.getElementById("chat-messages");e.innerHTML="",state.messages.forEach(e=>appendMessageEl(e.role,e.content,e.sources)),e.scrollTop=e.scrollHeight}function appendMessageEl(e,t,n){const a=document.getElementById("chat-messages"),o=document.createElement("div");o.className=`msg ${e}`;const s="assistant"===e?"SD":"You";let l="";return n&&n.length&&(l=`<div class="chunk-used">Referenced: ${n.map(e=>`<span class="chunk-source">${e}</span>`).join(", ")}</div>`),o.innerHTML=`\n    <div class="msg-avatar">${s}</div>\n    <div>\n      <div class="msg-bubble">${formatMarkdown(t)}</div>\n      ${l}\n    </div>`,a.appendChild(o),a.scrollTop=a.scrollHeight,o}function formatMarkdown(e){return e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/```([\s\S]*?)```/g,"<pre><code>$1</code></pre>").replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>").replace(/\*(.*?)\*/g,"<em>$1</em>").replace(/^### (.*$)/gm,'<h4 style="margin:10px 0 4px;font-family:DM Serif Display,serif;color:var(--accent)">$1</h4>').replace(/^## (.*$)/gm,'<h3 style="margin:10px 0 4px;font-family:DM Serif Display,serif">$1</h3>').replace(/^- (.*$)/gm,"<li>$1</li>").replace(/(<li>.*<\/li>)/gs,"<ul>$1</ul>").replace(/\n\n/g,"</p><p>").replace(/^(?!<[hup])(.+)$/gm,"<p>$1</p>")}function tokenize(e){return e.toLowerCase().replace(/[^a-z0-9\s]/g," ").split(/\s+/).filter(Boolean)}function buildIndex(e){const t={},n=e.length,a=e.map(e=>{const t=tokenize(e.text),n={};return t.forEach(e=>{n[e]=(n[e]||0)+1}),{freq:n,len:t.length}}),o={};return a.forEach(({freq:e})=>{Object.keys(e).forEach(e=>{o[e]=(o[e]||0)+1})}),Object.keys(o).forEach(e=>{t[e]=Math.log((n-o[e]+.5)/(o[e]+.5)+1)}),{tfs:a,idf:t,avgLen:a.reduce((e,t)=>e+t.len,0)/(n||1)}}function bm25Score(e,t,n,a=1.5,o=.75){const{tfs:s,idf:l,avgLen:i}=t,{freq:c,len:r}=s[n];return tokenize(e).reduce((e,t)=>{const n=c[t]||0;return e+(l[t]||0)*(n*(a+1))/(n+a*(1-o+o*r/i))},0)}function chunkText(e,t=400,n=60){const a=e.split(/\s+/),o=[];for(let e=0;e<a.length&&(o.push(a.slice(e,e+t).join(" ")),!(e+t>=a.length));e+=t-n);return o}async function retrieveContext(e,t=4){if(!state.activeProject)return{context:"",sources:[]};const n=[...state.activeDocs];for(const e of state.activeOtherProjects)(await dbGetByIndex("docs","projectId",e)).forEach(e=>n.push(e.id));const a=[];if(state.activeProject.templateId){const e=state.templates.find(e=>e.id===state.activeProject.templateId);e&&a.push({text:e.content,source:`Template: ${e.name}`})}if(!n.length&&!a.length)return{context:"",sources:[]};const o=[...a];for(const e of n){const t=await dbGet("docs",e);t&&chunkText(t.content).forEach(e=>o.push({text:e,source:t.name}))}if(!o.length)return{context:"",sources:[]};const s=buildIndex(o),l=o.map((t,n)=>({i:n,score:bm25Score(e,s,n)}));l.sort((e,t)=>t.score-e.score);const i=l.slice(0,t).filter(e=>e.score>0),c=[...new Set(i.map(e=>o[e.i].source))];return{context:i.map(e=>`[from: ${o[e.i].source}]\n${o[e.i].text}`).join("\n\n---\n\n"),sources:c}}function buildApiCall(e,t){const n=state.settings.provider||"anthropic",a=getCurrentProviderKey(),o=state.settings.model;if("anthropic"===n)return{url:"https://api.anthropic.com/v1/messages",headers:{"Content-Type":"application/json","x-api-key":a,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:o,max_tokens:4096,system:e,messages:t,stream:!0})};const s={openai:"https://api.openai.com/v1/chat/completions",openrouter:"https://openrouter.ai/api/v1/chat/completions",github:"https://models.inference.ai.azure.com/chat/completions"},l={"Content-Type":"application/json",Authorization:`Bearer ${a}`};return"openrouter"===n&&(l["HTTP-Referer"]="https://sourcedesk.app",l["X-Title"]="SourceDesk"),{url:s[n]||s.openai,headers:l,body:JSON.stringify({model:o,messages:[{role:"system",content:e},...t],stream:!0,max_tokens:4096})}}function parseStreamDelta(e){if("[DONE]"===e)return null;try{const t=JSON.parse(e);if("anthropic"!==(state.settings.provider||"anthropic")){const e=t.choices?.[0]?.delta?.content;return e??null}if("content_block_delta"===t.type&&t.delta?.text)return t.delta.text}catch{}return null}async function sendMessage(){if(state.streaming||!state.activeProject)return;const e=document.getElementById("chat-input"),t=e.value.trim();if(!t)return;if(!getCurrentProviderKey())return void alert("Please add an API key in Settings.");e.value="",e.style.height="auto",state.messages.push({role:"user",content:t}),appendMessageEl("user",t);const{context:n,sources:a}=await retrieveContext(t);let o="You are SourceDesk, an expert AI assistant for strategic sourcing and procurement at a university. You help with RFPs, RFIs, vendor questionnaires, contract review, and supplier analysis.\n\nBe precise, professional, and concise. Use procurement terminology correctly. When filling in templates, follow the structure exactly. Flag any compliance concerns relevant to higher-education procurement.";state.settings.globalContext&&(o+=`\n\n## Global Instructions\n${state.settings.globalContext}`),state.activeProject&&(o+=`\n\n## Current Project\nName: ${state.activeProject.name}\nCategory: ${state.activeProject.category}`,state.activeProject.notes&&(o+=`\nNotes: ${state.activeProject.notes}`),state.activeProject.instructions&&(o+=`\n\n## Project Instructions\n${state.activeProject.instructions}`),state.activeProject.workingContent&&(o+=`\n\n## Working Document (current draft)\n${state.activeProject.workingContent}`)),n&&(o+=`\n\n## Retrieved Context (from project documents)\n${n}`);const s=state.messages.map(e=>({role:e.role,content:e.content})),l=document.createElement("div");l.className="msg assistant",l.innerHTML='<div class="msg-avatar">SD</div><div class="msg-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>',document.getElementById("chat-messages").appendChild(l),document.getElementById("chat-messages").scrollTop=99999,document.getElementById("send-btn").disabled=!0,state.streaming=!0;try{const{url:e,headers:t,body:n}=buildApiCall(o,s),i=await fetch(e,{method:"POST",headers:t,body:n});if(!i.ok){const e=await i.json().catch(()=>({})),t=e.error?.message||e.message||`API error ${i.status}`;throw new Error(t)}l.remove();const c=document.createElement("div");c.className="msg assistant";const r=document.createElement("div");r.className="msg-bubble",c.innerHTML='<div class="msg-avatar">SD</div>',c.appendChild(r),document.getElementById("chat-messages").appendChild(c);const d=i.body.getReader(),p=new TextDecoder;let m="";for(;;){const{done:e,value:t}=await d.read();if(e)break;const n=p.decode(t);for(const e of n.split("\n")){if(!e.startsWith("data: "))continue;const t=parseStreamDelta(e.slice(6).trim());t&&(m+=t,r.innerHTML=formatMarkdown(m),document.getElementById("chat-messages").scrollTop=99999)}}if(a.length){const e=document.createElement("div");e.className="chunk-used",e.innerHTML=`Referenced: ${a.map(e=>`<span class="chunk-source">${e}</span>`).join(", ")}`,c.appendChild(e)}state.messages.push({role:"assistant",content:m,sources:a}),await saveChat()}catch(e){l.remove(),appendMessageEl("assistant",`⚠ Error: ${e.message}`)}state.streaming=!1,document.getElementById("send-btn").disabled=!1}async function saveChat(){state.activeProject&&await dbPut("chats",{id:state.activeProject.id,projectId:state.activeProject.id,messages:state.messages})}async function renderRightPanel(){if(!state.activeProject)return;const e=document.getElementById("ctx-template");if(state.activeProject.templateId){const t=state.templates.find(e=>e.id===state.activeProject.templateId);t&&(e.innerHTML=`<div class="template-ref">\n        <span style="flex:1">${t.name}</span>\n        <span class="tcard-btn" onclick="openFillTemplate('${t.id}')">Fill</span>\n        <span class="tcard-btn" onclick="viewTemplateContent('${t.id}')">View</span>\n      </div>`)}else e.innerHTML='<div style="font-size:11px;color:var(--text-muted)">No template — <span style="color:var(--accent);cursor:pointer" onclick="promptAttachTemplate()">attach one</span></div>';const t=await dbGetByIndex("docs","projectId",state.activeProject.id),n=document.getElementById("ctx-project-docs");n.innerHTML="",t.length||(n.innerHTML='<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">No docs yet — upload files to give Claude context.</div>'),t.forEach(e=>{const t=state.activeDocs.has(e.id),a=document.createElement("div");a.className="context-doc"+(t?" active":""),a.innerHTML=`<div class="doc-toggle">${t?"✓":""}</div><div class="doc-name">${e.name}</div><span class="tcard-btn del" onclick="deleteDoc('${e.id}',event)" style="opacity:0.5;margin-left:4px">✕</span>`,a.onclick=t=>{t.target.classList.contains("tcard-btn")||toggleDoc(e.id,a)},n.appendChild(a)});const a=document.getElementById("ctx-other-projects");a.innerHTML="";const o=state.projects.filter(e=>e.id!==state.activeProject.id);o.length||(a.innerHTML='<div style="font-size:11px;color:var(--text-muted)">No other projects yet.</div>'),o.forEach(e=>{const t=state.activeOtherProjects.has(e.id),n=document.createElement("div");n.className="other-project-item",n.innerHTML=`<input type="checkbox" ${t?"checked":""} onchange="toggleOtherProject('${e.id}', this.checked)"> <span>${e.name}</span> <span style="font-size:10px;color:var(--text-muted);font-family:DM Mono,monospace">${e.category}</span>`,a.appendChild(n)}),document.getElementById("ctx-doc-count").textContent=`${t.length} doc${1!==t.length?"s":""}`}function toggleDoc(e,t){state.activeDocs.has(e)?(state.activeDocs.delete(e),t.classList.remove("active"),t.querySelector(".doc-toggle").textContent=""):(state.activeDocs.add(e),t.classList.add("active"),t.querySelector(".doc-toggle").textContent="✓")}function toggleOtherProject(e,t){t?state.activeOtherProjects.add(e):state.activeOtherProjects.delete(e)}async function deleteDoc(e,t){t.stopPropagation(),confirm("Remove this document?")&&(await dbDelete("docs",e),state.activeDocs.delete(e),await renderRightPanel())}function toggleRightPanel(){state.rightPanelOpen=!state.rightPanelOpen,document.getElementById("panel-right").classList.toggle("collapsed",!state.rightPanelOpen)}async function handleDocUpload(e){if(!state.activeProject)return;const t=Array.from(e.target.files);for(const e of t){const t=await readFileAsText(e),n={id:uid(),projectId:state.activeProject.id,name:e.name,content:t,uploadedAt:Date.now()};await dbPut("docs",n),state.activeDocs.add(n.id)}e.target.value="",await renderRightPanel()}function readFileAsText(e){return new Promise(t=>{const n=new FileReader;n.onload=e=>t(e.target.result),n.onerror=()=>t(`[Could not read file: ${e.name}]`),n.readAsText(e)})}function renderTemplatesGrid(){const e=document.getElementById("templates-grid");e.innerHTML="",state.templates.length?state.templates.forEach(t=>{const n=document.createElement("div");n.className="template-card",n.innerHTML=`\n      <div class="template-card-actions">\n        <span class="tcard-btn" onclick="openEditTemplate('${t.id}')">Edit</span>\n        <span class="tcard-btn del" onclick="deleteTemplate('${t.id}')">Delete</span>\n      </div>\n      <div class="template-card-type ${"skeleton"===t.type?"type-skeleton":"type-example"}">${t.type}</div>\n      <div class="template-card-name">${t.name}</div>\n      <div class="template-card-category">${t.category}</div>`,e.appendChild(n)}):e.innerHTML='<div class="empty-state" style="grid-column:1/-1"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="5" y="5" width="30" height="30" rx="3"/><line x1="12" y1="14" x2="28" y2="14"/><line x1="12" y1="20" x2="28" y2="20"/><line x1="12" y1="26" x2="20" y2="26"/></svg><span>No templates yet — create your first one.</span></div>'}function openNewTemplate(){state.editingTemplateId=null,document.getElementById("modal-template-title").textContent="New Template",document.getElementById("tmpl-name").value="",document.getElementById("tmpl-content").value="",selectPillByVal("tmpl-category-pills","RFP"),selectPillByVal("tmpl-type-pills","skeleton"),showModal("modal-template")}function openEditTemplate(e){const t=state.templates.find(t=>t.id===e);t&&(state.editingTemplateId=e,document.getElementById("modal-template-title").textContent="Edit Template",document.getElementById("tmpl-name").value=t.name,document.getElementById("tmpl-content").value=t.content,selectPillByVal("tmpl-category-pills",t.category),selectPillByVal("tmpl-type-pills",t.type),showModal("modal-template"))}async function saveTemplate(){const e=document.getElementById("tmpl-name").value.trim(),t=document.getElementById("tmpl-content").value.trim(),n=getActivePill("tmpl-category-pills"),a=getActivePill("tmpl-type-pills");if(!e||!t)return void alert("Please fill in the name and content.");const o=state.editingTemplateId||uid(),s={id:o,name:e,category:n,type:a,content:t,updatedAt:Date.now()};await dbPut("templates",s),state.editingTemplateId?state.templates=state.templates.map(e=>e.id===o?s:e):state.templates.push(s),closeModal(),renderTemplatesGrid()}async function deleteTemplate(e){confirm("Delete this template?")&&(await dbDelete("templates",e),state.templates=state.templates.filter(t=>t.id!==e),renderTemplatesGrid())}function openNewProject(){document.getElementById("proj-name").value="",document.getElementById("proj-notes").value="",selectPillByVal("proj-category-pills","RFP");const e=document.getElementById("proj-template-select");e.innerHTML='<option value="">— Start blank —</option>',state.templates.forEach(t=>{const n=document.createElement("option");n.value=t.id,n.textContent=`[${t.category}] ${t.name}`,e.appendChild(n)}),showModal("modal-project")}async function saveProject(){const e=document.getElementById("proj-name").value.trim(),t=document.getElementById("proj-notes").value.trim(),n=getActivePill("proj-category-pills"),a=document.getElementById("proj-template-select").value||null,o=document.getElementById("proj-instructions").value.trim();if(!e)return void alert("Please enter a project name.");let s="";if(a){const e=state.templates.find(e=>e.id===a);e&&(s=e.content)}const l={id:uid(),name:e,category:n,templateId:a,notes:t,instructions:o,workingContent:s,createdAt:Date.now()};await dbPut("projects",l),state.projects.push(l),closeModal(),renderSidebar(),await loadProject(l.id)}function openFillTemplate(e){const t=state.templates.find(t=>t.id===e);if(!t||"skeleton"!==t.type)return void viewTemplateContent(e);const n=[...new Set([...t.content.matchAll(/\{\{([^}]+)\}\}/g)].map(e=>e[1]))];if(!n.length)return void viewTemplateContent(e);document.getElementById("modal-fill-subtitle").textContent=`Fill in the blanks for "${t.name}"`;const a=document.getElementById("fill-fields");a.innerHTML="",n.forEach(e=>{const t=document.createElement("div");t.className="form-row",t.innerHTML=`<label class="form-label">${e}</label><input class="form-input" data-placeholder="${e}" placeholder="Enter ${e}…">`,a.appendChild(t)}),a.dataset.templateId=e,showModal("modal-fill")}function applyFill(){const e=document.getElementById("fill-fields"),t=state.templates.find(t=>t.id===e.dataset.templateId);if(!t)return;let n=t.content;e.querySelectorAll("[data-placeholder]").forEach(e=>{const t=e.value.trim()||`[${e.dataset.placeholder}]`;n=n.split(`{{${e.dataset.placeholder}}}`).join(t)}),document.getElementById("chat-input").value=`Please help me review and complete this document:\n\n${n}`,closeModal(),document.getElementById("chat-input").focus()}function viewTemplateContent(e){const t=state.templates.find(t=>t.id===e);t&&(document.getElementById("chat-input").value=`I'd like to work on the "${t.name}" template. Here's the content:\n\n${t.content}`,closeModal(),document.getElementById("chat-input").focus())}function promptAttachTemplate(){openNewProject()}function openSettings(){const e=state.settings.provider||"anthropic";selectPillByVal("provider-pills",e),updateProviderUI(e),document.getElementById("settings-apikey").value=getCurrentProviderKey(),document.getElementById("settings-context").value=state.settings.globalContext||"",updateApiKeyStatus(!!getCurrentProviderKey()),showModal("modal-settings")}function updateProviderUI(e){const t=PROVIDERS[e]||PROVIDERS.anthropic;document.getElementById("apikey-label").textContent=t.keyLabel,document.getElementById("settings-apikey").placeholder=t.keyPlaceholder,document.getElementById("apikey-hint").innerHTML=t.keyHint;const n=document.getElementById("settings-model");n.innerHTML="",t.models.forEach(e=>{const t=document.createElement("option");t.value=e.id,t.textContent=e.label,n.appendChild(t)}),t.models.some(e=>e.id===state.settings.model)?n.value=state.settings.model:n.value=t.defaultModel}function onProviderChange(e){setProviderKey(getActivePill("provider-pills")||state.settings.provider,document.getElementById("settings-apikey").value),updateProviderUI(e),document.getElementById("settings-apikey").value=state.settings[e+"Key"]||"",updateApiKeyStatus(!!state.settings[e+"Key"])}async function saveSettings(){const e=getActivePill("provider-pills")||"anthropic",t=document.getElementById("settings-apikey").value.trim(),n=document.getElementById("settings-model").value,a=document.getElementById("settings-context").value.trim();state.settings.provider=e,state.settings.model=n,state.settings.globalContext=a,setProviderKey(e,t),await dbPut("settings",{key:"provider",value:e}),await dbPut("settings",{key:`apiKey_${e}`,value:t}),await dbPut("settings",{key:"model",value:n}),await dbPut("settings",{key:"globalContext",value:a}),closeModal(),checkApiKey()}function updateApiKeyStatus(e){document.getElementById("apikey-dot").classList.toggle("ok",e),document.getElementById("apikey-status-text").textContent=e?"API key saved":"No key saved"}function checkApiKey(){document.getElementById("no-key-banner").classList.toggle("hidden",!!getCurrentProviderKey()||!state.activeProject)}async function clearAllData(){if(!confirm("This will delete ALL projects, templates, documents, and chat history. Are you sure?"))return;const e=["templates","projects","docs","chats","settings"];for(const t of e){const e=await dbGetAll(t);for(const n of e)await dbDelete(t,n["settings"===t?"key":"id"])}location.reload()}function showModal(e){document.getElementById("modal-overlay").classList.remove("hidden"),document.querySelectorAll(".modal").forEach(e=>e.classList.add("hidden")),document.getElementById(e).classList.remove("hidden")}function closeModal(){document.getElementById("modal-overlay").classList.add("hidden")}function closeModalOnOverlay(e){e.target===document.getElementById("modal-overlay")&&closeModal()}function selectPill(e,t){document.querySelectorAll(`#${t} .type-pill`).forEach(e=>e.classList.remove("active")),e.classList.add("active")}function selectPillByVal(e,t){document.querySelectorAll(`#${e} .type-pill`).forEach(e=>{e.classList.toggle("active",e.dataset.val===t)})}function getActivePill(e){return document.querySelector(`#${e} .type-pill.active`)?.dataset.val||""}TEST||document.addEventListener("DOMContentLoaded",()=>{const e=document.getElementById("chat-input");e.addEventListener("input",()=>{e.style.height="auto",e.style.height=Math.min(e.scrollHeight,120)+"px"}),e.addEventListener("keydown",e=>{"Enter"!==e.key||e.shiftKey||(e.preventDefault(),sendMessage())}),showView("chat"),boot()});
 </script>
-</body>
+    </body>
 </html>

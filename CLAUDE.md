@@ -73,10 +73,10 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
 | `templates` | `id` | — | `{id, name, category, type, content, updatedAt}` |
-| `projects` | `id` | — | `{id, name, category, templateId, notes, workingContent, createdAt}` |
+| `projects` | `id` | — | `{id, name, category, templateId, notes, instructions, workingContent, createdAt}` |
 | `docs` | `id` | `projectId` | `{id, projectId, name, content, uploadedAt}` |
 | `chats` | `id` | `projectId` | `{id, projectId, messages: [{role, content, sources}]}` |
-| `settings` | `key` | — | `{key, value}` — keys: `apiKey`, `model`, `globalContext` |
+| `settings` | `key` | — | `{key, value}` — keys: `provider`, `model`, `globalContext`, `apiKey_anthropic`, `apiKey_openai`, `apiKey_openrouter`, `apiKey_github` (legacy: `apiKey` migrated → `apiKey_anthropic` on first boot) |
 
 ### DB Helper Pattern
 All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)`, `dbDelete(store, key)`, `dbGetAll(store)`, `dbGetByIndex(store, index, val)`. All return Promises. Always await them.
@@ -86,8 +86,16 @@ All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)
 let state = {
   projects: [],           // all projects (loaded at boot)
   templates: [],          // all templates (loaded at boot)
-  settings: { apiKey, model, globalContext },
-  activeProject: null,    // full project object
+  settings: {
+    provider: 'anthropic',       // 'anthropic' | 'openai' | 'openrouter' | 'github'
+    model: 'claude-sonnet-4-6',
+    globalContext: '',
+    anthropicKey: '',
+    openaiKey: '',
+    openrouterKey: '',
+    githubKey: '',
+  },
+  activeProject: null,    // full project object; may have .instructions field
   activeDocs: new Set(),  // doc IDs toggled ON in context
   activeOtherProjects: new Set(), // other project IDs whose docs are pulled in
   messages: [],           // current project's chat history
@@ -122,16 +130,51 @@ One overlay div (`#modal-overlay`), multiple modal divs inside it. `showModal(id
 7. Return `{ context: string, sources: string[] }`
 8. `context` is injected into system prompt; `sources` are shown below the reply bubble
 
-### Streaming Chat
-`sendMessage()` uses `fetch` with `stream: true` against `https://api.anthropic.com/v1/messages`. Reads the SSE stream with `ReadableStream.getReader()` + `TextDecoder`. Parses `data:` lines, extracts `content_block_delta.delta.text`, appends to bubble innerHTML via `formatMarkdown()`.
+### Multi-Provider Architecture
 
-Required headers:
+`PROVIDERS` constant (top of `src/main.js`) defines config for each provider:
+```js
+PROVIDERS[provider] = { label, keyLabel, keyPlaceholder, keyHint, models[], defaultModel }
 ```
-'anthropic-version': '2023-06-01'
-'anthropic-dangerous-direct-browser-access': 'true'
-```
+
+Two helper functions:
+- `getCurrentProviderKey()` — returns `state.settings[provider + 'Key']`
+- `setProviderKey(provider, key)` — writes to `state.settings[provider + 'Key']`
+
+`buildApiCall(systemPrompt, apiMessages)` returns `{url, headers, body}`:
+- **Anthropic**: `POST api.anthropic.com/v1/messages`, headers `x-api-key` + `anthropic-version` + `anthropic-dangerous-direct-browser-access`, body has top-level `system` field
+- **OpenAI**: `POST api.openai.com/v1/chat/completions`, `Authorization: Bearer`, system injected as first message `{role:'system', content}`
+- **OpenRouter**: same as OpenAI but `openrouter.ai/api/v1/...`, adds `HTTP-Referer: https://sourcedesk.app` and `X-Title: SourceDesk`
+- **GitHub Models**: same as OpenAI but `models.inference.ai.azure.com/chat/completions`, auth is a GitHub PAT with `models:read` scope
+
+`parseStreamDelta(data)` handles both SSE formats:
+- Anthropic: `parsed.type === 'content_block_delta'` → `parsed.delta.text`
+- OpenAI-compat: `parsed.choices[0].delta.content`
+- Returns `null` for `[DONE]`, non-delta events, or parse errors
+
+`onProviderChange(provider)` (called from HTML onclick) — snapshots the typed key for the old provider into state, then updates the UI for the new provider. Does NOT save to DB until the user clicks Save.
+
+### Streaming Chat
+`sendMessage()` calls `buildApiCall()` to get the fetch params, then reads the SSE stream with `ReadableStream.getReader()` + `TextDecoder`, calling `parseStreamDelta()` per line. `max_tokens` is 4096.
 
 ---
+
+## Provider Reference
+
+| Provider | API Base URL | Auth Header | System Prompt |
+|---|---|---|---|
+| Anthropic | `api.anthropic.com/v1/messages` | `x-api-key: {key}` | Top-level `system` field |
+| OpenAI | `api.openai.com/v1/chat/completions` | `Authorization: Bearer {key}` | First message `{role:'system'}` |
+| OpenRouter | `openrouter.ai/api/v1/chat/completions` | `Authorization: Bearer {key}` | First message `{role:'system'}` |
+| GitHub Models | `models.inference.ai.azure.com/chat/completions` | `Authorization: Bearer {PAT}` | First message `{role:'system'}` |
+
+**Model IDs** (as of 2025-07-14):
+- Anthropic: `claude-sonnet-4-6`, `claude-opus-4-6`, `claude-haiku-4-5-20251001`
+- OpenAI: `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-4o`, `gpt-4o-mini`, `o4-mini`
+- OpenRouter: `anthropic/claude-sonnet-4-5`, `openai/gpt-4o`, `google/gemini-2.5-pro-preview`, `google/gemini-2.5-flash-preview`, `meta-llama/llama-3.3-70b-instruct`, `deepseek/deepseek-r1`, `x-ai/grok-3-beta`, `mistralai/mistral-large`
+- GitHub Models: `gpt-4o`, `gpt-4o-mini`, `Meta-Llama-3.3-70B-Instruct`, `Phi-4`, `DeepSeek-V3-0324`, `Mistral-Large-2411`
+
+Check provider docs before adding new models — IDs change frequently.
 
 ## Flags & Constants (top of `src/main.js`)
 
@@ -161,7 +204,8 @@ showView, openNewProject, saveProject, openNewTemplate, openEditTemplate,
 saveTemplate, deleteTemplate, openFillTemplate, applyFill, viewTemplateContent,
 promptAttachTemplate, openSettings, saveSettings, clearAllData, loadProject,
 sendMessage, toggleRightPanel, toggleDoc, toggleOtherProject, deleteDoc,
-handleDocUpload, selectPill, selectPillByVal, closeModal, closeModalOnOverlay, boot
+handleDocUpload, selectPill, selectPillByVal, closeModal, closeModalOnOverlay,
+onProviderChange, boot
 ```
 
 **When you add a new function called from HTML, add it to this list or the minified build will silently break.**
@@ -173,8 +217,8 @@ handleDocUpload, selectPill, selectPillByVal, closeModal, closeModalOnOverlay, b
 ### How it works
 `tests/test.html` sets `window.__SOURCEDESK_TEST__ = true` in an inline script, then loads `../src/main.js` via `<script src>`. Because `TEST` is true, `main.js` skips the DOM boot. All pure functions are then available globally and the test suite runs against them.
 
-### Current test coverage (23 tests, 7 suites)
-`tokenize`, `chunkText`, `buildIndex`, `bm25Score`, `formatMarkdown`, `uid`, export shape validation.
+### Current test coverage (46 tests, 10 suites)
+`tokenize`, `chunkText`, `buildIndex`, `bm25Score`, `formatMarkdown`, `uid`, export shape validation, `parseStreamDelta` (all 4 providers), `buildApiCall` (all 4 providers), `PROVIDERS` config integrity.
 
 ### Adding a test
 1. Add a `describe`/`it` block in `tests/test.html` inside the existing test script block.
@@ -242,52 +286,47 @@ When adding a new object store or index:
 
 ## Current State (as of last commit)
 
-### Committed & working
-- ✅ Full original app (v0.1.0): projects, templates, BM25 retrieval, streaming chat, doc upload, context panel, settings
-- ✅ Build pipeline: `src/main.js` + `src/index.html` → `npm run build` → `SourceDesk.html`
-- ✅ `DEBUG`, `TEST`, `APP_VERSION` flags in `src/main.js`
-- ✅ `log()` helper (no-op unless `DEBUG`)
-- ✅ `DOMContentLoaded` + `boot()` gated on `!TEST`
-- ✅ Test harness: `tests/test.html` loads real `src/main.js`, 23 tests passing
-- ✅ `CHANGELOG.md` (initial entries)
-- ✅ `README.md` with version badge, Testing section, roadmap checkboxes
+### Committed & working ✅
+- Full original app (v0.1.0): projects, templates, BM25 retrieval, doc upload, context panel
+- Build pipeline: `src/main.js` + `src/index.html` → `npm run build` → `SourceDesk.html` (79 KB)
+- `DEBUG`, `TEST`, `APP_VERSION` flags; `log()` helper; `DOMContentLoaded` gated on `!TEST`
+- **Multi-provider support**: Anthropic, OpenAI, OpenRouter, GitHub Models
+  - `PROVIDERS` config constant, `buildApiCall()`, `parseStreamDelta()`
+  - Per-provider key storage in DB; legacy `apiKey` → `apiKey_anthropic` migration
+  - `onProviderChange()` in settings modal with live UI switching
+- **Version string** `v0.2.0` displayed in topbar at boot
+- **Global Instructions** label (renamed from "Sourcing Context")
+- **Per-project Instructions** field in project creation modal; injected into system prompt
+- Test harness: 46 tests across 10 suites including all 4 providers for `buildApiCall` and `parseStreamDelta`
+- `CHANGELOG.md`, `README.md`, `CLAUDE.md`
 
-### Not yet implemented (planned for v0.2.0)
-The CHANGELOG v0.2.0 entry was **written ahead of implementation** by a sub-agent. These features are described there but do not yet exist in the code:
-
-- ❌ Version string visible in the UI (topbar)
-- ❌ `DB_VERSION` bump to 2
-- ❌ `notes` object store
-- ❌ Notes feature UI (sidebar section, split-panel editor)
+### Still outstanding (do next session)
 - ❌ Database Export (download all stores as JSON)
-- ❌ Database Import (restore from JSON)
-- ❌ "Global Instructions" rename (currently labeled "Sourcing Context" in the settings modal)
-- ❌ Per-project `instructions` field (project creation modal + system prompt injection)
-- ❌ Project/Chat Export (download project + chat as JSON)
+- ❌ Database Import (restore from JSON backup)
+- ❌ Project/Chat Export (download project + chat history as JSON)
+- ❌ Notes feature (per-project note editor; requires `DB_VERSION` bump to 2 + `notes` store)
+- ❌ `openNewProject()` should clear the `proj-instructions` textarea on open (currently may retain previous value)
 
 ---
 
 ## Next Steps (Ordered for Next Session)
 
-These are the v0.2.0 features to implement, roughly in order of dependency:
-
-1. **Version string in topbar** — add `<span>v${APP_VERSION}</span>` to `src/index.html` topbar; styled with `DM Mono`, `--text-muted`
-2. **Rename "Sourcing Context" → "Global Instructions"** — label change only in `src/index.html` settings modal; the DB key stays `globalContext`
-3. **Per-project instructions** — add `instructions` textarea to the New Project modal in `src/index.html`; in `saveProject()` persist it on the project object; in `sendMessage()` inject it after global instructions in the system prompt
-4. **Database Export** — `exportDatabase()`: iterates all stores via `dbGetAll`, builds `{version: DB_VERSION, appVersion: APP_VERSION, exportedAt: ISO, stores: {...}}`, triggers a JSON download. Add button to Settings modal.
-5. **Database Import** — `importDatabase(file)`: reads JSON, validates shape with `validateImportShape()`, calls `clearAllData()` equivalent, reimports each store via `dbPut`. Add file input to Settings modal. Reload after.
-6. **Project/Chat Export** — `exportProject()`: collects project object + messages + docs metadata, downloads as JSON. Add button to topbar (visible only when `state.activeProject` is set).
-7. **Notes (DB change — do this last)** — bump `DB_VERSION` to 2, add `notes` store. Add notes sidebar section (disabled when no project active). Add notes view with list panel + editor panel. CRUD: `openNewNote()`, `saveCurrentNote()`, `deleteCurrentNote()`. Update test harness.
-8. **Write tests** for export shape validation (already partially done in `validateExportShape`) and notes CRUD helpers
-9. **Update CHANGELOG.md** — fill in actual implementation date, correct any discrepancies
-10. **`npm run build`**, open app, open tests, verify all green, commit + push
+1. **Fix `openNewProject()`** — clear `proj-instructions` textarea (add `document.getElementById('proj-instructions').value = '';` alongside the other field resets)
+2. **Database Export** — `exportDatabase()`: iterates all stores via `dbGetAll`, builds `{version: DB_VERSION, appVersion: APP_VERSION, exportedAt: ISO, stores: {templates, projects, docs, chats, settings}}`, triggers a `.json` download via `<a download>`. Add "Export Database" button to Settings modal actions row (left side, before Cancel).
+3. **Database Import** — `importDatabase(file)`: reads JSON, validates with `validateImportShape()` (already in tests), confirms with user, clears all stores, reimports each record via `dbPut`, then `location.reload()`. Add hidden file input + "Import Database" button to Settings modal.
+4. **Project/Chat Export** — `exportProject()`: collects `state.activeProject` + `state.messages` + doc metadata, downloads as `{project, messages, docs, exportedAt}` JSON. Add "Export" `btn-icon` to topbar, hidden when no active project.
+5. **Notes (🗄️ DB change)** — bump `DB_VERSION` to 2, add `notes` store (`keyPath: 'id'`, index `projectId`). Add "Notes" sidebar section (disabled button when no project). Add `#notes-view` with split panel (list left, editor right). CRUD: `openNewNote()`, `saveCurrentNote()`, `deleteCurrentNote()`, `loadNotes()`. Extend `showView()` for `'notes'`. Update CLAUDE.md schema table.
+6. **Write/update tests** for export shape, import validation, notes helpers
+7. **`npm run build`** → verify build passes, open `SourceDesk.html`, open `tests/test.html` → all green
+8. **Update CHANGELOG.md, README.md checkboxes, CLAUDE.md current state**
+9. **Commit + push**
 
 ---
 
 ## Gotchas & Learnings
 
 ### Shell environment
-- This is WSL on Windows. **Heredocs (`<< 'EOF'`) do not work** in the terminal tool. Attempting them causes a syntax error.
+- This is WSL on Windows. **Heredocs (`<< 'EOF'`) do not work** in the terminal tool — causes "end of file unexpected" syntax error.
 - Workaround: Write Python (or JS) scripts to a file using `edit_file`, then run them with `python3 script.py`. Delete the temp file after.
 - Shell substitutions (`$VAR`, `$(...)`, backticks) are also blocked in the terminal tool. Resolve values before calling terminal, or chain with `&&`.
 
@@ -323,11 +362,13 @@ These are the v0.2.0 features to implement, roughly in order of dependency:
 
 ## Model Reference
 
-Available models (set in Settings):
-- `claude-sonnet-4-20250514` — default, recommended
-- `claude-haiku-4-5-20251001` — faster/cheaper
+Models are now defined in the `PROVIDERS` constant in `src/main.js` and the `<select id="settings-model">` is populated dynamically by `updateProviderUI()`. To add a model, edit the `models[]` array for the appropriate provider in `PROVIDERS`.
 
-When the Anthropic API releases new models, add them to the `<select id="settings-model">` in `src/index.html` and document in CHANGELOG. Always check [https://docs.anthropic.com/en/docs/about-claude/models](https://docs.anthropic.com/en/docs/about-claude/models) for the latest model IDs before hardcoding.
+Always verify model IDs against provider docs before adding:
+- Anthropic: [docs.anthropic.com/en/docs/about-claude/models](https://docs.anthropic.com/en/docs/about-claude/models)
+- OpenAI: [platform.openai.com/docs/models](https://platform.openai.com/docs/models)
+- OpenRouter: [openrouter.ai/models](https://openrouter.ai/models)
+- GitHub Models: [github.com/marketplace/models](https://github.com/marketplace/models)
 
 ---
 

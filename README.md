@@ -2,7 +2,7 @@
 
 An in-browser makeshift RAG and Project Management system for the web version of Claude. Runs completely in browser, single file, uses IndexedDB for persistent storage.
 
-**Current version:** v0.2.0
+**Current version:** v0.2.0 — multi-provider (Anthropic · OpenAI · OpenRouter · GitHub Models)
 
 ## Usage
 1. Save the file and open it in a modern web browser.
@@ -31,18 +31,19 @@ Open `tests/test.html` in a browser to run the unit test suite for pure utility 
 
 ## Roadmap for future features
 - [x] **Global Instructions** - a set of instructions that can be set to be included in the system prompt for all projects, or on a per-project basis.
+- [x] **Multi-Provider LLM Support** - Settings provider selector for Anthropic, OpenAI, OpenRouter, and GitHub Models. Per-provider API key storage with legacy migration. Provider-specific model lists. `buildApiCall()` and `parseStreamDelta()` handle both Anthropic and OpenAI-compatible streaming formats.
 - [ ] **Custom Prompt Templates** - ability to create and save custom system prompt templates that can be applied to projects. This would allow users to easily switch between different prompting strategies or frameworks.
 - [ ] **Create template from document**: Upload a doc, create a new skeleton with an interactive process to create placeholder variables and choose which content to keep static. Automatically creates placeholders for dates, times, names, and other entities.
 - [ ] **Google Drive Connector**: Claude can search/fetch docs on demand. This is basically free lightweight RAG with no setup. Add files directly to a project or reference directly on your google drive. Auto-sync your IndexedDB with a specific Drive folder for backup and cross-device access.
 - [ ] **Project Deliverables** - a feature to define and manage the expected outputs/documents/artifacts or results for a project, including deadlines, milestones, and responsible team members. For example an RFP might have the RFP document, and the attached files like Pricing Structure, example proposals, job descriptions, addendums, etc. as deliverables. Ability to export to Google Drive or download an archive of these deliverables in a structured format (e.g. JSON or CSV) or a zip file of generated docx/pdf files.
 - [ ] **Project/Template Variables and Constants**: a separate group of variables that you can set to be globally or locally available. Can be used in templates instead of {{PLACEHOLDER}} and will be auto-filled on template-based document creation. Support for simple date expressions (e.g. {{TODAY+7}}) and auto-extraction of variables from uploaded documents (e.g. extract all dates and names and offer to save them as constants).
-- [x] **Notes** - a simple text editor for jotting down thoughts or pasting in emails. Emails get parsed for contact info and dates, which can be saved as constants or added to the important contacts/resources section.
+- [ ] **Notes** - a simple text editor for jotting down thoughts or pasting in emails. Emails get parsed for contact info and dates, which can be saved as constants or added to the important contacts/resources section.
 - [ ] **Important Contacts/Resources** - a place to store important contact info and links that are applicable to the project. Meta data can include tags, contact info, notes, etc. Can be set to be included in context.
 - [ ] **Org Charts** - a simple org chart creator and viewer that can be used to visualize team structures, project stakeholders, or any other hierarchical information relevant to the project. Can be set to be included in context.
 - [ ] **Versioning** - ability to save versions of the working document as you iterate on it, with the option to roll back to previous versions.
-- [x] **Database Export/Import** - ability to export the entire IndexedDB database as a JSON file for backup or transfer, and to import it back in.
+- [ ] **Database Export/Import** - ability to export the entire IndexedDB database as a JSON file for backup or transfer, and to import it back in.
 - [ ] **Mobile Optimization** - improve the UI and UX for mobile devices, including better handling of the context panel and chat interface on smaller screens.
-- [x] **Project/Chat Export** - ability to export the chat history and associated docs for a project as a single file (e.g. JSON or PDF) for sharing or archiving.
+- [ ] **Project/Chat Export** - ability to export the chat history and associated docs for a project as a single file (e.g. JSON or PDF) for sharing or archiving.
 - [ ] **Project Type Creation/Editing** - ability to create and edit project templates that include predefined instructions, document structures, and other settings to streamline the creation of new projects for common use cases (e.g. meeting notes, research projects, writing projects, etc.).
 - [ ] **Enhanced Retrieval** - implement more advanced retrieval techniques such as semantic search using embeddings, or a hybrid approach that combines BM25 with semantic similarity to improve the relevance of retrieved documents.
 - [ ] **Vendor Catalog**: A directory of vendors, consultants, freelancers, and agencies categorized by industry, expertise, and services offered. Each entry includes contact info, notes, and tags. Can be set to be included in context for relevant projects.
