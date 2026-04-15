@@ -185,7 +185,7 @@ Check provider docs before adding new models — IDs change frequently.
 ```js
 const DEBUG       = window.__SOURCEDESK_DEBUG__ || false;
 const TEST        = window.__SOURCEDESK_TEST__  || false;
-const APP_VERSION = '0.4.0';
+const APP_VERSION = '0.4.1';
 function log(...args) { if (DEBUG) console.log('[SD]', ...args); }
 ```
 
@@ -213,7 +213,8 @@ onProviderChange, boot, exportDatabase, triggerImportDialog, importDatabase,
 exportProject, openNewNote, selectNote, saveCurrentNote, deleteCurrentNote,
 loadNotes, renderNotesList, validateImportShape, filterNotes, toggleNoteInContext,
 openEditProject, deleteProject, duplicateTemplate, openWorkingDoc, saveWorkingDoc,
-clearChatHistory, createTemplateFromDoc
+clearChatHistory, previewTemplateVars, openExtractVars, saveExtractedVars,
+createTemplateFromDoc
 ```
 
 **When you add a new function called from HTML, add it to this list or the minified build will silently break.**
@@ -225,8 +226,8 @@ clearChatHistory, createTemplateFromDoc
 ### How it works
 `tests/test.html` sets `window.__SOURCEDESK_TEST__ = true` in an inline script, then loads `../src/main.js` via `<script src>`. Because `TEST` is true, `main.js` skips the DOM boot. All pure functions are then available globally and the test suite runs against them.
 
-### Current test coverage (65 tests, 13 suites)
-`tokenize`, `chunkText`, `buildIndex`, `bm25Score`, `formatMarkdown`, `uid`, `validateImportShape`, `parseStreamDelta` (all 4 providers), `buildApiCall` (all 4 providers), `PROVIDERS` config integrity, `parseConstants`, `resolveTemplateVars`.
+### Current test coverage (79 tests, 16 suites)
+`tokenize`, `chunkText`, `buildIndex`, `bm25Score`, `formatMarkdown`, `uid`, `validateImportShape`, `parseStreamDelta` (all 4 providers), `buildApiCall` (all 4 providers), `PROVIDERS` config integrity, `parseConstants`, `resolveTemplateVars`, `resolveTemplateVars — date arithmetic`, `extractDatesFromText`.
 
 ### Adding a test
 1. Add a `describe`/`it` block in `tests/test.html` inside the existing test script block.
@@ -302,7 +303,7 @@ When adding a new object store or index:
   - `PROVIDERS` config constant, `buildApiCall()`, `parseStreamDelta()`
   - Per-provider key storage in DB; legacy `apiKey` → `apiKey_anthropic` migration
   - `onProviderChange()` in settings modal with live UI switching
-- **Version string** `v0.4.0` displayed in topbar at boot
+- **Version string** `v0.4.1` displayed in topbar at boot
 - **Global Instructions** label (renamed from "Sourcing Context")
 - **Per-project Instructions** field in project creation modal; injected into system prompt; textarea cleared on modal open
 - **Database Export** — `exportDatabase()` downloads all stores as timestamped JSON backup
@@ -322,7 +323,11 @@ When adding a new object store or index:
 - **Auto-resolve in Fill modal** — `openFillTemplate()` resolves vars first; `#fill-auto-resolved` info bar lists what was auto-filled; only unresolved `{{PLACEHOLDER}}` fields shown for manual entry; if all resolved, inserts directly into chat without showing modal
 - **`viewTemplateContent()` resolves vars** — auto-resolves before inserting into chat input
 - **Create Template from Document** — `createTemplateFromDoc(docId)` opens template modal pre-filled with doc content; `→Tmpl` button on each right-panel doc entry
-- Test harness: 65 tests across 13 suites (added `parseConstants` suite × 8, `resolveTemplateVars` suite × 8)
+- **Date arithmetic in templates** — `resolveTemplateVars()` handles `{{TODAY+N}}`, `{{TODAY-N}}`, `{{TODAY+Nw}}` (weeks), `{{TODAY+Nm}}` (months); unit suffix case-insensitive; defaults to days
+- **Extract Variables from Document** — `openExtractVars(docId)` scans a doc for dates in 4 formats (ISO, US, long/short month name), deduplicates, shows modal with checkboxes + editable constant names; `saveExtractedVars()` appends to `state.settings.constants` and persists; **Extract** button on each right-panel doc entry
+- **`extractDatesFromText(text)`** — pure function; 4 regex patterns; Set-based deduplication; returns `string[]`
+- **Template Variable Preview** — `previewTemplateVars()` resolves vars against active project and shows result in read-only `modal-preview`; **Preview** button in template editor modal
+- Test harness: 79 tests across 16 suites
 - `CHANGELOG.md`, `README.md`, `CLAUDE.md`
 
 ### Still outstanding (do next session)
@@ -330,17 +335,20 @@ When adding a new object store or index:
 - ❌ Notes are not searchable across projects (only filters within current project's list)
 - ❌ No "recent notes" or cross-project note view
 - ❌ `clearAllData()` does not include the `notes` store — should be added to the stores list
+- ❌ Extract Variables only detects dates — names, monetary amounts, and other entity types not yet supported
+- ❌ Template preview modal opens on top of template editor (both modals can't show simultaneously — preview pushes editor off screen); ideally preview opens as a split-pane or inline panel
 
 ---
 
 ## Next Steps (Ordered for Next Session)
 
-1. **Full doc content in Project Export** — add an opt-in flag so `exportProject()` includes raw doc bodies (currently only metadata); warn user that the file may be large
-2. **Fix `clearAllData()`** — the `notes` store is missing from the stores list; add it so notes are cleared along with everything else
-3. **Template variable preview** — in the template editor modal, add a small "Preview resolved" button that applies `resolveTemplateVars()` against the current active project and shows the result inline, so users can verify vars before saving
-4. **Cross-project notes search** — a global search input (perhaps in a future search view) that queries note titles/content across all projects
-5. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
-6. **Update CHANGELOG.md version tag + commit + push**
+1. **Fix `clearAllData()`** — the `notes` store is missing from the stores list; add it so notes are cleared along with everything else
+2. **Full doc content in Project Export** — add an opt-in flag so `exportProject()` includes raw doc bodies (currently only metadata); warn user that the file may be large
+3. **Template preview UX** — currently `previewTemplateVars()` calls `showModal('modal-preview')` which hides the template editor; consider an inline preview panel (toggle a `<pre>` block below the textarea) instead of a separate modal so the editor stays visible
+4. **Expand Extract Variables** — beyond dates: detect monetary amounts (`$N,NNN`), percentage values, and simple `LABEL: value` key-value pairs in doc text; offer them as extractable constants alongside dates
+5. **Cross-project notes search** — a global search input that queries note titles/content across all projects
+6. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
+7. **Update CHANGELOG.md version tag + commit + push**
 
 ---
 

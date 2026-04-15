@@ -1,7 +1,7 @@
 // ─── FLAGS ──────────────────────────────────────────────────────────────────
 const DEBUG = window.__SOURCEDESK_DEBUG__ || false;
 const TEST = window.__SOURCEDESK_TEST__ || false;
-const APP_VERSION = "0.4.0";
+const APP_VERSION = "0.4.1";
 function log(...args) {
     if (DEBUG) console.log("[SD]", ...args);
 }
@@ -203,7 +203,48 @@ function resolveTemplateVars(content) {
     for (const k in vars) {
         out = out.split("{{" + k + "}}").join(vars[k]);
     }
+    // Date arithmetic: {{TODAY+N}}, {{TODAY-N}}, {{TODAY+Nw}}, {{TODAY+Nm}}, {{TODAY+Nd}}
+    // d = days (default), w = weeks, m = months
+    out = out.replace(
+        /\{\{TODAY([+-])(\d+)([dwmDWM]?)\}\}/g,
+        function (_, sign, num, unit) {
+            const n = parseInt(num, 10);
+            const d = new Date(now);
+            const u = (unit || "d").toLowerCase();
+            if (u === "m") {
+                d.setMonth(d.getMonth() + (sign === "+" ? n : -n));
+            } else if (u === "w") {
+                d.setDate(d.getDate() + (sign === "+" ? n * 7 : -n * 7));
+            } else {
+                d.setDate(d.getDate() + (sign === "+" ? n : -n));
+            }
+            return d.toISOString().slice(0, 10);
+        },
+    );
     return out;
+}
+
+function extractDatesFromText(text) {
+    // Match common date formats; returns deduplicated array of raw matched strings
+    const patterns = [
+        // ISO: 2025-07-16
+        /\b\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\b/g,
+        // US: 7/16/2025 or 07/16/2025
+        /\b(?:0?[1-9]|1[0-2])\/(?:0?[1-9]|[12]\d|3[01])\/\d{4}\b/g,
+        // Long month: July 16, 2025 or July 16 2025
+        /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b/gi,
+        // Short month: Jul 16, 2025 or Jul. 16 2025
+        /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{1,2},?\s+\d{4}\b/gi,
+    ];
+    const found = new Set();
+    patterns.forEach(function (re) {
+        re.lastIndex = 0;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            found.add(m[0].trim());
+        }
+    });
+    return Array.from(found);
 }
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -752,7 +793,7 @@ async function renderRightPanel() {
         const active = state.activeDocs.has(doc.id);
         const el = document.createElement("div");
         el.className = `context-doc${active ? " active" : ""}`;
-        el.innerHTML = `<div class="doc-toggle">${active ? "✓" : ""}</div><div class="doc-name">${doc.name}</div><span class="tcard-btn" onclick="createTemplateFromDoc('${doc.id}')" title="Create template from this document" style="opacity:0.5;margin-left:4px;font-size:10px">→Tmpl</span><span class="tcard-btn del" onclick="deleteDoc('${doc.id}',event)" style="opacity:0.5;margin-left:2px">✕</span>`;
+        el.innerHTML = `<div class="doc-toggle">${active ? "✓" : ""}</div><div class="doc-name">${doc.name}</div><span class="tcard-btn" onclick="openExtractVars('${doc.id}')" title="Extract date variables from this document" style="opacity:0.5;margin-left:4px;font-size:10px">Extract</span><span class="tcard-btn" onclick="createTemplateFromDoc('${doc.id}')" title="Create template from this document" style="opacity:0.5;margin-left:2px;font-size:10px">→Tmpl</span><span class="tcard-btn del" onclick="deleteDoc('${doc.id}',event)" style="opacity:0.5;margin-left:2px">✕</span>`;
         el.onclick = (e) => {
             if (e.target.classList.contains("tcard-btn")) return;
             toggleDoc(doc.id, el);
@@ -1199,6 +1240,76 @@ async function createTemplateFromDoc(docId) {
     );
     selectPillByVal("tmpl-type-pills", "skeleton");
     showModal("modal-template");
+}
+
+async function openExtractVars(docId) {
+    const doc = await dbGet("docs", docId);
+    if (!doc) return;
+    const dates = extractDatesFromText(doc.content);
+    document.getElementById("modal-extract-title").textContent =
+        'Dates detected in "' + doc.name + '"';
+    const listEl = document.getElementById("extract-vars-list");
+    listEl.innerHTML = "";
+    if (!dates.length) {
+        listEl.innerHTML =
+            '<div style="color:var(--text-muted);font-size:12px;padding:8px 0">No dates detected in this document.</div>';
+    } else {
+        dates.forEach(function (dateStr, i) {
+            const row = document.createElement("div");
+            row.style.cssText =
+                "display:flex;align-items:center;gap:8px;margin-bottom:6px";
+            row.innerHTML =
+                '<input type="checkbox" checked style="flex-shrink:0;accent-color:var(--accent)">' +
+                '<input class="form-input" style="width:140px;font-family:DM Mono,monospace;font-size:12px" value="DATE_' +
+                (i + 1) +
+                '" data-value="' +
+                dateStr.replace(/"/g, "&quot;") +
+                '">' +
+                '<span style="font-size:12px;color:var(--text-dim);font-family:DM Mono,monospace;flex:1">' +
+                dateStr +
+                "</span>";
+            listEl.appendChild(row);
+        });
+    }
+    showModal("modal-extract-vars");
+}
+
+async function saveExtractedVars() {
+    const listEl = document.getElementById("extract-vars-list");
+    const newPairs = [];
+    listEl.querySelectorAll("div").forEach(function (row) {
+        const cb = row.querySelector('input[type="checkbox"]');
+        const keyInput = row.querySelector("input.form-input");
+        if (cb && cb.checked && keyInput) {
+            const k = keyInput.value.trim().toUpperCase().replace(/\s+/g, "_");
+            const v = keyInput.dataset.value || "";
+            if (k && v) newPairs.push(k + "=" + v);
+        }
+    });
+    if (!newPairs.length) {
+        closeModal();
+        return;
+    }
+    const existing = (state.settings.constants || "").trim();
+    const merged = existing
+        ? existing + "\n" + newPairs.join("\n")
+        : newPairs.join("\n");
+    state.settings.constants = merged;
+    await dbPut("settings", { key: "constants", value: merged });
+    const ta = document.getElementById("settings-constants");
+    if (ta) ta.value = merged;
+    closeModal();
+}
+
+function previewTemplateVars() {
+    const content = document.getElementById("tmpl-content").value;
+    if (!content.trim()) {
+        alert("Enter some template content to preview.");
+        return;
+    }
+    const resolved = resolveTemplateVars(content);
+    document.getElementById("modal-preview-content").value = resolved;
+    showModal("modal-preview");
 }
 
 function promptAttachTemplate() {

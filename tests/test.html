@@ -1017,6 +1017,167 @@
                 });
             });
 
+            /* ── resolveTemplateVars — date arithmetic ──────────────────────────────── */
+            describe("resolveTemplateVars — date arithmetic", () => {
+                const origProject = state.activeProject;
+                const origConstants = state.settings.constants;
+
+                function restoreState() {
+                    state.activeProject = origProject;
+                    state.settings.constants = origConstants;
+                }
+
+                it("{{TODAY+1}} resolves to tomorrow's date (YYYY-MM-DD)", () => {
+                    state.activeProject = null;
+                    state.settings.constants = "";
+                    const result = resolveTemplateVars("Due: {{TODAY+1}}");
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    const expected = tomorrow.toISOString().slice(0, 10);
+                    expect(result).toBe("Due: " + expected);
+                    restoreState();
+                });
+
+                it("{{TODAY-7}} resolves to 7 days ago", () => {
+                    state.activeProject = null;
+                    state.settings.constants = "";
+                    const result = resolveTemplateVars("{{TODAY-7}}");
+                    const d = new Date();
+                    d.setDate(d.getDate() - 7);
+                    expect(result).toBe(d.toISOString().slice(0, 10));
+                    restoreState();
+                });
+
+                it("{{TODAY+2w}} resolves to 14 days from now", () => {
+                    state.activeProject = null;
+                    state.settings.constants = "";
+                    const result = resolveTemplateVars("{{TODAY+2w}}");
+                    const d = new Date();
+                    d.setDate(d.getDate() + 14);
+                    expect(result).toBe(d.toISOString().slice(0, 10));
+                    restoreState();
+                });
+
+                it("{{TODAY+1m}} resolves to 1 month ahead", () => {
+                    state.activeProject = null;
+                    state.settings.constants = "";
+                    const result = resolveTemplateVars("{{TODAY+1m}}");
+                    const d = new Date();
+                    d.setMonth(d.getMonth() + 1);
+                    expect(result).toBe(d.toISOString().slice(0, 10));
+                    restoreState();
+                });
+
+                it("{{TODAY+0}} resolves to today (same as {{TODAY}})", () => {
+                    state.activeProject = null;
+                    state.settings.constants = "";
+                    const today = new Date().toISOString().slice(0, 10);
+                    const result = resolveTemplateVars("{{TODAY+0}}");
+                    expect(result).toBe(today);
+                    restoreState();
+                });
+
+                it("multiple date expressions in one template resolve independently", () => {
+                    state.activeProject = null;
+                    state.settings.constants = "";
+                    const result = resolveTemplateVars(
+                        "Start: {{TODAY}} End: {{TODAY+30}}",
+                    );
+                    const d30 = new Date();
+                    d30.setDate(d30.getDate() + 30);
+                    const today = new Date().toISOString().slice(0, 10);
+                    expect(result).toBe(
+                        "Start: " +
+                            today +
+                            " End: " +
+                            d30.toISOString().slice(0, 10),
+                    );
+                    restoreState();
+                });
+            });
+
+            /* ── extractDatesFromText ───────────────────────────────────────────────── */
+            describe("extractDatesFromText", () => {
+                it("detects ISO date (YYYY-MM-DD)", () => {
+                    const result = extractDatesFromText(
+                        "Deadline: 2025-07-16.",
+                    );
+                    if (!result.includes("2025-07-16"))
+                        throw new Error(
+                            "ISO date not found: " + JSON.stringify(result),
+                        );
+                });
+
+                it("detects US date (M/D/YYYY)", () => {
+                    const result = extractDatesFromText("Due 7/16/2025.");
+                    if (
+                        !result.some(
+                            (d) =>
+                                d.includes("7/16/2025") ||
+                                d.includes("07/16/2025"),
+                        )
+                    )
+                        throw new Error(
+                            "US date not found: " + JSON.stringify(result),
+                        );
+                });
+
+                it("detects long month name date (July 16, 2025)", () => {
+                    const result = extractDatesFromText(
+                        "Submitted July 16, 2025.",
+                    );
+                    if (!result.some((d) => d.includes("July 16")))
+                        throw new Error(
+                            "Long month date not found: " +
+                                JSON.stringify(result),
+                        );
+                });
+
+                it("detects short month name date (Jul 16, 2025)", () => {
+                    const result = extractDatesFromText("Due Jul 16, 2025.");
+                    if (!result.some((d) => d.includes("Jul")))
+                        throw new Error(
+                            "Short month date not found: " +
+                                JSON.stringify(result),
+                        );
+                });
+
+                it("deduplicates identical dates", () => {
+                    const result = extractDatesFromText(
+                        "2025-07-16 and again 2025-07-16",
+                    );
+                    const count = result.filter(
+                        (d) => d === "2025-07-16",
+                    ).length;
+                    expect(count).toBe(1);
+                });
+
+                it("returns empty array when no dates present", () => {
+                    const result = extractDatesFromText(
+                        "No dates here, just text.",
+                    );
+                    expect(result.length).toBe(0);
+                });
+
+                it("returns empty array for empty string", () => {
+                    expect(extractDatesFromText("").length).toBe(0);
+                });
+
+                it("finds multiple different dates in one text", () => {
+                    const result = extractDatesFromText(
+                        "Start: 2025-01-01, End: 2025-12-31",
+                    );
+                    if (
+                        !result.includes("2025-01-01") ||
+                        !result.includes("2025-12-31")
+                    )
+                        throw new Error(
+                            "Did not find both dates: " +
+                                JSON.stringify(result),
+                        );
+                });
+            });
+
             /* ═══════════════════════════════════════════════════════════════════════════
    RENDER RESULTS
    ═══════════════════════════════════════════════════════════════════════════ */

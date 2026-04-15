@@ -8,6 +8,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.4.1] - 2025-07-16
+
+### Added
+- **Date arithmetic in template variables** — `resolveTemplateVars()` now handles relative date expressions after all named-variable substitution:
+  - `{{TODAY+N}}` / `{{TODAY-N}}` — N days forward or back
+  - `{{TODAY+Nw}}` / `{{TODAY-Nw}}` — N weeks
+  - `{{TODAY+Nm}}` / `{{TODAY-Nm}}` — N calendar months (uses `Date.setMonth`)
+  - Unit suffix is case-insensitive; omitting the suffix defaults to days
+- **Extract Variables from Document** — `openExtractVars(docId)` scans an uploaded document for dates in four formats (ISO `YYYY-MM-DD`, US `M/D/YYYY`, long month `July 16, 2025`, short month `Jul 16, 2025`), deduplicates, and opens a modal listing each with a checkbox and editable constant-name input; `saveExtractedVars()` appends checked items to `state.settings.constants` and persists to IndexedDB; an **Extract** button appears on each document entry in the right-panel context list
+- **`extractDatesFromText(text)`** — pure function that matches four date regex patterns and returns a deduplicated `string[]`; tested in the test suite
+- **Template Variable Preview** — `previewTemplateVars()` reads the current template content textarea, runs `resolveTemplateVars()` against the active project, and shows the resolved output in a read-only `modal-preview` textarea; **Preview** button added to the template editor modal actions row
+- **Tests** — 14 new tests across 2 new suites (`resolveTemplateVars — date arithmetic` × 6, `extractDatesFromText` × 8); total now 79 tests across 16 suites
+
+### Changed
+- `APP_VERSION` bumped to `v0.4.1`
+- `package.json` version bumped to `0.4.1`
+
+### Build
+- `build.js`: added `previewTemplateVars`, `openExtractVars`, `saveExtractedVars` to terser `mangle.reserved`
+
+---
+
 ## [0.4.0] - 2025-07-16
 
 ### Added
