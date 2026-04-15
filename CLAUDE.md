@@ -104,6 +104,7 @@ let state = {
   rightPanelOpen: true,
   editingTemplateId: null,
   currentNote: null,      // note object being edited in Notes view, or null
+  editingProjectId: null, // project ID being edited in modal, or null (null = create mode)
 };
 ```
 
@@ -290,7 +291,7 @@ When adding a new object store or index:
 
 ### Committed & working ✅
 - Full original app (v0.1.0): projects, templates, BM25 retrieval, doc upload, context panel
-- Build pipeline: `src/main.js` + `src/index.html` → `npm run build` → `SourceDesk.html` (~91 KB)
+- Build pipeline: `src/main.js` + `src/index.html` → `npm run build` → `SourceDesk.html` (~98 KB)
 - `DEBUG`, `TEST`, `APP_VERSION` flags; `log()` helper; `DOMContentLoaded` gated on `!TEST`
 - **Multi-provider support**: Anthropic, OpenAI, OpenRouter, GitHub Models
   - `PROVIDERS` config constant, `buildApiCall()`, `parseStreamDelta()`
@@ -304,24 +305,31 @@ When adding a new object store or index:
 - **`validateImportShape()`** — pure backup-validation helper
 - **Project/Chat Export** — `exportProject()` downloads active project + messages + doc metadata; "Export" topbar button visible when project is loaded
 - **Notes** (🗄️ DB_VERSION 2) — `notes` store with `projectId` index; two-panel Notes view (list + editor); full CRUD (`openNewNote`, `selectNote`, `saveCurrentNote`, `deleteCurrentNote`, `loadNotes`, `renderNotesList`); "Notes →" sidebar button; `state.currentNote` reset on project switch
+- **Notes autosave** — switching notes or navigating away from Notes view auto-saves silently (skips DB write if content unchanged)
+- **Notes "Include in chat context"** — per-note checkbox; when on, note title+body injected into system prompt as `## Active Note`; `includeInContext` flag persisted on note
+- **Notes search/filter** — `filterNotes(query)` hides non-matching items in real time; filter re-applied after list re-renders
+- **Edit Project** — ✏ button on each sidebar item opens modal pre-filled; `openEditProject(id)` sets `state.editingProjectId`; `saveProject()` handles create vs. update
+- **Delete Project** — ✕ button on each sidebar item; `deleteProject(id)` cascades to all docs, chats, and notes for that project; resets to welcome screen if active
+- **Ctrl+S / Cmd+S** in Notes editor and title input triggers `saveCurrentNote()`
 - Test harness: 53 tests across 11 suites (added `validateImportShape` suite with 7 tests)
 - `CHANGELOG.md`, `README.md`, `CLAUDE.md`
 
 ### Still outstanding (do next session)
-- ❌ Notes are not yet included in retrieval context (could optionally inject active note into system prompt)
-- ❌ No confirmation/autosave when switching notes without saving
 - ❌ Project export does not include full doc content (only metadata) — intentional for now but worth revisiting
+- ❌ Notes are not searchable across projects (only filters within current project's list)
+- ❌ No "recent notes" or cross-project note view
+- ❌ Working document editor is read-only in the UI (stored but no edit surface exposed)
 
 ---
 
 ## Next Steps (Ordered for Next Session)
 
-1. **Autosave or dirty-check in Notes** — warn user (or auto-save) when they click away from an unsaved note; could use `beforeunload` or a simple `isDirty` flag on the note editor
-2. **Include active note in retrieval context** — optionally inject the currently selected note into the system prompt (similar to Global Instructions); add a toggle in the Notes view
-3. **Full doc content in Project Export** — currently `exportProject()` omits doc body text; add an opt-in "include full document content" checkbox before download
-4. **Notes search / filter** — simple text filter input above the notes list to find notes by title
+1. **Working Document editor** — expose `proj.workingContent` as an editable panel or modal; "Working Doc" button in topbar opens a full-screen textarea; Ctrl+S saves back to DB via `dbPut`
+2. **Full doc content in Project Export** — add an opt-in flag so `exportProject()` includes raw doc bodies (currently only metadata); warn user that the file may be large
+3. **Clear chat history** — per-project "Clear Chat" button that wipes `state.messages` and the `chats` record without deleting the project
+4. **Rename / duplicate template** — templates have no rename; add a rename-in-place input or reuse the edit modal; add a "Duplicate" action on template cards
 5. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
-6. **Commit + push**
+6. **Update CHANGELOG.md version tag + commit + push**
 
 ---
 

@@ -189,6 +189,36 @@
                 text-overflow: ellipsis;
                 flex: 1;
             }
+            .sidebar-item-actions {
+                display: none;
+                align-items: center;
+                gap: 2px;
+                flex-shrink: 0;
+                margin-left: auto;
+            }
+            .sidebar-item:hover .sidebar-item-actions {
+                display: flex;
+            }
+            .sidebar-action-btn {
+                background: none;
+                border: none;
+                cursor: pointer;
+                padding: 2px 5px;
+                font-size: 11px;
+                line-height: 1;
+                border-radius: 3px;
+                color: var(--text-muted);
+                opacity: 0.8;
+            }
+            .sidebar-action-btn:hover {
+                opacity: 1;
+                background: rgba(255, 255, 255, 0.1);
+                color: var(--text);
+            }
+            .sidebar-action-del:hover {
+                color: #e06c75;
+                background: rgba(224, 108, 117, 0.12);
+            }
             .sidebar-divider {
                 height: 1px;
                 background: var(--border);
@@ -990,6 +1020,28 @@
                 gap: 8px;
                 flex-shrink: 0;
             }
+            #notes-filter {
+                margin-top: 6px;
+                font-size: 12px;
+                padding: 5px 8px;
+                height: auto;
+            }
+            .note-context-toggle {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 12px;
+                color: var(--text-muted);
+                cursor: pointer;
+                user-select: none;
+                flex-shrink: 0;
+            }
+            .note-context-toggle input[type="checkbox"] {
+                accent-color: var(--accent);
+                cursor: pointer;
+                width: 14px;
+                height: 14px;
+            }
         </style>
     </head>
     <body>
@@ -1208,6 +1260,12 @@
                                 >
                                     + New Note
                                 </button>
+                                <input
+                                    id="notes-filter"
+                                    class="form-input"
+                                    placeholder="Search notes…"
+                                    oninput="filterNotes(this.value)"
+                                />
                             </div>
                             <div id="notes-list"></div>
                         </div>
@@ -1226,6 +1284,14 @@
                                     class="form-textarea"
                                     placeholder="Start typing…"
                                 ></textarea>
+                                <label class="note-context-toggle">
+                                    <input
+                                        type="checkbox"
+                                        id="note-include-toggle"
+                                        onchange="toggleNoteInContext()"
+                                    />
+                                    Include in chat context
+                                </label>
                                 <div class="note-editor-actions">
                                     <button
                                         class="btn-primary"
@@ -1418,7 +1484,9 @@
 
             <!-- New Project Modal -->
             <div id="modal-project" class="modal hidden">
-                <div class="modal-title">New Project</div>
+                <div class="modal-title" id="modal-project-title">
+                    New Project
+                </div>
                 <div class="modal-subtitle">
                     Create a project from a template or start blank.
                 </div>
@@ -1506,7 +1574,11 @@
                     <button class="btn-secondary" onclick="closeModal()">
                         Cancel
                     </button>
-                    <button class="btn-primary" onclick="saveProject()">
+                    <button
+                        id="proj-save-btn"
+                        class="btn-primary"
+                        onclick="saveProject()"
+                    >
                         Create Project
                     </button>
                 </div>

@@ -10,6 +10,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Notes autosave** — switching to a different note or navigating away from the Notes view now silently auto-saves the current note (skips the DB write when nothing changed)
+- **"Include in chat context" toggle** — per-note checkbox in the editor; when checked, the note's title and body are injected into the system prompt under `## Active Note`; persisted on the note object as `includeInContext`
+- **Notes search/filter** — text input above the notes list filters items by title in real time; filter state is preserved across list re-renders
+- **Edit Project** — ✏ button on each sidebar project item opens the project modal pre-filled; `saveProject()` now handles both create and update; `state.editingProjectId` tracks mode
+- **Delete Project** — ✕ button on each sidebar project item deletes the project with full cascade (all docs, chats, and notes for that project); resets to welcome screen if the deleted project was active
+- **Ctrl+S / Cmd+S in Notes** — keyboard shortcut attached to both `#note-editor` and `#note-title-input` to trigger `saveCurrentNote()` without reaching for the mouse
+
+### Changed
+- `openNewProject()` now resets `state.editingProjectId` and updates modal title/button text dynamically
+- `selectNote()` promoted to `async` to support auto-save before switching notes
+- `renderSidebar()` renders edit and delete action buttons per project item (visible on hover)
+- Project modal title (`#modal-project-title`) and save button (`#proj-save-btn`) are now dynamic IDs updated by `openNewProject()` / `openEditProject()`
+- `state` extended with `editingProjectId: null`
+
+### Build
+- `build.js`: added `openEditProject`, `deleteProject`, `filterNotes`, `toggleNoteInContext` to terser `mangle.reserved`
+
 ---
 
 ## [0.3.0] - 2025-07-15 🗄️

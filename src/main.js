@@ -191,6 +191,7 @@ let state = {
     streaming: false,
     rightPanelOpen: true,
     editingTemplateId: null,
+    editingProjectId: null,
     currentNote: null,
 };
 
@@ -239,6 +240,7 @@ async function boot() {
 
 // ─── VIEWS ────────────────────────────────────────────────────────────────────
 function showView(v) {
+    if (v !== "notes") _autoSaveCurrentNote(); // fire-and-forget when leaving notes
     document.getElementById("templates-view").style.display =
         v === "templates" ? "flex" : "none";
     document.getElementById("chat-view").style.display =
@@ -268,7 +270,7 @@ function renderSidebar() {
             item.className =
                 "sidebar-item" +
                 (state.activeProject?.id === p.id ? " active" : "");
-            item.innerHTML = `<span class="item-icon">${icons[p.category] || "📁"}</span><span class="item-name">${p.name}</span>`;
+            item.innerHTML = `<span class="item-icon">${icons[p.category] || "📁"}</span><span class="item-name">${p.name}</span><span class="sidebar-item-actions"><button class="sidebar-action-btn" title="Edit project" onclick="event.stopPropagation();openEditProject('${p.id}')">✏</button><button class="sidebar-action-btn sidebar-action-del" title="Delete project" onclick="event.stopPropagation();deleteProject('${p.id}')">✕</button></span>`;
             item.onclick = () => loadProject(p.id);
             list.appendChild(item);
         });
@@ -579,6 +581,12 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
         if (state.activeProject.workingContent)
             systemPrompt += `\n\n## Working Document (current draft)\n${state.activeProject.workingContent}`;
     }
+    if (
+        state.currentNote &&
+        state.currentNote.includeInContext &&
+        state.currentNote.content
+    )
+        systemPrompt += `\n\n## Active Note: ${state.currentNote.title || "Untitled"}\n${state.currentNote.content}`;
     if (context)
         systemPrompt += `\n\n## Retrieved Context (from project documents)\n${context}`;
 
@@ -865,11 +873,13 @@ async function deleteTemplate(id) {
 
 // ─── PROJECTS ────────────────────────────────────────────────────────────────
 function openNewProject() {
+    state.editingProjectId = null;
+    document.getElementById("modal-project-title").textContent = "New Project";
+    document.getElementById("proj-save-btn").textContent = "Create Project";
     document.getElementById("proj-name").value = "";
     document.getElementById("proj-notes").value = "";
     document.getElementById("proj-instructions").value = "";
     selectPillByVal("proj-category-pills", "RFP");
-    // populate template select
     const sel = document.getElementById("proj-template-select");
     sel.innerHTML = '<option value="">— Start blank —</option>';
     state.templates.forEach((t) => {
@@ -895,27 +905,113 @@ async function saveProject() {
         return;
     }
 
-    let workingContent = "";
-    if (templateId) {
-        const tmpl = state.templates.find((t) => t.id === templateId);
-        if (tmpl) workingContent = tmpl.content;
+    if (state.editingProjectId) {
+        // ── update existing project ──────────────────────────────────────────
+        const proj = state.projects.find(
+            (p) => p.id === state.editingProjectId,
+        );
+        if (!proj) return;
+        proj.name = name;
+        proj.notes = notes;
+        proj.category = category;
+        proj.instructions = instructions;
+        // only swap template/content if a different template was chosen
+        if (templateId && templateId !== proj.templateId) {
+            proj.templateId = templateId;
+            const tmpl = state.templates.find((t) => t.id === templateId);
+            if (tmpl) proj.workingContent = tmpl.content;
+        }
+        await dbPut("projects", proj);
+        state.editingProjectId = null;
+        closeModal();
+        if (state.activeProject?.id === proj.id) {
+            state.activeProject = proj;
+            document.getElementById("project-title").textContent = proj.name;
+            document.getElementById("project-type-badge").textContent =
+                proj.category;
+        }
+        renderSidebar();
+    } else {
+        // ── create new project ───────────────────────────────────────────────
+        let workingContent = "";
+        if (templateId) {
+            const tmpl = state.templates.find((t) => t.id === templateId);
+            if (tmpl) workingContent = tmpl.content;
+        }
+        const proj = {
+            id: uid(),
+            name,
+            category,
+            templateId,
+            notes,
+            instructions,
+            workingContent,
+            createdAt: Date.now(),
+        };
+        await dbPut("projects", proj);
+        state.projects.push(proj);
+        closeModal();
+        renderSidebar();
+        await loadProject(proj.id);
     }
+}
 
-    const proj = {
-        id: uid(),
-        name,
-        category,
-        templateId,
-        notes,
-        instructions,
-        workingContent,
-        createdAt: Date.now(),
-    };
-    await dbPut("projects", proj);
-    state.projects.push(proj);
-    closeModal();
+function openEditProject(id) {
+    const proj = state.projects.find((p) => p.id === id);
+    if (!proj) return;
+    state.editingProjectId = id;
+    document.getElementById("modal-project-title").textContent = "Edit Project";
+    document.getElementById("proj-save-btn").textContent = "Save Changes";
+    document.getElementById("proj-name").value = proj.name;
+    document.getElementById("proj-notes").value = proj.notes || "";
+    document.getElementById("proj-instructions").value =
+        proj.instructions || "";
+    selectPillByVal("proj-category-pills", proj.category);
+    const sel = document.getElementById("proj-template-select");
+    sel.innerHTML = '<option value="">— (keep current) —</option>';
+    state.templates.forEach((t) => {
+        const opt = document.createElement("option");
+        opt.value = t.id;
+        opt.textContent = `[${t.category}] ${t.name}`;
+        sel.appendChild(opt);
+    });
+    if (proj.templateId) sel.value = proj.templateId;
+    showModal("modal-project");
+}
+
+async function deleteProject(id) {
+    if (
+        !confirm(
+            "Delete this project and all its documents, chat history, and notes?",
+        )
+    )
+        return;
+    // cascade-delete docs, chats, notes
+    const docs = await dbGetByIndex("docs", "projectId", id);
+    for (const d of docs) await dbDelete("docs", d.id);
+    const chats = await dbGetByIndex("chats", "projectId", id);
+    for (const c of chats) await dbDelete("chats", c.id);
+    const notes = await dbGetByIndex("notes", "projectId", id);
+    for (const n of notes) await dbDelete("notes", n.id);
+    await dbDelete("projects", id);
+    state.projects = state.projects.filter((p) => p.id !== id);
+    if (state.activeProject?.id === id) {
+        state.activeProject = null;
+        state.messages = [];
+        state.activeDocs = new Set();
+        state.activeOtherProjects = new Set();
+        state.currentNote = null;
+        document.getElementById("welcome-screen").classList.remove("hidden");
+        document.getElementById("chat-messages").classList.add("hidden");
+        document.getElementById("chat-input-area").classList.add("hidden");
+        document.getElementById("project-title").textContent =
+            "No project selected";
+        document.getElementById("project-type-badge").classList.add("hidden");
+        const exportBtn = document.getElementById("export-project-btn");
+        if (exportBtn) exportBtn.classList.add("hidden");
+        showView("chat");
+    }
     renderSidebar();
-    await loadProject(proj.id);
 }
 
 // ─── FILL TEMPLATE ────────────────────────────────────────────────────────────
@@ -1178,6 +1274,25 @@ async function exportProject() {
 }
 
 // ─── NOTES ────────────────────────────────────────────────────────────────────
+async function _autoSaveCurrentNote() {
+    if (!state.currentNote) return;
+    const titleEl = document.getElementById("note-title-input");
+    const editorEl = document.getElementById("note-editor");
+    if (!titleEl || !editorEl) return; // not in notes view
+    const newTitle = titleEl.value.trim() || "Untitled";
+    const newContent = editorEl.value;
+    // skip DB write if nothing changed
+    if (
+        newTitle === state.currentNote.title &&
+        newContent === state.currentNote.content
+    )
+        return;
+    state.currentNote.title = newTitle;
+    state.currentNote.content = newContent;
+    state.currentNote.updatedAt = Date.now();
+    await dbPut("notes", state.currentNote);
+}
+
 async function loadNotes() {
     if (!state.activeProject) return;
     const notes = await dbGetByIndex(
@@ -1187,6 +1302,9 @@ async function loadNotes() {
     );
     notes.sort((a, b) => b.updatedAt - a.updatedAt);
     renderNotesList(notes);
+    // re-apply filter if one is active
+    const filterEl = document.getElementById("notes-filter");
+    if (filterEl && filterEl.value) filterNotes(filterEl.value);
     if (notes.length && !state.currentNote) {
         selectNote(notes[0]);
     } else if (!notes.length) {
@@ -1218,19 +1336,44 @@ function renderNotesList(notes) {
     });
 }
 
-function selectNote(note) {
+async function selectNote(note) {
+    // auto-save the currently open note before switching to a different one
+    if (state.currentNote && state.currentNote.id !== note.id) {
+        await _autoSaveCurrentNote();
+    }
     state.currentNote = note;
     const titleEl = document.getElementById("note-title-input");
     const editorEl = document.getElementById("note-editor");
     const editorArea = document.getElementById("note-editor-area");
     const placeholder = document.getElementById("note-editor-placeholder");
+    const includeToggle = document.getElementById("note-include-toggle");
     if (titleEl) titleEl.value = note.title || "";
     if (editorEl) editorEl.value = note.content || "";
     if (editorArea) editorArea.style.display = "flex";
     if (placeholder) placeholder.style.display = "none";
+    if (includeToggle) includeToggle.checked = note.includeInContext || false;
     document.querySelectorAll(".note-item").forEach((el) => {
         el.classList.toggle("active", el.dataset.noteId === note.id);
     });
+}
+
+function filterNotes(query) {
+    const q = query.toLowerCase().trim();
+    document.querySelectorAll(".note-item").forEach((el) => {
+        const title =
+            el.querySelector(".note-item-title")?.textContent?.toLowerCase() ||
+            "";
+        el.style.display = !q || title.includes(q) ? "" : "none";
+    });
+}
+
+async function toggleNoteInContext() {
+    if (!state.currentNote) return;
+    const el = document.getElementById("note-include-toggle");
+    if (!el) return;
+    state.currentNote.includeInContext = el.checked;
+    state.currentNote.updatedAt = Date.now();
+    await dbPut("notes", state.currentNote);
 }
 
 async function openNewNote() {
@@ -1240,6 +1383,7 @@ async function openNewNote() {
         projectId: state.activeProject.id,
         title: "",
         content: "",
+        includeInContext: false,
         createdAt: Date.now(),
         updatedAt: Date.now(),
     };
@@ -1318,6 +1462,17 @@ if (!TEST) {
                 e.preventDefault();
                 sendMessage();
             }
+        });
+        // Ctrl+S / Cmd+S to save current note
+        ["note-editor", "note-title-input"].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el)
+                el.addEventListener("keydown", (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+                        e.preventDefault();
+                        saveCurrentNote();
+                    }
+                });
         });
         showView("chat");
         boot();

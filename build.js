@@ -102,6 +102,10 @@ async function build() {
                     "loadNotes",
                     "renderNotesList",
                     "validateImportShape",
+                    "filterNotes",
+                    "toggleNoteInContext",
+                    "openEditProject",
+                    "deleteProject",
                 ],
             },
             format: {
