@@ -51,8 +51,24 @@ const PROVIDERS = {
             'Get your key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent)">openrouter.ai/keys</a> — access 300+ models from one key',
         models: [
             {
-                id: "anthropic/claude-sonnet-4-5",
-                label: "Claude Sonnet 4.5 (via OR)",
+                id: "google/gemma-4-26b-a4b-it:free",
+                label: "Google Gemma-4-26B-A4B - Free (via OR)",
+            },
+            {
+                id: "google/gemma-4-31b-it:free",
+                label: "Google Gemma-4-31B - Free (via OR)",
+            },
+            {
+                id: "nvidia/nemotron-3-super-120b-a12b:free",
+                label: "Nvidia Nemotron 3 Super 120B - Free via OR",
+            },
+            {
+                id: "minimax/minimax-m2.5:free",
+                label: "Minimax m2.5 Free via OR",
+            },
+            {
+                id: "openai/gpt-oss-120b:free",
+                label: "OpenAI: GPT-OSS 120b free via OR",
             },
             { id: "openai/gpt-4o", label: "GPT-4o (via OR)" },
             { id: "google/gemini-2.5-pro-preview", label: "Gemini 2.5 Pro" },
