@@ -2,7 +2,7 @@
 
 An in-browser RAG and project management tool that talks to AI providers directly from the browser. Runs completely client-side as a single HTML file — open it, it works. No server, no install, no account.
 
-**Current version:** v0.4.0 — template variables & constants, create template from document
+**Current version:** v0.4.2 — free OpenRouter models, improved text contrast
 
 ---
 
@@ -56,7 +56,7 @@ When you send a message, BM25 scores all active document chunks against your que
 Settings → AI Provider supports:
 - **Anthropic** — Claude Sonnet 4.6, Opus 4.6, Haiku 4.5
 - **OpenAI** — GPT-5.4, GPT-5.4-mini, GPT-5.4-nano, GPT-4o, GPT-4o-mini, o4-mini
-- **OpenRouter** — Claude, GPT-4o, Gemini 2.5 Pro/Flash, Llama 3.3 70B, DeepSeek R1, Grok 3, Mistral Large
+- **OpenRouter** — Claude, GPT-4o, Gemini 2.5 Pro/Flash, Llama 3.3 70B, DeepSeek R1, Grok 3, Mistral Large; plus free-tier models: Google Gemma 4 (26B/31B), Nvidia Nemotron Super 120B, Minimax M2.5, OpenAI GPT-OSS 120B
 - **GitHub Models** — GPT-4o, Phi-4, Llama 3.3 70B, DeepSeek V3, Mistral Large
 
 Per-provider API keys stored separately in IndexedDB. Switch providers at any time without losing keys.
@@ -124,7 +124,8 @@ Edit `src/main.js` and `src/index.html`. Never edit `SourceDesk.html` directly.
 - [ ] **Template variable preview** — "Preview resolved" button in the template editor that shows the output against the current active project without saving
 
 ### Retrieval & Context
-- [ ] **Enhanced Retrieval** — semantic search with embeddings, or a hybrid BM25 + semantic approach for improved relevance
+- [ ] **Client-side Semantic Embeddings** *(low priority)* — run `all-MiniLM-L6-v2` directly in the browser via `transformers.js` + WASM for true semantic search with no API cost; warn users about a ~30 MB one-time model download (cached by the browser after first use); alternative: use an API-based embedding provider (OpenAI `text-embedding-3-small`, etc.) so users who don't want the WASM download can still get semantic search
+- [ ] **Enhanced Retrieval** — hybrid BM25 + semantic similarity re-ranking once embeddings are available
 - [ ] **Google Drive Connector** — search and fetch Drive docs on demand; auto-sync a project with a specific Drive folder for backup and cross-device access
 
 ### Project Data & Contacts

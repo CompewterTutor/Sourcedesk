@@ -8,6 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.4.2] - 2025-07-16
+
+### Added
+- **OpenRouter free-tier models** — five new no-cost models added to the OpenRouter provider model list:
+  - `google/gemma-4-26b-a4b-it:free` — Google Gemma 4 26B (MoE)
+  - `google/gemma-4-31b-it:free` — Google Gemma 4 31B
+  - `nvidia/nemotron-3-super-120b-a12b:free` — Nvidia Nemotron Super 120B
+  - `minimax/minimax-m2.5:free` — Minimax M2.5
+  - `openai/gpt-oss-120b:free` — OpenAI GPT-OSS 120B
+
+### Fixed
+- **Text contrast** — `--text-dim` raised from `#8a8578` → `#a8a49c` and `--text-muted` raised from `#504e49` → `#72706a`; the old muted value was ~2.2:1 contrast ratio on dark surfaces (below WCAG AA); both are now noticeably more readable while preserving the visual hierarchy
+
+### Changed
+- `APP_VERSION` bumped to `v0.4.2`
+- `package.json` version bumped to `0.4.2`
+
+---
+
 ## [0.4.1] - 2025-07-16
 
 ### Added

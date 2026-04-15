@@ -185,7 +185,7 @@ Check provider docs before adding new models — IDs change frequently.
 ```js
 const DEBUG       = window.__SOURCEDESK_DEBUG__ || false;
 const TEST        = window.__SOURCEDESK_TEST__  || false;
-const APP_VERSION = '0.4.1';
+const APP_VERSION = '0.4.2';
 function log(...args) { if (DEBUG) console.log('[SD]', ...args); }
 ```
 
@@ -248,7 +248,7 @@ createTemplateFromDoc
 
 ### HTML / CSS
 - Design tokens live in `:root` in `src/index.html`. Use CSS variables everywhere — never hardcode colors.
-- Color palette: `--bg #0f0e0c`, `--surface #191816`, `--surface2 #22201e`, `--accent #c9a84c`, `--accent-dim #7a6430`, `--text #e8e4dc`, `--text-dim #8a8578`, `--text-muted #504e49`, `--danger #c0513a`, `--success #5a9e6f`.
+- Color palette: `--bg #0f0e0c`, `--surface #191816`, `--surface2 #22201e`, `--accent #c9a84c`, `--accent-dim #7a6430`, `--text #e8e4dc`, `--text-dim #a8a49c`, `--text-muted #72706a`, `--danger #c0513a`, `--success #5a9e6f`.
 - Fonts: `DM Serif Display` (headings, logo, project title), `DM Mono` (labels, badges, code, monospace UI), `Instrument Sans` (body, buttons, forms).
 - Use `--radius: 6px` and `--radius-lg: 10px` for border-radius. Never hardcode radii.
 - New modals: add the div inside `#modal-overlay` in `src/index.html`, give it `id="modal-{name}"`, add `class="modal hidden"`. Then call `showModal('modal-{name}')` to open it.
@@ -303,7 +303,7 @@ When adding a new object store or index:
   - `PROVIDERS` config constant, `buildApiCall()`, `parseStreamDelta()`
   - Per-provider key storage in DB; legacy `apiKey` → `apiKey_anthropic` migration
   - `onProviderChange()` in settings modal with live UI switching
-- **Version string** `v0.4.1` displayed in topbar at boot
+- **Version string** `v0.4.2` displayed in topbar at boot
 - **Global Instructions** label (renamed from "Sourcing Context")
 - **Per-project Instructions** field in project creation modal; injected into system prompt; textarea cleared on modal open
 - **Database Export** — `exportDatabase()` downloads all stores as timestamped JSON backup
@@ -327,6 +327,8 @@ When adding a new object store or index:
 - **Extract Variables from Document** — `openExtractVars(docId)` scans a doc for dates in 4 formats (ISO, US, long/short month name), deduplicates, shows modal with checkboxes + editable constant names; `saveExtractedVars()` appends to `state.settings.constants` and persists; **Extract** button on each right-panel doc entry
 - **`extractDatesFromText(text)`** — pure function; 4 regex patterns; Set-based deduplication; returns `string[]`
 - **Template Variable Preview** — `previewTemplateVars()` resolves vars against active project and shows result in read-only `modal-preview`; **Preview** button in template editor modal
+- **OpenRouter free-tier models** — 5 new `:free` suffix models added (Gemma 4 26B/31B, Nemotron 120B, Minimax M2.5, GPT-OSS 120B)
+- **Text contrast fix** — `--text-dim` raised to `#a8a49c`, `--text-muted` raised to `#72706a` (old muted was ~2.2:1 contrast on dark bg)
 - Test harness: 79 tests across 16 suites
 - `CHANGELOG.md`, `README.md`, `CLAUDE.md`
 
@@ -343,12 +345,13 @@ When adding a new object store or index:
 ## Next Steps (Ordered for Next Session)
 
 1. **Fix `clearAllData()`** — the `notes` store is missing from the stores list; add it so notes are cleared along with everything else
-2. **Full doc content in Project Export** — add an opt-in flag so `exportProject()` includes raw doc bodies (currently only metadata); warn user that the file may be large
-3. **Template preview UX** — currently `previewTemplateVars()` calls `showModal('modal-preview')` which hides the template editor; consider an inline preview panel (toggle a `<pre>` block below the textarea) instead of a separate modal so the editor stays visible
-4. **Expand Extract Variables** — beyond dates: detect monetary amounts (`$N,NNN`), percentage values, and simple `LABEL: value` key-value pairs in doc text; offer them as extractable constants alongside dates
-5. **Cross-project notes search** — a global search input that queries note titles/content across all projects
-6. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
-7. **Update CHANGELOG.md version tag + commit + push**
+2. **Full doc content in Project Export** — add an opt-in flag so `exportProject()` includes raw doc bodies; warn user that the file may be large
+3. **Template preview UX** — replace the separate `modal-preview` modal with an inline toggle panel below the textarea so the editor stays visible
+4. **Expand Extract Variables** — beyond dates: detect monetary amounts (`$N,NNN`), percentages, and `LABEL: value` key-value pairs in doc text
+5. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
+6. **Cross-project notes search** — global search across all project note titles/content
+7. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
+8. **Update CHANGELOG.md version tag + commit + push**
 
 ---
 
