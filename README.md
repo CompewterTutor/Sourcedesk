@@ -1,51 +1,143 @@
 # Sourcedesk
 
-An in-browser makeshift RAG and Project Management system for the web version of Claude. Runs completely in browser, single file, uses IndexedDB for persistent storage.
+An in-browser RAG and project management tool that talks to AI providers directly from the browser. Runs completely client-side as a single HTML file — open it, it works. No server, no install, no account.
 
-**Current version:** v0.3.0 — DB export/import, project export, per-project notes 🗄️
-
-## Usage
-1. Save the file and open it in a modern web browser.
-2. Go to Settings > Paste your API Key
-3. Create a new project and start using it. You can add files to the project, create templates and Claude will consider any and all files in the project to be part of the context.
+**Current version:** v0.4.0 — template variables & constants, create template from document
 
 ---
 
+## Quick Start
+
+1. Download `SourceDesk.html` and open it in any modern browser.
+2. Go to **Settings** → paste your API key for your chosen provider.
+3. Create a project, upload documents, and start chatting. Claude (or any other supported model) will use your docs as context automatically.
+
+---
 
 ## Features
 
-### Storage
-100% IndexedDB. API key, all templates, all projects, all uploaded docs, and full chat history per project persist across sessions. Nothing goes anywhere except the Anthropic API.
-
 ### Projects
-created from a template or blank. Each project has its own doc collection, its own chat history, and its own working document (the template content gets copied in as an editable draft).
+Create a project from a template or start blank. Each project has its own:
+- **Document collection** — upload `.txt`, `.md`, `.csv`, `.pdf`, `.docx` files
+- **Chat history** — full conversation per project, stored locally
+- **Working document** — the template content lands here as an editable draft (Working Doc button in the topbar)
+- **Notes** — per-project note editor with title + body; notes can be toggled into chat context individually
+- **Instructions** — per-project system prompt additions, separate from global instructions
+
+### Templates
+Create reusable skeleton documents or example docs. Templates support:
+- **`{{PLACEHOLDER}}` syntax** — manual fill-in fields; the Fill modal collects them before inserting into chat
+- **Built-in auto-variables** — automatically substituted from the active project context:
+
+  | Variable | Value |
+  |---|---|
+  | `{{PROJECT_NAME}}` | Active project name |
+  | `{{PROJECT_CATEGORY}}` | Project category (RFP, RFI…) |
+  | `{{PROJECT_NOTES}}` | Project notes/context field |
+  | `{{PROJECT_INSTRUCTIONS}}` | Project instructions field |
+  | `{{TODAY}}` | Current date — `YYYY-MM-DD` |
+  | `{{TIMESTAMP}}` | Current date and time |
+
+- **Global constants** — define `KEY=value` pairs in Settings → Template Constants; use them as `{{KEY}}` in any template (e.g. `COMPANY_NAME=Acme University`)
+- **Create from document** — click `→Tmpl` on any uploaded document in the context panel to open the template editor pre-filled with that document's content
+- **Duplicate** — copy any template with one click
 
 ### Context Panel
- This shows exactly what Claude can "see": the attached template, all uploaded docs with toggles to include/exclude each one individually, and checkboxes to pull in docs from other projects too. You can upload .txt, .md, .csv, .pdf, and .docx files.
- 
- ### Retrieval
- BM25 over chunked doc text. When you sends a message, it scores all active chunks against the query, pulls the top 4, and injects them into the system prompt. Each reply shows which docs were referenced.
+Shows exactly what the AI can "see" for the current chat:
+- Attached template with Fill and View shortcuts
+- All uploaded project docs with per-doc include/exclude toggles
+- Checkboxes to pull in documents from other projects
+- Upload new files directly from the panel
+
+### Retrieval (BM25)
+When you send a message, BM25 scores all active document chunks against your query, pulls the top 4 matches, and injects them into the system prompt. Each reply bubble shows which documents were referenced.
+
+### Multi-Provider Support
+Settings → AI Provider supports:
+- **Anthropic** — Claude Sonnet 4.6, Opus 4.6, Haiku 4.5
+- **OpenAI** — GPT-5.4, GPT-5.4-mini, GPT-5.4-nano, GPT-4o, GPT-4o-mini, o4-mini
+- **OpenRouter** — Claude, GPT-4o, Gemini 2.5 Pro/Flash, Llama 3.3 70B, DeepSeek R1, Grok 3, Mistral Large
+- **GitHub Models** — GPT-4o, Phi-4, Llama 3.3 70B, DeepSeek V3, Mistral Large
+
+Per-provider API keys stored separately in IndexedDB. Switch providers at any time without losing keys.
+
+### Notes
+Per-project note editor (sidebar → Notes →):
+- Create, edit, save, delete notes with title and body
+- **Include in chat context** toggle — checked notes are injected into the system prompt as `## Active Note`
+- Auto-saves when you switch notes or navigate away
+- Filter notes by title in real time
+- Ctrl+S / Cmd+S to save without leaving the keyboard
+
+### Working Document
+Every project has a working document — the editable draft that starts from the attached template's content. Open it with the **Working Doc** button in the topbar. Ctrl+S saves back to IndexedDB.
+
+### Database Export / Import
+Settings → **Export DB** downloads all stores (templates, projects, docs, chats, settings, notes) as a single timestamped JSON backup. **Import DB** validates and restores from that file.
+
+### Project Export
+The **Export** topbar button (visible when a project is loaded) downloads the active project, its full chat history, and document metadata as a JSON file.
+
+### Storage
+100% IndexedDB. API keys, templates, projects, docs, chat history, notes — everything persists across sessions. Nothing goes anywhere except the AI provider you've configured.
+
+---
 
 ## Testing
-Open `tests/test.html` in a browser to run the unit test suite for pure utility functions (BM25 search, markdown formatting, text chunking, etc.). No build step required.
 
-## Roadmap for future features
-- [x] **Global Instructions** - a set of instructions that can be set to be included in the system prompt for all projects, or on a per-project basis.
-- [x] **Multi-Provider LLM Support** - Settings provider selector for Anthropic, OpenAI, OpenRouter, and GitHub Models. Per-provider API key storage with legacy migration. Provider-specific model lists. `buildApiCall()` and `parseStreamDelta()` handle both Anthropic and OpenAI-compatible streaming formats.
-- [ ] **Custom Prompt Templates** - ability to create and save custom system prompt templates that can be applied to projects. This would allow users to easily switch between different prompting strategies or frameworks.
-- [ ] **Create template from document**: Upload a doc, create a new skeleton with an interactive process to create placeholder variables and choose which content to keep static. Automatically creates placeholders for dates, times, names, and other entities.
-- [ ] **Google Drive Connector**: Claude can search/fetch docs on demand. This is basically free lightweight RAG with no setup. Add files directly to a project or reference directly on your google drive. Auto-sync your IndexedDB with a specific Drive folder for backup and cross-device access.
-- [ ] **Project Deliverables** - a feature to define and manage the expected outputs/documents/artifacts or results for a project, including deadlines, milestones, and responsible team members. For example an RFP might have the RFP document, and the attached files like Pricing Structure, example proposals, job descriptions, addendums, etc. as deliverables. Ability to export to Google Drive or download an archive of these deliverables in a structured format (e.g. JSON or CSV) or a zip file of generated docx/pdf files.
-- [ ] **Project/Template Variables and Constants**: a separate group of variables that you can set to be globally or locally available. Can be used in templates instead of {{PLACEHOLDER}} and will be auto-filled on template-based document creation. Support for simple date expressions (e.g. {{TODAY+7}}) and auto-extraction of variables from uploaded documents (e.g. extract all dates and names and offer to save them as constants).
-- [x] **Notes** - a per-project note editor with title + body, stored in IndexedDB. Create, edit, save, and delete notes from the Notes view (sidebar → Notes →).
-- [ ] **Important Contacts/Resources** - a place to store important contact info and links that are applicable to the project. Meta data can include tags, contact info, notes, etc. Can be set to be included in context.
-- [ ] **Org Charts** - a simple org chart creator and viewer that can be used to visualize team structures, project stakeholders, or any other hierarchical information relevant to the project. Can be set to be included in context.
-- [ ] **Versioning** - ability to save versions of the working document as you iterate on it, with the option to roll back to previous versions.
-- [x] **Database Export/Import** - export all stores (templates, projects, docs, chats, settings) as a single JSON backup; restore via Import DB in Settings.
-- [ ] **Mobile Optimization** - improve the UI and UX for mobile devices, including better handling of the context panel and chat interface on smaller screens.
-- [x] **Project/Chat Export** - export the active project object, full chat history, and doc metadata as a JSON file via the Export button in the topbar.
-- [ ] **Project Type Creation/Editing** - ability to create and edit project templates that include predefined instructions, document structures, and other settings to streamline the creation of new projects for common use cases (e.g. meeting notes, research projects, writing projects, etc.).
-- [ ] **Enhanced Retrieval** - implement more advanced retrieval techniques such as semantic search using embeddings, or a hybrid approach that combines BM25 with semantic similarity to improve the relevance of retrieved documents.
-- [ ] **Vendor Catalog**: A directory of vendors, consultants, freelancers, and agencies categorized by industry, expertise, and services offered. Each entry includes contact info, notes, and tags. Can be set to be included in context for relevant projects.
-- [ ] **Calendar Integration**: Sync important dates, deadlines, and meetings from your calendar to the project timeline. This can help keep track of project milestones and ensure timely follow-ups.
-- [ ] **Task Management**: A simple task management system within each project to create, assign, and track tasks related to the project. Tasks can have due dates, priority levels, and status indicators.
+Open `tests/test.html` in a browser to run the unit test suite (65 tests, 13 suites). Covers BM25 search, markdown formatting, text chunking, stream parsing for all 4 providers, `buildApiCall` for all 4 providers, import shape validation, `parseConstants`, and `resolveTemplateVars`. No build step or server required.
+
+---
+
+## Building from Source
+
+```sh
+npm install          # first time only
+npm run build        # production minified build → SourceDesk.html
+npm run dev          # unminified dev build (fast, ~10 ms)
+npm run watch        # watch src/ and rebuild on save
+```
+
+Edit `src/main.js` and `src/index.html`. Never edit `SourceDesk.html` directly.
+
+---
+
+## Roadmap
+
+### Core Workflow
+- [x] **Projects** — create, edit, delete with full cascade; categories (RFP, RFI, Vendor Q, Contract, Other)
+- [x] **Working Document editor** — editable draft per project, opened from the topbar, Ctrl+S saves
+- [x] **Clear Chat History** — wipe the chat for a project without deleting the project
+- [x] **Global Instructions** — a system prompt addition applied to every chat
+- [x] **Per-Project Instructions** — per-project system prompt additions
+- [x] **Notes** — per-project note editor; include-in-context toggle; autosave; real-time filter; Ctrl+S
+- [x] **Multi-Provider LLM Support** — Anthropic, OpenAI, OpenRouter, GitHub Models with per-provider key storage and model lists
+- [x] **Database Export / Import** — full JSON backup and restore via Settings
+- [x] **Project / Chat Export** — export active project + messages + doc metadata as JSON
+
+### Templates
+- [x] **Custom Prompt Templates** — skeleton (with `{{PLACEHOLDER}}`) and example types; fill modal; view shortcut; global template library
+- [x] **Duplicate Template** — one-click copy of any template
+- [x] **Template Variables & Constants** — built-in auto-variables (`{{PROJECT_NAME}}`, `{{TODAY}}`, etc.) plus user-defined constants (`KEY=value` in Settings); auto-resolved before manual fill; fill modal shows what was auto-filled
+- [x] **Create Template from Document** — `→Tmpl` button on any uploaded doc opens the template editor pre-filled with the document's content
+- [ ] **Template variable date expressions** — e.g. `{{TODAY+7}}` for relative dates; auto-extraction of names, dates, and entities from uploaded docs as suggested constants
+- [ ] **Template variable preview** — "Preview resolved" button in the template editor that shows the output against the current active project without saving
+
+### Retrieval & Context
+- [ ] **Enhanced Retrieval** — semantic search with embeddings, or a hybrid BM25 + semantic approach for improved relevance
+- [ ] **Google Drive Connector** — search and fetch Drive docs on demand; auto-sync a project with a specific Drive folder for backup and cross-device access
+
+### Project Data & Contacts
+- [ ] **Important Contacts / Resources** — per-project contact info and links with tags; include-in-context toggle
+- [ ] **Vendor Catalog** — directory of vendors and agencies categorised by expertise; include in context for relevant projects
+- [ ] **Project Deliverables** — define expected outputs/artifacts with deadlines and milestones; export as a zip of generated files or structured JSON/CSV
+- [ ] **Project Type Templates** — predefined project configurations with instructions, doc structures, and settings for common use cases (meeting notes, research, writing, etc.)
+
+### Visualisation & Planning
+- [ ] **Org Charts** — lightweight org chart creator and viewer for team structures and project stakeholders; include in context
+- [ ] **Calendar Integration** — sync deadlines and milestones from an external calendar; surface dates in project context
+- [ ] **Task Management** — per-project tasks with due dates, priority, and status; track progress without leaving the app
+- [ ] **Versioning** — save named snapshots of the working document; roll back to any previous version
+
+### Platform
+- [ ] **Mobile Optimisation** — responsive layout for the context panel and chat on smaller screens
