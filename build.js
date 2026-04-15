@@ -106,6 +106,10 @@ async function build() {
                     "toggleNoteInContext",
                     "openEditProject",
                     "deleteProject",
+                    "duplicateTemplate",
+                    "openWorkingDoc",
+                    "saveWorkingDoc",
+                    "clearChatHistory",
                 ],
             },
             format: {

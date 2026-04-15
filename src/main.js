@@ -247,8 +247,11 @@ function showView(v) {
         v === "chat" ? "flex" : "none";
     document.getElementById("notes-view").style.display =
         v === "notes" ? "flex" : "none";
+    document.getElementById("working-doc-view").style.display =
+        v === "working-doc" ? "flex" : "none";
     if (v === "templates") renderTemplatesGrid();
     if (v === "notes") loadNotes();
+    if (v === "working-doc") _fillWorkingDocEditor();
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
@@ -305,6 +308,12 @@ async function loadProject(id) {
 
     const exportBtn = document.getElementById("export-project-btn");
     if (exportBtn) exportBtn.classList.remove("hidden");
+
+    const wdBtn = document.getElementById("working-doc-btn");
+    if (wdBtn) wdBtn.classList.remove("hidden");
+
+    const clearChatBtn = document.getElementById("clear-chat-btn");
+    if (clearChatBtn) clearChatBtn.classList.remove("hidden");
 
     renderSidebar();
     renderMessages();
@@ -810,6 +819,7 @@ function renderTemplatesGrid() {
         card.innerHTML = `
       <div class="template-card-actions">
         <span class="tcard-btn" onclick="openEditTemplate('${t.id}')">Edit</span>
+        <span class="tcard-btn" onclick="duplicateTemplate('${t.id}')">Dup</span>
         <span class="tcard-btn del" onclick="deleteTemplate('${t.id}')">Delete</span>
       </div>
       <div class="template-card-type ${t.type === "skeleton" ? "type-skeleton" : "type-example"}">${t.type}</div>
@@ -861,6 +871,22 @@ async function saveTemplate() {
         state.templates.push(tmpl);
     }
     closeModal();
+    renderTemplatesGrid();
+}
+
+async function duplicateTemplate(id) {
+    const tmpl = state.templates.find((t) => t.id === id);
+    if (!tmpl) return;
+    const copy = {
+        id: uid(),
+        name: `${tmpl.name} (copy)`,
+        category: tmpl.category,
+        type: tmpl.type,
+        content: tmpl.content,
+        updatedAt: Date.now(),
+    };
+    await dbPut("templates", copy);
+    state.templates.push(copy);
     renderTemplatesGrid();
 }
 
@@ -1009,6 +1035,10 @@ async function deleteProject(id) {
         document.getElementById("project-type-badge").classList.add("hidden");
         const exportBtn = document.getElementById("export-project-btn");
         if (exportBtn) exportBtn.classList.add("hidden");
+        const wdBtn = document.getElementById("working-doc-btn");
+        if (wdBtn) wdBtn.classList.add("hidden");
+        const clearChatBtn = document.getElementById("clear-chat-btn");
+        if (clearChatBtn) clearChatBtn.classList.add("hidden");
         showView("chat");
     }
     renderSidebar();
@@ -1171,6 +1201,48 @@ async function clearAllData() {
             await dbDelete(s, item[s === "settings" ? "key" : "id"]);
     }
     location.reload();
+}
+
+// ─── WORKING DOCUMENT ────────────────────────────────────────────────────────
+function _fillWorkingDocEditor() {
+    const ta = document.getElementById("working-doc-editor");
+    if (ta && state.activeProject)
+        ta.value = state.activeProject.workingContent || "";
+}
+
+function openWorkingDoc() {
+    if (!state.activeProject) return;
+    showView("working-doc");
+}
+
+async function saveWorkingDoc() {
+    if (!state.activeProject) return;
+    const ta = document.getElementById("working-doc-editor");
+    if (!ta) return;
+    state.activeProject.workingContent = ta.value;
+    await dbPut("projects", state.activeProject);
+    // brief visual feedback
+    const btn = document.getElementById("working-doc-save-btn");
+    if (btn) {
+        btn.textContent = "Saved ✓";
+        setTimeout(() => {
+            btn.textContent = "Save";
+        }, 1500);
+    }
+}
+
+// ─── CLEAR CHAT ───────────────────────────────────────────────────────────────
+async function clearChatHistory() {
+    if (!state.activeProject) return;
+    if (!confirm("Clear all chat messages for this project?")) return;
+    const chats = await dbGetByIndex(
+        "chats",
+        "projectId",
+        state.activeProject.id,
+    );
+    for (const c of chats) await dbDelete("chats", c.id);
+    state.messages = [];
+    renderMessages();
 }
 
 // ─── EXPORT / IMPORT ─────────────────────────────────────────────────────────
@@ -1474,6 +1546,15 @@ if (!TEST) {
                     }
                 });
         });
+        // Ctrl+S / Cmd+S to save working document
+        const wdEditor = document.getElementById("working-doc-editor");
+        if (wdEditor)
+            wdEditor.addEventListener("keydown", (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+                    e.preventDefault();
+                    saveWorkingDoc();
+                }
+            });
         showView("chat");
         boot();
     });
