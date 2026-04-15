@@ -109,6 +109,7 @@ async function build() {
                     "duplicateTemplate",
                     "openWorkingDoc",
                     "saveWorkingDoc",
+                    "createTemplateFromDoc",
                     "clearChatHistory",
                 ],
             },

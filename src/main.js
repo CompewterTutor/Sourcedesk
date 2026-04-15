@@ -1,7 +1,7 @@
 // ─── FLAGS ──────────────────────────────────────────────────────────────────
 const DEBUG = window.__SOURCEDESK_DEBUG__ || false;
 const TEST = window.__SOURCEDESK_TEST__ || false;
-const APP_VERSION = "0.3.0";
+const APP_VERSION = "0.4.0";
 function log(...args) {
     if (DEBUG) console.log("[SD]", ...args);
 }
@@ -171,6 +171,41 @@ function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+function parseConstants(text) {
+    const obj = {};
+    (text || "").split("\n").forEach((line) => {
+        const eq = line.indexOf("=");
+        if (eq > 0) {
+            const k = line.slice(0, eq).trim().toUpperCase();
+            const v = line.slice(eq + 1).trim();
+            if (k) obj[k] = v;
+        }
+    });
+    return obj;
+}
+
+function resolveTemplateVars(content) {
+    const proj = state.activeProject;
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    const builtIn = {
+        PROJECT_NAME: proj ? proj.name : "",
+        PROJECT_CATEGORY: proj ? proj.category : "",
+        PROJECT_NOTES: proj ? proj.notes || "" : "",
+        PROJECT_INSTRUCTIONS: proj ? proj.instructions || "" : "",
+        TODAY: today,
+        TIMESTAMP: now.toLocaleString(),
+    };
+    const constants = parseConstants(state.settings.constants || "");
+    // builtIn takes priority over user-defined constants
+    const vars = Object.assign({}, constants, builtIn);
+    let out = content;
+    for (const k in vars) {
+        out = out.split("{{" + k + "}}").join(vars[k]);
+    }
+    return out;
+}
+
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let state = {
     projects: [],
@@ -183,6 +218,7 @@ let state = {
         openaiKey: "",
         openrouterKey: "",
         githubKey: "",
+        constants: "",
     },
     activeProject: null,
     activeDocs: new Set(),
@@ -218,6 +254,7 @@ async function boot() {
     const openaiKey = await dbGet("settings", "apiKey_openai");
     const openrouterKey = await dbGet("settings", "apiKey_openrouter");
     const githubKey = await dbGet("settings", "apiKey_github");
+    const constants = await dbGet("settings", "constants");
     // Legacy: old single apiKey → migrate to anthropicKey
     const legacyKey = await dbGet("settings", "apiKey");
 
@@ -229,6 +266,7 @@ async function boot() {
     if (openaiKey) state.settings.openaiKey = openaiKey.value;
     if (openrouterKey) state.settings.openrouterKey = openrouterKey.value;
     if (githubKey) state.settings.githubKey = githubKey.value;
+    if (constants) state.settings.constants = constants.value;
 
     // Set version string in topbar
     const vEl = document.getElementById("app-version");
@@ -714,7 +752,7 @@ async function renderRightPanel() {
         const active = state.activeDocs.has(doc.id);
         const el = document.createElement("div");
         el.className = `context-doc${active ? " active" : ""}`;
-        el.innerHTML = `<div class="doc-toggle">${active ? "✓" : ""}</div><div class="doc-name">${doc.name}</div><span class="tcard-btn del" onclick="deleteDoc('${doc.id}',event)" style="opacity:0.5;margin-left:4px">✕</span>`;
+        el.innerHTML = `<div class="doc-toggle">${active ? "✓" : ""}</div><div class="doc-name">${doc.name}</div><span class="tcard-btn" onclick="createTemplateFromDoc('${doc.id}')" title="Create template from this document" style="opacity:0.5;margin-left:4px;font-size:10px">→Tmpl</span><span class="tcard-btn del" onclick="deleteDoc('${doc.id}',event)" style="opacity:0.5;margin-left:2px">✕</span>`;
         el.onclick = (e) => {
             if (e.target.classList.contains("tcard-btn")) return;
             toggleDoc(doc.id, el);
@@ -1051,24 +1089,61 @@ function openFillTemplate(templateId) {
         viewTemplateContent(templateId);
         return;
     }
-    const placeholders = [
+
+    // Auto-resolve project vars and global constants first
+    const resolved = resolveTemplateVars(tmpl.content);
+
+    // Find which placeholders were in original but are now gone (auto-resolved)
+    const origPH = [
         ...new Set(
             [...tmpl.content.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1]),
         ),
     ];
-    if (!placeholders.length) {
+    const remainPH = [
+        ...new Set([...resolved.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1])),
+    ];
+    const autoPH = origPH.filter((p) => !remainPH.includes(p));
+
+    // If nothing left to fill (and nothing was auto-resolved either), fall back
+    if (!remainPH.length && !autoPH.length) {
         viewTemplateContent(templateId);
         return;
     }
 
+    // If all placeholders were auto-resolved, insert directly
+    if (!remainPH.length) {
+        document.getElementById("chat-input").value =
+            "Please help me review and complete this document:\n\n" + resolved;
+        closeModal();
+        document.getElementById("chat-input").focus();
+        return;
+    }
+
     document.getElementById("modal-fill-subtitle").textContent =
-        `Fill in the blanks for "${tmpl.name}"`;
+        'Fill in the blanks for "' + tmpl.name + '"';
+
+    const autoEl = document.getElementById("fill-auto-resolved");
+    if (autoPH.length) {
+        autoEl.style.display = "block";
+        autoEl.textContent =
+            "Auto-filled: " + autoPH.map((p) => "{{" + p + "}}").join(", ");
+    } else {
+        autoEl.style.display = "none";
+    }
+
     const fields = document.getElementById("fill-fields");
     fields.innerHTML = "";
-    placeholders.forEach((ph) => {
+    remainPH.forEach((ph) => {
         const row = document.createElement("div");
         row.className = "form-row";
-        row.innerHTML = `<label class="form-label">${ph}</label><input class="form-input" data-placeholder="${ph}" placeholder="Enter ${ph}…">`;
+        row.innerHTML =
+            '<label class="form-label">' +
+            ph +
+            '</label><input class="form-input" data-placeholder="' +
+            ph +
+            '" placeholder="Enter ' +
+            ph +
+            '…">';
         fields.appendChild(row);
     });
     fields.dataset.templateId = templateId;
@@ -1081,13 +1156,14 @@ function applyFill() {
         (t) => t.id === fields.dataset.templateId,
     );
     if (!tmpl) return;
-    let filled = tmpl.content;
+    // Auto-resolve first, then apply manual fills
+    let filled = resolveTemplateVars(tmpl.content);
     fields.querySelectorAll("[data-placeholder]").forEach((inp) => {
-        const val = inp.value.trim() || `[${inp.dataset.placeholder}]`;
-        filled = filled.split(`{{${inp.dataset.placeholder}}}`).join(val);
+        const val = inp.value.trim() || "[" + inp.dataset.placeholder + "]";
+        filled = filled.split("{{" + inp.dataset.placeholder + "}}").join(val);
     });
     document.getElementById("chat-input").value =
-        `Please help me review and complete this document:\n\n${filled}`;
+        "Please help me review and complete this document:\n\n" + filled;
     closeModal();
     document.getElementById("chat-input").focus();
 }
@@ -1095,10 +1171,34 @@ function applyFill() {
 function viewTemplateContent(templateId) {
     const tmpl = state.templates.find((t) => t.id === templateId);
     if (!tmpl) return;
+    const content = resolveTemplateVars(tmpl.content);
     document.getElementById("chat-input").value =
-        `I'd like to work on the "${tmpl.name}" template. Here's the content:\n\n${tmpl.content}`;
+        "I'd like to work on the \"" +
+        tmpl.name +
+        "\" template. Here's the content:\n\n" +
+        content;
     closeModal();
     document.getElementById("chat-input").focus();
+}
+
+async function createTemplateFromDoc(docId) {
+    const doc = await dbGet("docs", docId);
+    if (!doc) return;
+    state.editingTemplateId = null;
+    document.getElementById("modal-template-title").textContent =
+        "New Template from Document";
+    // Strip file extension from name for template name default
+    document.getElementById("tmpl-name").value = doc.name.replace(
+        /\.[^.]+$/,
+        "",
+    );
+    document.getElementById("tmpl-content").value = doc.content;
+    selectPillByVal(
+        "tmpl-category-pills",
+        state.activeProject ? state.activeProject.category : "Other",
+    );
+    selectPillByVal("tmpl-type-pills", "skeleton");
+    showModal("modal-template");
 }
 
 function promptAttachTemplate() {
@@ -1113,6 +1213,8 @@ function openSettings() {
     document.getElementById("settings-apikey").value = getCurrentProviderKey();
     document.getElementById("settings-context").value =
         state.settings.globalContext || "";
+    document.getElementById("settings-constants").value =
+        state.settings.constants || "";
     updateApiKeyStatus(!!getCurrentProviderKey());
     showModal("modal-settings");
 }
@@ -1157,16 +1259,21 @@ async function saveSettings() {
     const key = document.getElementById("settings-apikey").value.trim();
     const model = document.getElementById("settings-model").value;
     const ctx = document.getElementById("settings-context").value.trim();
+    const constants = document
+        .getElementById("settings-constants")
+        .value.trim();
 
     state.settings.provider = provider;
     state.settings.model = model;
     state.settings.globalContext = ctx;
+    state.settings.constants = constants;
     setProviderKey(provider, key);
 
     await dbPut("settings", { key: "provider", value: provider });
     await dbPut("settings", { key: `apiKey_${provider}`, value: key });
     await dbPut("settings", { key: "model", value: model });
     await dbPut("settings", { key: "globalContext", value: ctx });
+    await dbPut("settings", { key: "constants", value: constants });
 
     closeModal();
     checkApiKey();

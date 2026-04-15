@@ -8,9 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [0.4.0] - 2025-07-16
 
 ### Added
+- **Template Variables** — `resolveTemplateVars(content)` automatically substitutes built-in project variables before any manual fill step:
+  - `{{PROJECT_NAME}}` → active project name
+  - `{{PROJECT_CATEGORY}}` → active project category (RFP, RFI, etc.)
+  - `{{PROJECT_NOTES}}` → active project notes/context
+  - `{{PROJECT_INSTRUCTIONS}}` → active project instructions
+  - `{{TODAY}}` → current date in `YYYY-MM-DD` format
+  - `{{TIMESTAMP}}` → current date and time (locale string)
+- **Template Constants** — new `Template Constants` textarea in Settings (stored as `constants` in the `settings` IndexedDB store, `KEY=value` one per line); constants are available as `{{KEY}}` in any template; built-in project variables take priority over user-defined constants with the same key
+- **`parseConstants(text)`** — pure helper that parses `KEY=value` lines into a plain object (keys normalised to UPPER_CASE); also tested in the test suite
+- **Auto-resolve in Fill modal** — `openFillTemplate()` now calls `resolveTemplateVars()` first; a monospace info bar (`#fill-auto-resolved`) lists which variables were auto-filled; only the remaining unresolved `{{PLACEHOLDER}}` fields are shown for manual entry; if all placeholders are resolved automatically the content is inserted into the chat input directly without showing the modal
+- **`viewTemplateContent()` resolves vars** — the "View" shortcut on a template also runs auto-resolution before inserting content into the chat input
+- **Create Template from Document** — `createTemplateFromDoc(docId)` reads a project document from IndexedDB and opens the template creation modal pre-filled with the document's content and a name derived from the filename (extension stripped); a `→Tmpl` button appears on each document entry in the right-panel context list
 - **Notes autosave** — switching to a different note or navigating away from the Notes view now silently auto-saves the current note (skips the DB write when nothing changed)
 - **"Include in chat context" toggle** — per-note checkbox in the editor; when checked, the note's title and body are injected into the system prompt under `## Active Note`; persisted on the note object as `includeInContext`
 - **Notes search/filter** — text input above the notes list filters items by title in real time; filter state is preserved across list re-renders
@@ -20,8 +32,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Working Document editor** — `openWorkingDoc()` switches to a full-screen `#working-doc-view` with the project's `workingContent` in an editable textarea; `saveWorkingDoc()` persists back to IndexedDB with a brief "Saved ✓" button flash; Ctrl+S / Cmd+S also saves; "Working Doc" topbar button becomes visible when a project is loaded
 - **Clear Chat History** — `clearChatHistory()` deletes the `chats` record for the active project and clears `state.messages`; "Clear Chat" topbar button visible when a project is loaded
 - **Duplicate Template** — "Dup" action button on each template card calls `duplicateTemplate(id)`, which creates a copy with the suffix `(copy)` and saves it immediately
+- **Tests** — 16 new tests across 2 new suites (`parseConstants` — 8 tests, `resolveTemplateVars` — 8 tests); total now 65 tests across 13 suites
 
 ### Changed
+- `applyFill()` now calls `resolveTemplateVars()` on the base template content before applying manual substitutions, ensuring constants and project vars are always resolved even if the user navigates to the fill modal from a different path
+- Template content label hint updated to document both manual-fill syntax and the available auto-fill variables
+- `state.settings` extended with `constants: ''`
+- `boot()` loads `constants` from IndexedDB `settings` store on startup
+- `openSettings()` populates the new `settings-constants` textarea
+- `saveSettings()` reads and persists `constants` to IndexedDB
 - `openNewProject()` now resets `state.editingProjectId` and updates modal title/button text dynamically
 - `selectNote()` promoted to `async` to support auto-save before switching notes
 - `renderSidebar()` renders edit and delete action buttons per project item (visible on hover)
@@ -29,9 +48,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `state` extended with `editingProjectId: null`
 - `showView()` extended to toggle `#working-doc-view` and call `_fillWorkingDocEditor()` on activation
 - `loadProject()` now also unhides `#working-doc-btn` and `#clear-chat-btn`; `deleteProject()` re-hides them
+- `APP_VERSION` bumped to `v0.4.0`
+- `package.json` version bumped to `0.4.0`
 
 ### Build
-- `build.js`: added `openEditProject`, `deleteProject`, `filterNotes`, `toggleNoteInContext`, `openWorkingDoc`, `saveWorkingDoc`, `clearChatHistory`, `duplicateTemplate` to terser `mangle.reserved`
+- `build.js`: added `createTemplateFromDoc`, `openEditProject`, `deleteProject`, `filterNotes`, `toggleNoteInContext`, `openWorkingDoc`, `saveWorkingDoc`, `clearChatHistory`, `duplicateTemplate` to terser `mangle.reserved`
 
 ---
 

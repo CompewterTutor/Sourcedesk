@@ -76,7 +76,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 | `projects` | `id` | — | `{id, name, category, templateId, notes, instructions, workingContent, createdAt}` |
 | `docs` | `id` | `projectId` | `{id, projectId, name, content, uploadedAt}` |
 | `chats` | `id` | `projectId` | `{id, projectId, messages: [{role, content, sources}]}` |
-| `settings` | `key` | — | `{key, value}` — keys: `provider`, `model`, `globalContext`, `apiKey_anthropic`, `apiKey_openai`, `apiKey_openrouter`, `apiKey_github` (legacy: `apiKey` migrated → `apiKey_anthropic` on first boot) |
+| `settings` | `key` | — | `{key, value}` — keys: `provider`, `model`, `globalContext`, `constants`, `apiKey_anthropic`, `apiKey_openai`, `apiKey_openrouter`, `apiKey_github` (legacy: `apiKey` migrated → `apiKey_anthropic` on first boot) |
 | `notes` | `id` | `projectId` | `{id, projectId, title, content, createdAt, updatedAt}` |
 
 ### DB Helper Pattern
@@ -95,6 +95,7 @@ let state = {
     openaiKey: '',
     openrouterKey: '',
     githubKey: '',
+    constants: '',         // "KEY=value" lines; parsed by parseConstants(); used in resolveTemplateVars()
   },
   activeProject: null,    // full project object; may have .instructions field
   activeDocs: new Set(),  // doc IDs toggled ON in context
@@ -184,7 +185,7 @@ Check provider docs before adding new models — IDs change frequently.
 ```js
 const DEBUG       = window.__SOURCEDESK_DEBUG__ || false;
 const TEST        = window.__SOURCEDESK_TEST__  || false;
-const APP_VERSION = '0.2.0';
+const APP_VERSION = '0.4.0';
 function log(...args) { if (DEBUG) console.log('[SD]', ...args); }
 ```
 
@@ -208,7 +209,11 @@ saveTemplate, deleteTemplate, openFillTemplate, applyFill, viewTemplateContent,
 promptAttachTemplate, openSettings, saveSettings, clearAllData, loadProject,
 sendMessage, toggleRightPanel, toggleDoc, toggleOtherProject, deleteDoc,
 handleDocUpload, selectPill, selectPillByVal, closeModal, closeModalOnOverlay,
-onProviderChange, boot
+onProviderChange, boot, exportDatabase, triggerImportDialog, importDatabase,
+exportProject, openNewNote, selectNote, saveCurrentNote, deleteCurrentNote,
+loadNotes, renderNotesList, validateImportShape, filterNotes, toggleNoteInContext,
+openEditProject, deleteProject, duplicateTemplate, openWorkingDoc, saveWorkingDoc,
+clearChatHistory, createTemplateFromDoc
 ```
 
 **When you add a new function called from HTML, add it to this list or the minified build will silently break.**
@@ -220,8 +225,8 @@ onProviderChange, boot
 ### How it works
 `tests/test.html` sets `window.__SOURCEDESK_TEST__ = true` in an inline script, then loads `../src/main.js` via `<script src>`. Because `TEST` is true, `main.js` skips the DOM boot. All pure functions are then available globally and the test suite runs against them.
 
-### Current test coverage (46 tests, 10 suites)
-`tokenize`, `chunkText`, `buildIndex`, `bm25Score`, `formatMarkdown`, `uid`, export shape validation, `parseStreamDelta` (all 4 providers), `buildApiCall` (all 4 providers), `PROVIDERS` config integrity.
+### Current test coverage (65 tests, 13 suites)
+`tokenize`, `chunkText`, `buildIndex`, `bm25Score`, `formatMarkdown`, `uid`, `validateImportShape`, `parseStreamDelta` (all 4 providers), `buildApiCall` (all 4 providers), `PROVIDERS` config integrity, `parseConstants`, `resolveTemplateVars`.
 
 ### Adding a test
 1. Add a `describe`/`it` block in `tests/test.html` inside the existing test script block.
@@ -297,7 +302,7 @@ When adding a new object store or index:
   - `PROVIDERS` config constant, `buildApiCall()`, `parseStreamDelta()`
   - Per-provider key storage in DB; legacy `apiKey` → `apiKey_anthropic` migration
   - `onProviderChange()` in settings modal with live UI switching
-- **Version string** `v0.3.0` displayed in topbar at boot
+- **Version string** `v0.4.0` displayed in topbar at boot
 - **Global Instructions** label (renamed from "Sourcing Context")
 - **Per-project Instructions** field in project creation modal; injected into system prompt; textarea cleared on modal open
 - **Database Export** — `exportDatabase()` downloads all stores as timestamped JSON backup
@@ -311,23 +316,29 @@ When adding a new object store or index:
 - **Edit Project** — ✏ button on each sidebar item opens modal pre-filled; `openEditProject(id)` sets `state.editingProjectId`; `saveProject()` handles create vs. update
 - **Delete Project** — ✕ button on each sidebar item; `deleteProject(id)` cascades to all docs, chats, and notes for that project; resets to welcome screen if active
 - **Ctrl+S / Cmd+S** in Notes editor and title input triggers `saveCurrentNote()`
-- Test harness: 53 tests across 11 suites (added `validateImportShape` suite with 7 tests)
+- **Template Variables** — `resolveTemplateVars(content)` auto-substitutes `{{PROJECT_NAME}}`, `{{PROJECT_CATEGORY}}`, `{{PROJECT_NOTES}}`, `{{PROJECT_INSTRUCTIONS}}`, `{{TODAY}}`, `{{TIMESTAMP}}` before any manual fill step
+- **Template Constants** — `Template Constants` textarea in Settings (`KEY=value` one per line, stored as `constants` key in `settings` store); available as `{{KEY}}` in any template; built-in project vars take priority over user constants
+- **`parseConstants(text)`** — pure helper; keys normalised to UPPER_CASE
+- **Auto-resolve in Fill modal** — `openFillTemplate()` resolves vars first; `#fill-auto-resolved` info bar lists what was auto-filled; only unresolved `{{PLACEHOLDER}}` fields shown for manual entry; if all resolved, inserts directly into chat without showing modal
+- **`viewTemplateContent()` resolves vars** — auto-resolves before inserting into chat input
+- **Create Template from Document** — `createTemplateFromDoc(docId)` opens template modal pre-filled with doc content; `→Tmpl` button on each right-panel doc entry
+- Test harness: 65 tests across 13 suites (added `parseConstants` suite × 8, `resolveTemplateVars` suite × 8)
 - `CHANGELOG.md`, `README.md`, `CLAUDE.md`
 
 ### Still outstanding (do next session)
 - ❌ Project export does not include full doc content (only metadata) — intentional for now but worth revisiting
 - ❌ Notes are not searchable across projects (only filters within current project's list)
 - ❌ No "recent notes" or cross-project note view
-- ❌ Working document editor is read-only in the UI (stored but no edit surface exposed)
+- ❌ `clearAllData()` does not include the `notes` store — should be added to the stores list
 
 ---
 
 ## Next Steps (Ordered for Next Session)
 
-1. **Working Document editor** — expose `proj.workingContent` as an editable panel or modal; "Working Doc" button in topbar opens a full-screen textarea; Ctrl+S saves back to DB via `dbPut`
-2. **Full doc content in Project Export** — add an opt-in flag so `exportProject()` includes raw doc bodies (currently only metadata); warn user that the file may be large
-3. **Clear chat history** — per-project "Clear Chat" button that wipes `state.messages` and the `chats` record without deleting the project
-4. **Rename / duplicate template** — templates have no rename; add a rename-in-place input or reuse the edit modal; add a "Duplicate" action on template cards
+1. **Full doc content in Project Export** — add an opt-in flag so `exportProject()` includes raw doc bodies (currently only metadata); warn user that the file may be large
+2. **Fix `clearAllData()`** — the `notes` store is missing from the stores list; add it so notes are cleared along with everything else
+3. **Template variable preview** — in the template editor modal, add a small "Preview resolved" button that applies `resolveTemplateVars()` against the current active project and shows the result inline, so users can verify vars before saving
+4. **Cross-project notes search** — a global search input (perhaps in a future search view) that queries note titles/content across all projects
 5. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
 6. **Update CHANGELOG.md version tag + commit + push**
 

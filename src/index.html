@@ -1546,8 +1546,9 @@
                     <label class="form-label"
                         >Content
                         <span style="color: var(--text-muted); font-size: 10px"
-                            >— Use {{PLACEHOLDER}} syntax for skeleton
-                            templates</span
+                            >— {{PLACEHOLDER}} = manual fill · {{PROJECT_NAME}},
+                            {{PROJECT_CATEGORY}}, {{TODAY}}, {{TIMESTAMP}}
+                            auto-fill from context</span
                         ></label
                     >
                     <textarea
@@ -1766,6 +1767,25 @@
                         placeholder="e.g. University procurement policy: net-60 payment terms, 3-bid rule required over $25k…"
                     ></textarea>
                 </div>
+                <div class="form-row">
+                    <label class="form-label"
+                        >Template Constants
+                        <span style="color: var(--text-muted); font-size: 10px"
+                            >— One KEY=value per line; use {{KEY}} in
+                            templates</span
+                        ></label
+                    >
+                    <textarea
+                        class="form-textarea"
+                        id="settings-constants"
+                        style="
+                            min-height: 70px;
+                            font-family: &quot;DM Mono&quot;, monospace;
+                            font-size: 12px;
+                        "
+                        placeholder="COMPANY_NAME=Acme University&#10;DEPT=Procurement&#10;FISCAL_YEAR=2025"
+                    ></textarea>
+                </div>
                 <div class="modal-actions">
                     <button
                         class="btn-danger"
@@ -1808,6 +1828,19 @@
             <div id="modal-fill" class="modal hidden">
                 <div class="modal-title">Fill Template</div>
                 <div class="modal-subtitle" id="modal-fill-subtitle"></div>
+                <div
+                    id="fill-auto-resolved"
+                    style="
+                        display: none;
+                        font-size: 11px;
+                        color: var(--text-muted);
+                        margin-bottom: 8px;
+                        font-family: &quot;DM Mono&quot;, monospace;
+                        padding: 6px 8px;
+                        background: var(--surface);
+                        border-radius: var(--radius);
+                    "
+                ></div>
                 <div id="fill-fields"></div>
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="closeModal()">

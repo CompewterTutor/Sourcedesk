@@ -862,6 +862,161 @@
                 });
             });
 
+            /* ── parseConstants ─────────────────────────────────────────────────────── */
+            describe("parseConstants", () => {
+                it("parses a single KEY=value line", () => {
+                    const result = parseConstants(
+                        "COMPANY_NAME=Acme University",
+                    );
+                    expect(result["COMPANY_NAME"]).toBe("Acme University");
+                });
+
+                it("parses multiple lines", () => {
+                    const result = parseConstants("FOO=bar\nBAZ=qux");
+                    expect(result["FOO"]).toBe("bar");
+                    expect(result["BAZ"]).toBe("qux");
+                });
+
+                it("normalises keys to UPPER_CASE", () => {
+                    const result = parseConstants("company_name=Test Corp");
+                    expect(result["COMPANY_NAME"]).toBe("Test Corp");
+                });
+
+                it("ignores lines with no = sign", () => {
+                    const result = parseConstants("NOEQUALS\nGOOD=yes");
+                    if ("NOEQUALS" in result)
+                        throw new Error("Should not have parsed NOEQUALS key");
+                    expect(result["GOOD"]).toBe("yes");
+                });
+
+                it("allows = signs inside the value", () => {
+                    const result = parseConstants(
+                        "URL=https://example.com?a=1&b=2",
+                    );
+                    expect(result["URL"]).toBe("https://example.com?a=1&b=2");
+                });
+
+                it("returns empty object for empty string", () => {
+                    const result = parseConstants("");
+                    expect(Object.keys(result).length).toBe(0);
+                });
+
+                it("returns empty object for null/undefined", () => {
+                    const r1 = parseConstants(null);
+                    const r2 = parseConstants(undefined);
+                    expect(Object.keys(r1).length).toBe(0);
+                    expect(Object.keys(r2).length).toBe(0);
+                });
+
+                it("trims whitespace from keys and values", () => {
+                    const result = parseConstants("  MY_KEY  =  hello world  ");
+                    expect(result["MY_KEY"]).toBe("hello world");
+                });
+            });
+
+            /* ── resolveTemplateVars ────────────────────────────────────────────────── */
+            describe("resolveTemplateVars", () => {
+                const origProject = state.activeProject;
+                const origConstants = state.settings.constants;
+
+                function restoreState() {
+                    state.activeProject = origProject;
+                    state.settings.constants = origConstants;
+                }
+
+                it("replaces {{PROJECT_NAME}} with active project name", () => {
+                    state.activeProject = {
+                        name: "Cloud Vendor Q3",
+                        category: "RFP",
+                        notes: "",
+                        instructions: "",
+                    };
+                    const result = resolveTemplateVars(
+                        "Project: {{PROJECT_NAME}}",
+                    );
+                    expect(result).toBe("Project: Cloud Vendor Q3");
+                    restoreState();
+                });
+
+                it("replaces {{PROJECT_CATEGORY}} with active project category", () => {
+                    state.activeProject = {
+                        name: "X",
+                        category: "RFI",
+                        notes: "",
+                        instructions: "",
+                    };
+                    const result = resolveTemplateVars(
+                        "Type: {{PROJECT_CATEGORY}}",
+                    );
+                    expect(result).toBe("Type: RFI");
+                    restoreState();
+                });
+
+                it("replaces {{TODAY}} with a date string (YYYY-MM-DD format)", () => {
+                    state.activeProject = null;
+                    const result = resolveTemplateVars("Date: {{TODAY}}");
+                    if (!/Date: \d{4}-\d{2}-\d{2}/.test(result))
+                        throw new Error(
+                            "Expected YYYY-MM-DD date, got: " + result,
+                        );
+                    restoreState();
+                });
+
+                it("replaces user-defined constants from settings", () => {
+                    state.activeProject = null;
+                    state.settings.constants = "DEPT=Procurement";
+                    const result = resolveTemplateVars("Department: {{DEPT}}");
+                    expect(result).toBe("Department: Procurement");
+                    restoreState();
+                });
+
+                it("built-in vars take priority over user constants with same key", () => {
+                    state.activeProject = {
+                        name: "Real Name",
+                        category: "Other",
+                        notes: "",
+                        instructions: "",
+                    };
+                    state.settings.constants = "PROJECT_NAME=Override Attempt";
+                    const result = resolveTemplateVars("{{PROJECT_NAME}}");
+                    expect(result).toBe("Real Name");
+                    restoreState();
+                });
+
+                it("leaves unknown {{PLACEHOLDER}} untouched", () => {
+                    state.activeProject = null;
+                    state.settings.constants = "";
+                    const result = resolveTemplateVars(
+                        "Fill this: {{VENDOR_NAME}}",
+                    );
+                    expect(result).toBe("Fill this: {{VENDOR_NAME}}");
+                    restoreState();
+                });
+
+                it("replaces multiple occurrences of the same var", () => {
+                    state.activeProject = {
+                        name: "Alpha",
+                        category: "RFP",
+                        notes: "",
+                        instructions: "",
+                    };
+                    const result = resolveTemplateVars(
+                        "{{PROJECT_NAME}} and again {{PROJECT_NAME}}",
+                    );
+                    expect(result).toBe("Alpha and again Alpha");
+                    restoreState();
+                });
+
+                it("returns empty strings for project fields when no active project", () => {
+                    state.activeProject = null;
+                    const result = resolveTemplateVars(
+                        "Name: {{PROJECT_NAME}} Cat: {{PROJECT_CATEGORY}}",
+                    );
+                    expect(result).toBe("Name:  Cat: ");
+                    restoreState();
+                });
+            });
+
             /* ═══════════════════════════════════════════════════════════════════════════
    RENDER RESULTS
    ═══════════════════════════════════════════════════════════════════════════ */
