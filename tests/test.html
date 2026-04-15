@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>SourceDesk — Test Suite</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            /* ── DESIGN TOKENS (mirrors SourceDesk.html :root) ────────────────────── */
+            :root {
+                --bg: #0f0e0c;
+                --surface: #191816;
+                --surface2: #22201e;
+                --border: #2e2c28;
+                --border-light: #3a3834;
+                --accent: #c9a84c;
+                --accent-dim: #7a6430;
+                --accent-glow: rgba(201, 168, 76, 0.12);
+                --text: #e8e4dc;
+                --text-dim: #8a8578;
+                --text-muted: #504e49;
+                --success: #5a9e6f;
+                --danger: #c0513a;
+                --radius: 6px;
+                --radius-lg: 10px;
+            }
+
+            /* ── RESET ─────────────────────────────────────────────────────────────── */
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            html,
+            body {
+                min-height: 100%;
+                font-family: "Instrument Sans", sans-serif;
+                background: var(--bg);
+                color: var(--text);
+                font-size: 14px;
+                line-height: 1.5;
+            }
+
+            /* ── SCROLLBAR ──────────────────────────────────────────────────────────── */
+            ::-webkit-scrollbar {
+                width: 6px;
+            }
+            ::-webkit-scrollbar-track {
+                background: var(--bg);
+            }
+            ::-webkit-scrollbar-thumb {
+                background: var(--border-light);
+                border-radius: 3px;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: var(--text-muted);
+            }
+
+            /* ── TOPBAR ─────────────────────────────────────────────────────────────── */
+            #topbar {
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                height: 52px;
+                padding: 0 28px;
+                background: var(--surface);
+                border-bottom: 1px solid var(--border);
+                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+            }
+
+            .logo {
+                font-family: "DM Serif Display", serif;
+                font-size: 18px;
+                color: var(--accent);
+                letter-spacing: 0.01em;
+                white-space: nowrap;
+            }
+
+            .logo-sep {
+                color: var(--border-light);
+                font-weight: 300;
+                font-size: 20px;
+                line-height: 1;
+            }
+
+            .logo-sub {
+                font-family: "Instrument Sans", sans-serif;
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--text-dim);
+                letter-spacing: 0.02em;
+                white-space: nowrap;
+            }
+
+            .topbar-divider {
+                width: 1px;
+                height: 20px;
+                background: var(--border);
+                flex-shrink: 0;
+            }
+
+            #summary-text {
+                font-family: "DM Mono", monospace;
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--accent);
+                letter-spacing: 0.03em;
+                white-space: nowrap;
+            }
+
+            #summary-badge {
+                display: inline-block;
+                margin-left: auto;
+                font-family: "DM Mono", monospace;
+                font-size: 11px;
+                font-weight: 500;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                padding: 3px 10px;
+                border-radius: var(--radius);
+                white-space: nowrap;
+            }
+
+            #summary-badge.all-pass {
+                background: rgba(90, 158, 111, 0.18);
+                color: var(--success);
+                border: 1px solid rgba(90, 158, 111, 0.3);
+            }
+
+            #summary-badge.some-fail {
+                background: rgba(192, 81, 58, 0.18);
+                color: var(--danger);
+                border: 1px solid rgba(192, 81, 58, 0.3);
+            }
+
+            /* ── MAIN CONTENT ───────────────────────────────────────────────────────── */
+            #main {
+                max-width: 820px;
+                margin: 0 auto;
+                padding: 32px 24px 48px;
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            /* ── SUITE CARD ─────────────────────────────────────────────────────────── */
+            .suite {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-lg);
+                overflow: hidden;
+            }
+
+            .suite-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 11px 18px;
+                background: var(--surface2);
+                border-bottom: 1px solid var(--border);
+                gap: 12px;
+            }
+
+            .suite-name {
+                font-family: "DM Mono", monospace;
+                font-size: 12px;
+                font-weight: 500;
+                color: var(--accent);
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+            }
+
+            .suite-count {
+                font-family: "DM Mono", monospace;
+                font-size: 11px;
+                color: var(--text-muted);
+            }
+
+            /* ── TEST ROW ───────────────────────────────────────────────────────────── */
+            .test-row {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                padding: 10px 18px;
+                border-bottom: 1px solid var(--border);
+                transition: background 0.1s;
+            }
+
+            .test-row:last-child {
+                border-bottom: none;
+            }
+
+            .test-row.pass {
+                background: transparent;
+            }
+
+            .test-row.fail {
+                background: rgba(192, 81, 58, 0.05);
+                border-left: 2px solid var(--danger);
+                padding-left: 16px;
+            }
+
+            /* ── BADGE ──────────────────────────────────────────────────────────────── */
+            .badge {
+                flex-shrink: 0;
+                font-family: "DM Mono", monospace;
+                font-size: 10px;
+                font-weight: 500;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                padding: 2px 7px;
+                border-radius: 4px;
+                margin-top: 2px;
+                line-height: 1.4;
+            }
+
+            .badge.pass {
+                background: rgba(90, 158, 111, 0.18);
+                color: var(--success);
+                border: 1px solid rgba(90, 158, 111, 0.25);
+            }
+
+            .badge.fail {
+                background: rgba(192, 81, 58, 0.2);
+                color: var(--danger);
+                border: 1px solid rgba(192, 81, 58, 0.3);
+            }
+
+            /* ── TEST BODY ──────────────────────────────────────────────────────────── */
+            .test-body {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                flex: 1;
+                min-width: 0;
+            }
+
+            .test-name {
+                color: var(--text);
+                font-size: 13px;
+                line-height: 1.4;
+            }
+
+            .test-row.fail .test-name {
+                color: var(--text);
+            }
+
+            .error-msg {
+                font-family: "DM Mono", monospace;
+                font-size: 11px;
+                color: var(--danger);
+                background: rgba(192, 81, 58, 0.08);
+                border-left: 2px solid rgba(192, 81, 58, 0.5);
+                padding: 5px 10px;
+                border-radius: 0 4px 4px 0;
+                white-space: pre-wrap;
+                word-break: break-all;
+                line-height: 1.5;
+            }
+
+            /* ── FOOTER ─────────────────────────────────────────────────────────────── */
+            .run-time {
+                text-align: center;
+                font-size: 11px;
+                font-family: "DM Mono", monospace;
+                color: var(--text-muted);
+                padding-top: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- ── TOPBAR ──────────────────────────────────────────────────────────── -->
+        <div id="topbar">
+            <div class="logo">SourceDesk</div>
+            <div class="logo-sep">/</div>
+            <div class="logo-sub">Test Suite</div>
+            <div class="topbar-divider"></div>
+            <div id="summary-text">Running…</div>
+            <div id="summary-badge" class="all-pass">—</div>
+        </div>
+
+        <!-- ── RESULTS ─────────────────────────────────────────────────────────── -->
+        <div id="main"></div>
+
+        <script>
+            window.__SOURCEDESK_TEST__ = true;
+            window.__SOURCEDESK_DEBUG__ = false;
+        </script>
+        <script src="../src/main.js"></script>
+
+        <script>
+            /* ═══════════════════════════════════════════════════════════════════════════
+   TINY TEST FRAMEWORK
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+            const results = [];
+            let _suite = "";
+
+            function describe(name, fn) {
+                _suite = name;
+                fn();
+                _suite = "";
+            }
+
+            function it(name, fn) {
+                try {
+                    fn();
+                    results.push({ suite: _suite, name, pass: true });
+                } catch (e) {
+                    results.push({
+                        suite: _suite,
+                        name,
+                        pass: false,
+                        error: e.message,
+                    });
+                }
+            }
+
+            function expect(actual) {
+                return {
+                    toBe(expected) {
+                        if (actual !== expected)
+                            throw new Error(
+                                `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+                            );
+                    },
+                    toEqual(expected) {
+                        if (JSON.stringify(actual) !== JSON.stringify(expected))
+                            throw new Error(
+                                `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+                            );
+                    },
+                    toBeGreaterThan(n) {
+                        if (!(actual > n))
+                            throw new Error(`Expected ${actual} > ${n}`);
+                    },
+                    toBeTruthy() {
+                        if (!actual)
+                            throw new Error(
+                                `Expected truthy, got ${JSON.stringify(actual)}`,
+                            );
+                    },
+                    toHaveLength(n) {
+                        if (actual.length !== n)
+                            throw new Error(
+                                `Expected length ${n}, got ${actual.length}`,
+                            );
+                    },
+                    toContain(s) {
+                        if (!actual.includes(s))
+                            throw new Error(
+                                `Expected "${actual}" to contain "${s}"`,
+                            );
+                    },
+                };
+            }
+
+            /* ═══════════════════════════════════════════════════════════════════════════
+   Pure functions (uid, tokenize, buildIndex, bm25Score, chunkText,
+   formatMarkdown) are loaded from ../src/main.js above with TEST=true,
+   so boot() and DOMContentLoaded are suppressed.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+            /* ═══════════════════════════════════════════════════════════════════════════
+   EXPORT SHAPE VALIDATOR  (test-local helper, not in SourceDesk.html)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+            function validateExportShape(obj) {
+                if (!obj || typeof obj !== "object") return false;
+                if (typeof obj.version !== "number") return false;
+                if (typeof obj.exportedAt !== "string") return false;
+                if (!obj.stores || typeof obj.stores !== "object") return false;
+                return [
+                    "templates",
+                    "projects",
+                    "docs",
+                    "chats",
+                    "settings",
+                ].every((k) => Array.isArray(obj.stores[k]));
+            }
+
+            /* ═══════════════════════════════════════════════════════════════════════════
+   TESTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+            /* ── tokenize ───────────────────────────────────────────────────────────── */
+            describe("tokenize", () => {
+                it("empty string → []", () => {
+                    expect(tokenize("")).toEqual([]);
+                });
+
+                it("punctuation stripped: \"hello, world!\" → ['hello', 'world']", () => {
+                    expect(tokenize("hello, world!")).toEqual([
+                        "hello",
+                        "world",
+                    ]);
+                });
+
+                it("lowercases: \"Hello WORLD\" → ['hello', 'world']", () => {
+                    expect(tokenize("Hello WORLD")).toEqual(["hello", "world"]);
+                });
+
+                it("numbers kept: \"item123\" → ['item123']", () => {
+                    expect(tokenize("item123")).toEqual(["item123"]);
+                });
+            });
+
+            /* ── chunkText ──────────────────────────────────────────────────────────── */
+            describe("chunkText", () => {
+                it("short text (< size words) → 1 chunk", () => {
+                    expect(
+                        chunkText("one two three four five", 400, 60),
+                    ).toHaveLength(1);
+                });
+
+                it("10-word text at size=5 overlap=2 → multiple chunks", () => {
+                    // step = size - overlap = 3; yields chunks at i=0,3,6 → 3 chunks
+                    expect(
+                        chunkText("a b c d e f g h i j", 5, 2).length,
+                    ).toBeGreaterThan(1);
+                });
+
+                it("overlap: last <overlap> words of chunk[0] equal first <overlap> words of chunk[1]", () => {
+                    // chunk[0]='a b c d e'  chunk[1]='d e f g h'
+                    // tail of chunk[0]: 'd e'   head of chunk[1]: 'd e'
+                    const chunks = chunkText("a b c d e f g h i j", 5, 2);
+                    const tail = chunks[0].split(" ").slice(-2).join(" ");
+                    const head = chunks[1].split(" ").slice(0, 2).join(" ");
+                    expect(tail).toBe(head);
+                });
+
+                it("empty string → at most 1 chunk", () => {
+                    // ''.split(/\s+/) = [''], so exactly one (blank) chunk is returned
+                    expect(chunkText("", 400, 60).length <= 1).toBe(true);
+                });
+            });
+
+            /* ── buildIndex ─────────────────────────────────────────────────────────── */
+            describe("buildIndex", () => {
+                it("idf for word appearing in 1 of 2 docs is > 0", () => {
+                    // idf = ln((2-1+0.5)/(1+0.5)+1) = ln(2) ≈ 0.693
+                    const idx = buildIndex([
+                        { text: "hello world", source: "a" },
+                        { text: "foo bar", source: "b" },
+                    ]);
+                    expect(idx.idf["hello"]).toBeGreaterThan(0);
+                });
+
+                it("avgLen equals mean token count across all chunks", () => {
+                    // chunk-a: 3 tokens, chunk-b: 2 tokens → avgLen = 2.5
+                    const idx = buildIndex([
+                        { text: "one two three", source: "a" },
+                        { text: "four five", source: "b" },
+                    ]);
+                    expect(idx.avgLen).toBe(2.5);
+                });
+            });
+
+            /* ── bm25Score ──────────────────────────────────────────────────────────── */
+            describe("bm25Score", () => {
+                // Shared fixture: 'hello' lives only in chunk 0
+                const _chunks = [
+                    { text: "hello world foo", source: "a" },
+                    { text: "bar baz qux", source: "b" },
+                ];
+                const _idx = buildIndex(_chunks);
+
+                it("query word in chunk → score > 0", () => {
+                    expect(bm25Score("hello", _idx, 0)).toBeGreaterThan(0);
+                });
+
+                it("query word NOT in chunk → score = 0", () => {
+                    // tf=0 for 'hello' in chunk 1 ⇒ numerator is 0
+                    expect(bm25Score("hello", _idx, 1)).toBe(0);
+                });
+
+                it("more occurrences → higher score", () => {
+                    // chunk 0 has 3× 'hello'; chunk 1 has 1× 'hello'
+                    const c2 = [
+                        { text: "hello hello hello foo bar", source: "a" },
+                        { text: "hello foo bar baz qux", source: "b" },
+                    ];
+                    const i2 = buildIndex(c2);
+                    expect(bm25Score("hello", i2, 0)).toBeGreaterThan(
+                        bm25Score("hello", i2, 1),
+                    );
+                });
+            });
+
+            /* ── formatMarkdown ─────────────────────────────────────────────────────── */
+            describe("formatMarkdown", () => {
+                it("**bold** → contains <strong>bold</strong>", () => {
+                    expect(formatMarkdown("**bold**")).toContain(
+                        "<strong>bold</strong>",
+                    );
+                });
+
+                it("`code` → contains <code>code</code>", () => {
+                    expect(formatMarkdown("`code`")).toContain(
+                        "<code>code</code>",
+                    );
+                });
+
+                it("```block``` → contains <pre><code>block</code></pre>", () => {
+                    // The pre/code replacement runs before the paragraph wrapper;
+                    // <pre> starts with <p which is in [hup] so it is NOT re-wrapped.
+                    expect(formatMarkdown("```block```")).toContain(
+                        "<pre><code>block</code></pre>",
+                    );
+                });
+            });
+
+            /* ── uid ────────────────────────────────────────────────────────────────── */
+            describe("uid", () => {
+                it("returns a non-empty string", () => {
+                    const id = uid();
+                    expect(typeof id).toBe("string");
+                    expect(id).toBeTruthy();
+                });
+
+                it("two successive calls return different values", () => {
+                    const a = uid(),
+                        b = uid();
+                    if (a === b)
+                        throw new Error(
+                            `uid collision: both calls returned "${a}"`,
+                        );
+                });
+            });
+
+            /* ── Export shape validation ────────────────────────────────────────────── */
+            describe("Export shape validation", () => {
+                it("well-formed export object {version, exportedAt, stores:{templates,projects,docs,chats,settings}} passes", () => {
+                    const mock = {
+                        version: 1,
+                        exportedAt: new Date().toISOString(),
+                        stores: {
+                            templates: [],
+                            projects: [],
+                            docs: [],
+                            chats: [],
+                            settings: [],
+                        },
+                    };
+                    expect(validateExportShape(mock)).toBe(true);
+                });
+
+                it("object missing stores key → fails shape check", () => {
+                    expect(
+                        validateExportShape({ version: 1, exportedAt: "x" }),
+                    ).toBe(false);
+                });
+
+                it("non-array store entry (stores.templates = {}) → fails shape check", () => {
+                    const bad = {
+                        version: 1,
+                        exportedAt: "x",
+                        stores: {
+                            templates: {},
+                            projects: [],
+                            docs: [],
+                            chats: [],
+                            settings: [],
+                        },
+                    };
+                    expect(validateExportShape(bad)).toBe(false);
+                });
+            });
+
+            /* ═══════════════════════════════════════════════════════════════════════════
+   RENDER RESULTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+            function renderResults() {
+                const passed = results.filter((r) => r.pass).length;
+                const total = results.length;
+                const allOk = passed === total;
+
+                /* ── topbar summary ── */
+                document.getElementById("summary-text").textContent =
+                    `${passed} / ${total} tests passed`;
+
+                const badge = document.getElementById("summary-badge");
+                badge.textContent = allOk
+                    ? "ALL PASS"
+                    : `${total - passed} FAILED`;
+                badge.className = allOk ? "all-pass" : "some-fail";
+
+                /* ── group results by suite ── */
+                const suiteMap = new Map();
+                results.forEach((r) => {
+                    if (!suiteMap.has(r.suite)) suiteMap.set(r.suite, []);
+                    suiteMap.get(r.suite).push(r);
+                });
+
+                const main = document.getElementById("main");
+
+                for (const [suiteName, tests] of suiteMap) {
+                    const passCount = tests.filter((t) => t.pass).length;
+
+                    /* suite card */
+                    const suiteEl = document.createElement("div");
+                    suiteEl.className = "suite";
+
+                    /* suite header */
+                    const headerEl = document.createElement("div");
+                    headerEl.className = "suite-header";
+
+                    const nameEl = document.createElement("span");
+                    nameEl.className = "suite-name";
+                    nameEl.textContent = suiteName;
+
+                    const countEl = document.createElement("span");
+                    countEl.className = "suite-count";
+                    countEl.textContent = `${passCount} / ${tests.length}`;
+
+                    headerEl.appendChild(nameEl);
+                    headerEl.appendChild(countEl);
+                    suiteEl.appendChild(headerEl);
+
+                    /* test rows */
+                    tests.forEach((test) => {
+                        const rowEl = document.createElement("div");
+                        rowEl.className = `test-row ${test.pass ? "pass" : "fail"}`;
+
+                        /* badge */
+                        const badgeEl = document.createElement("span");
+                        badgeEl.className = `badge ${test.pass ? "pass" : "fail"}`;
+                        badgeEl.textContent = test.pass ? "PASS" : "FAIL";
+
+                        /* body: name + optional error */
+                        const bodyEl = document.createElement("div");
+                        bodyEl.className = "test-body";
+
+                        const testNameEl = document.createElement("span");
+                        testNameEl.className = "test-name";
+                        testNameEl.textContent = test.name;
+                        bodyEl.appendChild(testNameEl);
+
+                        if (!test.pass && test.error) {
+                            const errEl = document.createElement("span");
+                            errEl.className = "error-msg";
+                            errEl.textContent = test.error;
+                            bodyEl.appendChild(errEl);
+                        }
+
+                        rowEl.appendChild(badgeEl);
+                        rowEl.appendChild(bodyEl);
+                        suiteEl.appendChild(rowEl);
+                    });
+
+                    main.appendChild(suiteEl);
+                }
+
+                /* timestamp */
+                const footer = document.createElement("p");
+                footer.className = "run-time";
+                footer.textContent = `Run at ${new Date().toLocaleString()}`;
+                main.appendChild(footer);
+            }
+
+            renderResults();
+        </script>
+    </body>
+</html>
