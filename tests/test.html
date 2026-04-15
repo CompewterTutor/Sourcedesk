@@ -577,6 +577,96 @@
                 });
             });
 
+            /* ── validateImportShape (from main.js) ─────────────────────────────────── */
+            describe("validateImportShape", () => {
+                it("well-formed backup passes", () => {
+                    const mock = {
+                        version: 2,
+                        appVersion: "v0.3.0",
+                        exportedAt: new Date().toISOString(),
+                        stores: {
+                            templates: [],
+                            projects: [],
+                            docs: [],
+                            chats: [],
+                            settings: [],
+                        },
+                    };
+                    expect(validateImportShape(mock)).toBe(true);
+                });
+
+                it("version=1 backup also passes (older format)", () => {
+                    const mock = {
+                        version: 1,
+                        exportedAt: "2025-01-01T00:00:00.000Z",
+                        stores: {
+                            templates: [],
+                            projects: [],
+                            docs: [],
+                            chats: [],
+                            settings: [],
+                        },
+                    };
+                    expect(validateImportShape(mock)).toBe(true);
+                });
+
+                it("missing version → false", () => {
+                    expect(
+                        validateImportShape({
+                            exportedAt: "x",
+                            stores: {
+                                templates: [],
+                                projects: [],
+                                docs: [],
+                                chats: [],
+                                settings: [],
+                            },
+                        }),
+                    ).toBe(false);
+                });
+
+                it("missing exportedAt → false", () => {
+                    expect(
+                        validateImportShape({
+                            version: 1,
+                            stores: {
+                                templates: [],
+                                projects: [],
+                                docs: [],
+                                chats: [],
+                                settings: [],
+                            },
+                        }),
+                    ).toBe(false);
+                });
+
+                it("missing stores → false", () => {
+                    expect(
+                        validateImportShape({ version: 1, exportedAt: "x" }),
+                    ).toBe(false);
+                });
+
+                it("stores.docs is not an array → false", () => {
+                    expect(
+                        validateImportShape({
+                            version: 1,
+                            exportedAt: "x",
+                            stores: {
+                                templates: [],
+                                projects: [],
+                                docs: null,
+                                chats: [],
+                                settings: [],
+                            },
+                        }),
+                    ).toBe(false);
+                });
+
+                it("null input → false", () => {
+                    expect(validateImportShape(null)).toBe(false);
+                });
+            });
+
             /* ── parseStreamDelta ───────────────────────────────────────────────────── */
             describe("parseStreamDelta", () => {
                 // Save and restore state.settings.provider around each test

@@ -68,7 +68,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 
 ## Architecture
 
-### IndexedDB Stores (current schema: `DB_VERSION = 1`)
+### IndexedDB Stores (current schema: `DB_VERSION = 2`)
 
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
@@ -77,6 +77,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 | `docs` | `id` | `projectId` | `{id, projectId, name, content, uploadedAt}` |
 | `chats` | `id` | `projectId` | `{id, projectId, messages: [{role, content, sources}]}` |
 | `settings` | `key` | — | `{key, value}` — keys: `provider`, `model`, `globalContext`, `apiKey_anthropic`, `apiKey_openai`, `apiKey_openrouter`, `apiKey_github` (legacy: `apiKey` migrated → `apiKey_anthropic` on first boot) |
+| `notes` | `id` | `projectId` | `{id, projectId, title, content, createdAt, updatedAt}` |
 
 ### DB Helper Pattern
 All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)`, `dbDelete(store, key)`, `dbGetAll(store)`, `dbGetByIndex(store, index, val)`. All return Promises. Always await them.
@@ -102,6 +103,7 @@ let state = {
   streaming: false,       // true while SSE stream is open
   rightPanelOpen: true,
   editingTemplateId: null,
+  currentNote: null,      // note object being edited in Notes view, or null
 };
 ```
 
@@ -288,38 +290,38 @@ When adding a new object store or index:
 
 ### Committed & working ✅
 - Full original app (v0.1.0): projects, templates, BM25 retrieval, doc upload, context panel
-- Build pipeline: `src/main.js` + `src/index.html` → `npm run build` → `SourceDesk.html` (79 KB)
+- Build pipeline: `src/main.js` + `src/index.html` → `npm run build` → `SourceDesk.html` (~91 KB)
 - `DEBUG`, `TEST`, `APP_VERSION` flags; `log()` helper; `DOMContentLoaded` gated on `!TEST`
 - **Multi-provider support**: Anthropic, OpenAI, OpenRouter, GitHub Models
   - `PROVIDERS` config constant, `buildApiCall()`, `parseStreamDelta()`
   - Per-provider key storage in DB; legacy `apiKey` → `apiKey_anthropic` migration
   - `onProviderChange()` in settings modal with live UI switching
-- **Version string** `v0.2.0` displayed in topbar at boot
+- **Version string** `v0.3.0` displayed in topbar at boot
 - **Global Instructions** label (renamed from "Sourcing Context")
-- **Per-project Instructions** field in project creation modal; injected into system prompt
-- Test harness: 46 tests across 10 suites including all 4 providers for `buildApiCall` and `parseStreamDelta`
+- **Per-project Instructions** field in project creation modal; injected into system prompt; textarea cleared on modal open
+- **Database Export** — `exportDatabase()` downloads all stores as timestamped JSON backup
+- **Database Import** — `importDatabase(file)` validates, clears, and reimports; Export DB / Import DB buttons in Settings modal
+- **`validateImportShape()`** — pure backup-validation helper
+- **Project/Chat Export** — `exportProject()` downloads active project + messages + doc metadata; "Export" topbar button visible when project is loaded
+- **Notes** (🗄️ DB_VERSION 2) — `notes` store with `projectId` index; two-panel Notes view (list + editor); full CRUD (`openNewNote`, `selectNote`, `saveCurrentNote`, `deleteCurrentNote`, `loadNotes`, `renderNotesList`); "Notes →" sidebar button; `state.currentNote` reset on project switch
+- Test harness: 53 tests across 11 suites (added `validateImportShape` suite with 7 tests)
 - `CHANGELOG.md`, `README.md`, `CLAUDE.md`
 
 ### Still outstanding (do next session)
-- ❌ Database Export (download all stores as JSON)
-- ❌ Database Import (restore from JSON backup)
-- ❌ Project/Chat Export (download project + chat history as JSON)
-- ❌ Notes feature (per-project note editor; requires `DB_VERSION` bump to 2 + `notes` store)
-- ❌ `openNewProject()` should clear the `proj-instructions` textarea on open (currently may retain previous value)
+- ❌ Notes are not yet included in retrieval context (could optionally inject active note into system prompt)
+- ❌ No confirmation/autosave when switching notes without saving
+- ❌ Project export does not include full doc content (only metadata) — intentional for now but worth revisiting
 
 ---
 
 ## Next Steps (Ordered for Next Session)
 
-1. **Fix `openNewProject()`** — clear `proj-instructions` textarea (add `document.getElementById('proj-instructions').value = '';` alongside the other field resets)
-2. **Database Export** — `exportDatabase()`: iterates all stores via `dbGetAll`, builds `{version: DB_VERSION, appVersion: APP_VERSION, exportedAt: ISO, stores: {templates, projects, docs, chats, settings}}`, triggers a `.json` download via `<a download>`. Add "Export Database" button to Settings modal actions row (left side, before Cancel).
-3. **Database Import** — `importDatabase(file)`: reads JSON, validates with `validateImportShape()` (already in tests), confirms with user, clears all stores, reimports each record via `dbPut`, then `location.reload()`. Add hidden file input + "Import Database" button to Settings modal.
-4. **Project/Chat Export** — `exportProject()`: collects `state.activeProject` + `state.messages` + doc metadata, downloads as `{project, messages, docs, exportedAt}` JSON. Add "Export" `btn-icon` to topbar, hidden when no active project.
-5. **Notes (🗄️ DB change)** — bump `DB_VERSION` to 2, add `notes` store (`keyPath: 'id'`, index `projectId`). Add "Notes" sidebar section (disabled button when no project). Add `#notes-view` with split panel (list left, editor right). CRUD: `openNewNote()`, `saveCurrentNote()`, `deleteCurrentNote()`, `loadNotes()`. Extend `showView()` for `'notes'`. Update CLAUDE.md schema table.
-6. **Write/update tests** for export shape, import validation, notes helpers
-7. **`npm run build`** → verify build passes, open `SourceDesk.html`, open `tests/test.html` → all green
-8. **Update CHANGELOG.md, README.md checkboxes, CLAUDE.md current state**
-9. **Commit + push**
+1. **Autosave or dirty-check in Notes** — warn user (or auto-save) when they click away from an unsaved note; could use `beforeunload` or a simple `isDirty` flag on the note editor
+2. **Include active note in retrieval context** — optionally inject the currently selected note into the system prompt (similar to Global Instructions); add a toggle in the Notes view
+3. **Full doc content in Project Export** — currently `exportProject()` omits doc body text; add an opt-in "include full document content" checkbox before download
+4. **Notes search / filter** — simple text filter input above the notes list to find notes by title
+5. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
+6. **Commit + push**
 
 ---
 

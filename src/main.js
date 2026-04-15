@@ -1,7 +1,7 @@
 // ─── FLAGS ──────────────────────────────────────────────────────────────────
 const DEBUG = window.__SOURCEDESK_DEBUG__ || false;
 const TEST = window.__SOURCEDESK_TEST__ || false;
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.3.0";
 function log(...args) {
     if (DEBUG) console.log("[SD]", ...args);
 }
@@ -87,7 +87,7 @@ const PROVIDERS = {
 
 // ─── IndexedDB ────────────────────────────────────────────────────────────────
 const DB_NAME = "sourcedesk",
-    DB_VERSION = 1;
+    DB_VERSION = 2;
 let db;
 
 function openDB() {
@@ -109,6 +109,10 @@ function openDB() {
             }
             if (!d.objectStoreNames.contains("settings"))
                 d.createObjectStore("settings", { keyPath: "key" });
+            if (!d.objectStoreNames.contains("notes")) {
+                const sn = d.createObjectStore("notes", { keyPath: "id" });
+                sn.createIndex("projectId", "projectId", { unique: false });
+            }
         };
         req.onsuccess = (e) => {
             db = e.target.result;
@@ -187,6 +191,7 @@ let state = {
     streaming: false,
     rightPanelOpen: true,
     editingTemplateId: null,
+    currentNote: null,
 };
 
 // ─── PROVIDER HELPERS ─────────────────────────────────────────────────────────
@@ -238,7 +243,10 @@ function showView(v) {
         v === "templates" ? "flex" : "none";
     document.getElementById("chat-view").style.display =
         v === "chat" ? "flex" : "none";
+    document.getElementById("notes-view").style.display =
+        v === "notes" ? "flex" : "none";
     if (v === "templates") renderTemplatesGrid();
+    if (v === "notes") loadNotes();
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
@@ -274,6 +282,7 @@ async function loadProject(id) {
     state.messages = [];
     state.activeDocs = new Set();
     state.activeOtherProjects = new Set();
+    state.currentNote = null;
 
     // load chat history
     const chats = await dbGetByIndex("chats", "projectId", id);
@@ -291,6 +300,9 @@ async function loadProject(id) {
     document.getElementById("project-title").textContent = proj.name;
     badge.textContent = proj.category;
     badge.classList.remove("hidden");
+
+    const exportBtn = document.getElementById("export-project-btn");
+    if (exportBtn) exportBtn.classList.remove("hidden");
 
     renderSidebar();
     renderMessages();
@@ -855,6 +867,7 @@ async function deleteTemplate(id) {
 function openNewProject() {
     document.getElementById("proj-name").value = "";
     document.getElementById("proj-notes").value = "";
+    document.getElementById("proj-instructions").value = "";
     selectPillByVal("proj-category-pills", "RFP");
     // populate template select
     const sel = document.getElementById("proj-template-select");
@@ -1062,6 +1075,201 @@ async function clearAllData() {
             await dbDelete(s, item[s === "settings" ? "key" : "id"]);
     }
     location.reload();
+}
+
+// ─── EXPORT / IMPORT ─────────────────────────────────────────────────────────
+async function exportDatabase() {
+    const stores = ["templates", "projects", "docs", "chats", "settings"];
+    const data = {
+        version: DB_VERSION,
+        appVersion: APP_VERSION,
+        exportedAt: new Date().toISOString(),
+        stores: {},
+    };
+    for (const s of stores) data.stores[s] = await dbGetAll(s);
+    const json = JSON.stringify(data, null, 2);
+    const url = URL.createObjectURL(
+        new Blob([json], { type: "application/json" }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sourcedesk-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function validateImportShape(obj) {
+    if (!obj || typeof obj !== "object") return false;
+    if (typeof obj.version !== "number") return false;
+    if (typeof obj.exportedAt !== "string") return false;
+    if (!obj.stores || typeof obj.stores !== "object") return false;
+    return ["templates", "projects", "docs", "chats", "settings"].every((k) =>
+        Array.isArray(obj.stores[k]),
+    );
+}
+
+function triggerImportDialog() {
+    document.getElementById("import-file-input").click();
+}
+
+async function importDatabase(file) {
+    if (!file) return;
+    const text = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = (e) => res(e.target.result);
+        r.onerror = rej;
+        r.readAsText(file);
+    });
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch {
+        alert("Invalid JSON file.");
+        return;
+    }
+    if (!validateImportShape(data)) {
+        alert("File does not appear to be a valid SourceDesk backup.");
+        return;
+    }
+    if (
+        !confirm(
+            `Import backup from ${data.exportedAt}?\n\nThis will REPLACE all current data.`,
+        )
+    )
+        return;
+    const stores = ["templates", "projects", "docs", "chats", "settings"];
+    for (const s of stores) {
+        const items = await dbGetAll(s);
+        for (const item of items)
+            await dbDelete(s, item[s === "settings" ? "key" : "id"]);
+    }
+    for (const s of stores) {
+        for (const item of data.stores[s]) await dbPut(s, item);
+    }
+    location.reload();
+}
+
+async function exportProject() {
+    if (!state.activeProject) return;
+    const docs = await dbGetByIndex(
+        "docs",
+        "projectId",
+        state.activeProject.id,
+    );
+    const payload = {
+        project: state.activeProject,
+        messages: state.messages,
+        docs: docs.map((d) => ({
+            id: d.id,
+            name: d.name,
+            uploadedAt: d.uploadedAt,
+        })),
+        exportedAt: new Date().toISOString(),
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const url = URL.createObjectURL(
+        new Blob([json], { type: "application/json" }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${state.activeProject.name.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-export.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ─── NOTES ────────────────────────────────────────────────────────────────────
+async function loadNotes() {
+    if (!state.activeProject) return;
+    const notes = await dbGetByIndex(
+        "notes",
+        "projectId",
+        state.activeProject.id,
+    );
+    notes.sort((a, b) => b.updatedAt - a.updatedAt);
+    renderNotesList(notes);
+    if (notes.length && !state.currentNote) {
+        selectNote(notes[0]);
+    } else if (!notes.length) {
+        state.currentNote = null;
+        const editorArea = document.getElementById("note-editor-area");
+        const placeholder = document.getElementById("note-editor-placeholder");
+        if (editorArea) editorArea.style.display = "none";
+        if (placeholder) placeholder.style.display = "flex";
+    } else if (state.currentNote) {
+        selectNote(state.currentNote);
+    }
+}
+
+function renderNotesList(notes) {
+    const list = document.getElementById("notes-list");
+    if (!list) return;
+    list.innerHTML = "";
+    notes.forEach((n) => {
+        const el = document.createElement("div");
+        el.className =
+            "note-item" +
+            (state.currentNote && state.currentNote.id === n.id
+                ? " active"
+                : "");
+        el.dataset.noteId = n.id;
+        el.innerHTML = `<div class="note-item-title">${n.title || "Untitled"}</div><div class="note-item-date">${new Date(n.updatedAt).toLocaleDateString()}</div>`;
+        el.onclick = () => selectNote(n);
+        list.appendChild(el);
+    });
+}
+
+function selectNote(note) {
+    state.currentNote = note;
+    const titleEl = document.getElementById("note-title-input");
+    const editorEl = document.getElementById("note-editor");
+    const editorArea = document.getElementById("note-editor-area");
+    const placeholder = document.getElementById("note-editor-placeholder");
+    if (titleEl) titleEl.value = note.title || "";
+    if (editorEl) editorEl.value = note.content || "";
+    if (editorArea) editorArea.style.display = "flex";
+    if (placeholder) placeholder.style.display = "none";
+    document.querySelectorAll(".note-item").forEach((el) => {
+        el.classList.toggle("active", el.dataset.noteId === note.id);
+    });
+}
+
+async function openNewNote() {
+    if (!state.activeProject) return;
+    const note = {
+        id: uid(),
+        projectId: state.activeProject.id,
+        title: "",
+        content: "",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+    };
+    await dbPut("notes", note);
+    state.currentNote = note;
+    await loadNotes();
+    selectNote(note);
+    const titleEl = document.getElementById("note-title-input");
+    if (titleEl) titleEl.focus();
+}
+
+async function saveCurrentNote() {
+    if (!state.currentNote) return;
+    const titleEl = document.getElementById("note-title-input");
+    const editorEl = document.getElementById("note-editor");
+    state.currentNote.title =
+        (titleEl ? titleEl.value.trim() : "") || "Untitled";
+    state.currentNote.content = editorEl ? editorEl.value : "";
+    state.currentNote.updatedAt = Date.now();
+    await dbPut("notes", state.currentNote);
+    await loadNotes();
+    selectNote(state.currentNote);
+}
+
+async function deleteCurrentNote() {
+    if (!state.currentNote) return;
+    if (!confirm("Delete this note?")) return;
+    await dbDelete("notes", state.currentNote.id);
+    state.currentNote = null;
+    await loadNotes();
 }
 
 // ─── MODAL HELPERS ────────────────────────────────────────────────────────────

@@ -10,10 +10,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Planned for next session
-- Database Export/Import (download all stores as JSON; restore from JSON)
-- Project/Chat Export (download project + chat history as JSON)
-- Notes (per-project note editor; requires `DB_VERSION` bump to 2)
+---
+
+## [0.3.0] - 2025-07-15 🗄️
+
+### Added
+- **Database Export** — `exportDatabase()` serialises all stores (`templates`, `projects`, `docs`, `chats`, `settings`) plus `version`, `appVersion`, and `exportedAt` to a timestamped `.json` file downloaded via `<a download>`
+- **Database Import** — `importDatabase(file)` reads a backup JSON, validates with `validateImportShape()`, confirms with the user, clears all stores, reimports every record via `dbPut`, then reloads the page
+- **`validateImportShape()`** — pure validation helper (also tested in `tests/test.html`) that checks the backup object has the correct shape
+- **Import/Export buttons** — "Export DB" and "Import DB" buttons added to the Settings modal actions row; hidden `<input type="file" id="import-file-input">` triggers the file picker
+- **Project/Chat Export** — `exportProject()` downloads the active project object, full `state.messages` array, and doc metadata (id, name, uploadedAt) as a named `.json` file; "Export" button in topbar becomes visible when a project is loaded
+- **Notes 🗄️** — per-project text notes backed by a new `notes` IndexedDB store (`DB_VERSION` bumped 1 → 2):
+  - Two-panel Notes view: list on left, title + editor on right
+  - CRUD: `openNewNote()`, `selectNote()`, `saveCurrentNote()`, `deleteCurrentNote()`, `loadNotes()`, `renderNotesList()`
+  - "Notes →" navigation button in sidebar
+  - `showView('notes')` added to the view system (auto-calls `loadNotes()`)
+  - `state.currentNote` tracks the note being edited; reset on project switch
+- **Fix `openNewProject()`** — `proj-instructions` textarea now cleared alongside name/notes when the modal opens
+- **Tests** — 7 new tests for `validateImportShape` (11th suite); total now 53 tests across 11 suites
+
+### Changed
+- `DB_VERSION` bumped from `1` to `2`; `openDB()` upgrade path adds `notes` store with `projectId` index
+- `showView()` extended to handle `'notes'` view
+- `loadProject()` now shows the topbar Export button and resets `state.currentNote`
+- `APP_VERSION` bumped to `v0.3.0`
+
+### Build
+- `build.js`: added `exportDatabase`, `triggerImportDialog`, `importDatabase`, `exportProject`, `openNewNote`, `selectNote`, `saveCurrentNote`, `deleteCurrentNote`, `loadNotes`, `renderNotesList`, `validateImportShape` to terser `mangle.reserved`
 
 ---
 
