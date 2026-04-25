@@ -861,6 +861,41 @@
                     transform: scale(1);
                 }
             }
+            /* ── Drive connector ─────────────────────── */
+            .drive-file-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 7px 8px;
+                border-radius: var(--radius);
+                border-bottom: 1px solid var(--surface2);
+                gap: 8px;
+            }
+            .drive-file-item:last-child {
+                border-bottom: none;
+            }
+            .drive-file-item:hover {
+                background: var(--surface2);
+            }
+            .drive-file-info {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                flex: 1;
+                min-width: 0;
+            }
+            .drive-file-name {
+                font-size: 13px;
+                color: var(--text);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .drive-file-meta {
+                font-size: 11px;
+                color: var(--text-muted);
+                font-family: "DM Mono", monospace;
+            }
             .hidden {
                 display: none !important;
             }
@@ -1145,6 +1180,24 @@
                         <line x1="6" y1="2" x2="10" y2="2" />
                     </svg>
                     Clear Chat
+                </button>
+                <button
+                    class="btn-icon"
+                    onclick="openDriveModal()"
+                    title="Google Drive — import files or backup data"
+                >
+                    <svg
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                    >
+                        <path d="M1.5 11.5L5 5l3 5.5H1.5z" />
+                        <path d="M5 5l4.5 7.5h5L10 5H5z" />
+                        <path d="M9.5 12.5H1.5" />
+                        <path d="M14.5 12.5H9.5" />
+                    </svg>
+                    Drive
                 </button>
                 <button class="btn-icon" onclick="showView('templates')">
                     <svg
@@ -1725,6 +1778,16 @@
                         >
                             GitHub Models
                         </div>
+                        <div
+                            class="type-pill"
+                            data-val="local"
+                            onclick="
+                                selectPill(this, 'provider-pills');
+                                onProviderChange('local');
+                            "
+                        >
+                            Local LLM
+                        </div>
                     </div>
                 </div>
                 <div class="form-row">
@@ -1753,6 +1816,71 @@
                     >
                         <div class="status-dot" id="apikey-dot"></div>
                         <span id="apikey-status-text">No key saved</span>
+                    </div>
+                </div>
+                <div class="form-row hidden" id="local-llm-url-row">
+                    <label class="form-label"
+                        >Base URL
+                        <span style="color: var(--text-muted); font-size: 10px"
+                            >— Ollama:
+                            <code
+                                style="
+                                    font-family: &quot;DM Mono&quot;, monospace;
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                    border-radius: 3px;
+                                "
+                                >localhost:11434/v1</code
+                            >
+                            · LM Studio:
+                            <code
+                                style="
+                                    font-family: &quot;DM Mono&quot;, monospace;
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                    border-radius: 3px;
+                                "
+                                >localhost:1234/v1</code
+                            ></span
+                        ></label
+                    >
+                    <div style="display: flex; gap: 8px">
+                        <input
+                            class="form-input"
+                            id="local-llm-url"
+                            type="text"
+                            placeholder="http://localhost:11434/v1"
+                            style="flex: 1"
+                        />
+                        <button
+                            class="btn-secondary"
+                            onclick="fetchLocalModels()"
+                        >
+                            Detect Models
+                        </button>
+                    </div>
+                    <div
+                        id="local-cors-warning"
+                        class="hidden"
+                        style="
+                            font-size: 11px;
+                            color: var(--accent);
+                            margin-top: 5px;
+                            line-height: 1.6;
+                        "
+                    >
+                        &#9888; Opened as a local file — browser CORS rules may
+                        block requests to localhost. Run
+                        <code
+                            style="
+                                font-family: &quot;DM Mono&quot;, monospace;
+                                background: var(--surface2);
+                                padding: 1px 4px;
+                                border-radius: 3px;
+                            "
+                            >npm run serve</code
+                        >
+                        for full local LLM support.
                     </div>
                 </div>
                 <div class="form-row">
@@ -1792,6 +1920,7 @@
                         placeholder="COMPANY_NAME=Acme University&#10;DEPT=Procurement&#10;FISCAL_YEAR=2025"
                     ></textarea>
                 </div>
+
                 <div class="modal-actions">
                     <button
                         class="btn-danger"
@@ -1807,6 +1936,7 @@
                     >
                         Export DB
                     </button>
+
                     <button
                         class="btn-secondary"
                         onclick="triggerImportDialog()"
@@ -1921,6 +2051,148 @@
                         onclick="saveExtractedVars()"
                     >
                         Append to Constants
+                    </button>
+                </div>
+            </div>
+
+            <!-- Google Drive Connector Modal -->
+            <div
+                id="modal-drive"
+                class="modal hidden"
+                style="max-width: 540px; width: 100%"
+            >
+                <div class="modal-title">Google Drive Connector</div>
+                <div class="modal-subtitle">
+                    Import documents from Drive into your project, or back up
+                    your SourceDesk data.
+                </div>
+                <!-- Auth -->
+                <div class="form-row">
+                    <label class="form-label"
+                        >Access Token
+                        <span style="color: var(--text-muted); font-size: 10px">
+                            —
+                            <a
+                                href="https://developers.google.com/oauthplayground/?scope=https://www.googleapis.com/auth/drive"
+                                target="_blank"
+                                rel="noopener"
+                                style="color: var(--accent)"
+                                >Get token from OAuth Playground</a
+                            >
+                            &nbsp;(select "Drive API v3", authorize APIs, then
+                            copy the Access Token)
+                        </span>
+                    </label>
+                    <input
+                        class="form-input"
+                        id="drive-token-input"
+                        type="password"
+                        placeholder="ya29.…"
+                    />
+                    <div
+                        id="drive-connect-status"
+                        style="
+                            font-size: 12px;
+                            margin-top: 6px;
+                            color: var(--text-muted);
+                        "
+                    >
+                        Not connected
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 8px">
+                        <button
+                            class="btn-primary"
+                            onclick="verifyDriveToken()"
+                        >
+                            Connect / Verify
+                        </button>
+                        <button
+                            class="btn-secondary"
+                            onclick="disconnectDrive()"
+                        >
+                            Disconnect
+                        </button>
+                    </div>
+                </div>
+                <!-- File browser -->
+                <div id="drive-browser" class="hidden">
+                    <div class="form-row" style="margin-top: 12px">
+                        <label class="form-label"
+                            >Import from Drive
+                            <span
+                                style="
+                                    color: var(--text-muted);
+                                    font-size: 10px;
+                                "
+                                >— open a project first; supports .txt, .md,
+                                .csv, .json, Google Docs</span
+                            >
+                        </label>
+                        <div style="display: flex; gap: 8px">
+                            <input
+                                class="form-input"
+                                id="drive-search"
+                                type="text"
+                                placeholder="Search by file name…"
+                                style="flex: 1"
+                                onkeydown="
+                                    if (event.key === 'Enter') listDriveFiles();
+                                "
+                            />
+                            <button
+                                class="btn-secondary"
+                                onclick="listDriveFiles()"
+                            >
+                                Search
+                            </button>
+                        </div>
+                        <div
+                            id="drive-file-list"
+                            style="
+                                max-height: 220px;
+                                overflow-y: auto;
+                                border: 1px solid var(--surface2);
+                                border-radius: var(--radius);
+                                padding: 4px;
+                                margin-top: 6px;
+                            "
+                        ></div>
+                    </div>
+                </div>
+                <!-- Backup -->
+                <div
+                    id="drive-backup-section"
+                    class="hidden"
+                    style="
+                        border-top: 1px solid var(--surface2);
+                        padding-top: 12px;
+                        margin-top: 4px;
+                    "
+                >
+                    <label class="form-label" style="margin-bottom: 8px"
+                        >Backup</label
+                    >
+                    <button
+                        id="drive-backup-btn"
+                        class="btn-secondary"
+                        onclick="backupToDrive()"
+                    >
+                        Backup Database to Drive
+                    </button>
+                    <div
+                        style="
+                            font-size: 11px;
+                            color: var(--text-muted);
+                            margin-top: 5px;
+                        "
+                    >
+                        Uploads a full JSON backup of all projects, templates,
+                        docs, notes, and chats.
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeModal()">
+                        Close
                     </button>
                 </div>
             </div>

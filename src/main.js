@@ -99,6 +99,15 @@ const PROVIDERS = {
         ],
         defaultModel: "gpt-4o",
     },
+    local: {
+        label: "Local LLM",
+        keyLabel: "API Key (optional)",
+        keyPlaceholder: "Leave blank for Ollama / LM Studio",
+        keyHint:
+            'No data leaves your machine. Works with <a href="https://ollama.com" target="_blank" style="color:var(--accent)">Ollama</a> and <a href="https://lmstudio.ai" target="_blank" style="color:var(--accent)">LM Studio</a>. Best results when served via <code>npm run serve</code>.',
+        models: [{ id: "", label: "— click Detect Models —" }],
+        defaultModel: "",
+    },
 };
 
 // ─── IndexedDB ────────────────────────────────────────────────────────────────
@@ -276,6 +285,8 @@ let state = {
         openrouterKey: "",
         githubKey: "",
         constants: "",
+        driveToken: "",
+        localLlmUrl: "",
     },
     activeProject: null,
     activeDocs: new Set(),
@@ -312,6 +323,7 @@ async function boot() {
     const openrouterKey = await dbGet("settings", "apiKey_openrouter");
     const githubKey = await dbGet("settings", "apiKey_github");
     const constants = await dbGet("settings", "constants");
+    const driveToken = await dbGet("settings", "driveToken");
     // Legacy: old single apiKey → migrate to anthropicKey
     const legacyKey = await dbGet("settings", "apiKey");
 
@@ -324,6 +336,21 @@ async function boot() {
     if (openrouterKey) state.settings.openrouterKey = openrouterKey.value;
     if (githubKey) state.settings.githubKey = githubKey.value;
     if (constants) state.settings.constants = constants.value;
+    if (driveToken) state.settings.driveToken = driveToken.value;
+    const localLlmUrl = await dbGet("settings", "localLlmUrl");
+    if (localLlmUrl) state.settings.localLlmUrl = localLlmUrl.value;
+    // Apply .env defaults injected by server.js (only if DB has no saved value)
+    const _senv = window.__SOURCEDESK_ENV__ || {};
+    if (!state.settings.localLlmUrl && _senv.localLlmUrl) {
+        state.settings.localLlmUrl = _senv.localLlmUrl;
+    }
+    if (
+        _senv.localLlmDefaultModel &&
+        state.settings.provider === "local" &&
+        !state.settings.model
+    ) {
+        state.settings.model = _senv.localLlmDefaultModel;
+    }
 
     // Set version string in topbar
     const vEl = document.getElementById("app-version");
@@ -600,17 +627,20 @@ function buildApiCall(systemPrompt, apiMessages) {
         };
     }
 
-    // OpenAI-compatible: openai, openrouter, github
+    // OpenAI-compatible: openai, openrouter, github, local
+    const _localBase = (
+        state.settings.localLlmUrl || "http://localhost:11434/v1"
+    ).replace(/\/$/, "");
     const urls = {
         openai: "https://api.openai.com/v1/chat/completions",
         openrouter: "https://openrouter.ai/api/v1/chat/completions",
         github: "https://models.inference.ai.azure.com/chat/completions",
+        local: _localBase + "/chat/completions",
     };
 
-    const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-    };
+    // Only include Authorization if a key is actually set (Ollama works without one)
+    const headers = { "Content-Type": "application/json" };
+    if (key) headers["Authorization"] = `Bearer ${key}`;
     if (provider === "openrouter") {
         headers["HTTP-Referer"] = "https://sourcedesk.app";
         headers["X-Title"] = "SourceDesk";
@@ -656,7 +686,7 @@ async function sendMessage() {
     if (!text) return;
 
     const key = getCurrentProviderKey();
-    if (!key) {
+    if (!key && state.settings.provider !== "local") {
         alert("Please add an API key in Settings.");
         return;
     }
@@ -1333,6 +1363,71 @@ function promptAttachTemplate() {
 }
 
 // ─── SETTINGS ────────────────────────────────────────────────────────────────
+async function fetchLocalModels() {
+    const urlEl = document.getElementById("local-llm-url");
+    const base = (
+        urlEl ? urlEl.value.trim() : state.settings.localLlmUrl || ""
+    ).replace(/\/$/, "");
+    const sel = document.getElementById("settings-model");
+
+    if (!base) {
+        if (sel)
+            sel.innerHTML =
+                '<option value="">Enter a Base URL above first</option>';
+        return;
+    }
+
+    if (sel) sel.innerHTML = '<option value="">Detecting models…</option>';
+
+    try {
+        const reqHeaders = {};
+        const keyEl = document.getElementById("settings-apikey");
+        if (keyEl && keyEl.value.trim()) {
+            reqHeaders["Authorization"] = "Bearer " + keyEl.value.trim();
+        }
+        const res = await fetch(base + "/models", { headers: reqHeaders });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        // Ollama returns { models: [...] }, OpenAI-compat returns { data: [...] }
+        const list = data.data || data.models || [];
+        const models = list
+            .map((m) => ({
+                id: m.id || m.name || m.model,
+                label: m.id || m.name || m.model,
+            }))
+            .filter((m) => m.id);
+
+        if (!models.length) throw new Error("No models returned");
+
+        PROVIDERS.local.models = models;
+        PROVIDERS.local.defaultModel = models[0].id;
+
+        if (sel) {
+            sel.innerHTML = "";
+            models.forEach((m) => {
+                const opt = document.createElement("option");
+                opt.value = m.id;
+                opt.textContent = m.label;
+                sel.appendChild(opt);
+            });
+            // Restore previously selected model if it's in the list
+            if (
+                state.settings.model &&
+                models.some((m) => m.id === state.settings.model)
+            ) {
+                sel.value = state.settings.model;
+            } else {
+                sel.value = models[0].id;
+            }
+        }
+    } catch (err) {
+        if (sel)
+            sel.innerHTML =
+                '<option value="">⚠ Detection failed — check URL &amp; CORS</option>';
+        log("fetchLocalModels:", err.message);
+    }
+}
+
 function openSettings() {
     const prov = state.settings.provider || "anthropic";
     selectPillByVal("provider-pills", prov);
@@ -1342,6 +1437,8 @@ function openSettings() {
         state.settings.globalContext || "";
     document.getElementById("settings-constants").value =
         state.settings.constants || "";
+    const _localUrlEl = document.getElementById("local-llm-url");
+    if (_localUrlEl) _localUrlEl.value = state.settings.localLlmUrl || "";
     updateApiKeyStatus(!!getCurrentProviderKey());
     showModal("modal-settings");
 }
@@ -1367,18 +1464,41 @@ function updateProviderUI(provider) {
     } else {
         modelSel.value = cfg.defaultModel;
     }
+    // Show/hide local LLM URL row
+    const urlRow = document.getElementById("local-llm-url-row");
+    if (urlRow) urlRow.classList.toggle("hidden", provider !== "local");
+    if (provider === "local") {
+        const urlEl = document.getElementById("local-llm-url");
+        if (urlEl && !urlEl.value)
+            urlEl.value = state.settings.localLlmUrl || "";
+        // Warn if running from file:// (CORS will block localhost requests)
+        const corsWarn = document.getElementById("local-cors-warning");
+        if (corsWarn) {
+            corsWarn.classList.toggle(
+                "hidden",
+                window.location.protocol !== "file:",
+            );
+        }
+    }
 }
 
 function onProviderChange(provider) {
     // Snapshot the key the user typed for the old provider before switching UI
     const oldProv = getActivePill("provider-pills") || state.settings.provider;
     const typedKey = document.getElementById("settings-apikey").value;
+    // Also snapshot the local LLM URL if we're leaving that provider
+    if (oldProv === "local") {
+        const urlEl = document.getElementById("local-llm-url");
+        if (urlEl) state.settings.localLlmUrl = urlEl.value.trim();
+    }
     setProviderKey(oldProv, typedKey);
 
     updateProviderUI(provider);
     document.getElementById("settings-apikey").value =
         state.settings[provider + "Key"] || "";
     updateApiKeyStatus(!!state.settings[provider + "Key"]);
+    // Auto-detect models when switching to local provider
+    if (provider === "local") fetchLocalModels();
 }
 
 async function saveSettings() {
@@ -1389,18 +1509,21 @@ async function saveSettings() {
     const constants = document
         .getElementById("settings-constants")
         .value.trim();
-
+    const localLlmUrl =
+        document.getElementById("local-llm-url")?.value.trim() || "";
     state.settings.provider = provider;
     state.settings.model = model;
     state.settings.globalContext = ctx;
     state.settings.constants = constants;
-    setProviderKey(provider, key);
+    state.settings.localLlmUrl = localLlmUrl;
 
+    setProviderKey(provider, key);
     await dbPut("settings", { key: "provider", value: provider });
     await dbPut("settings", { key: `apiKey_${provider}`, value: key });
     await dbPut("settings", { key: "model", value: model });
     await dbPut("settings", { key: "globalContext", value: ctx });
     await dbPut("settings", { key: "constants", value: constants });
+    await dbPut("settings", { key: "localLlmUrl", value: localLlmUrl });
 
     closeModal();
     checkApiKey();
@@ -1415,20 +1538,28 @@ function updateApiKeyStatus(hasKey) {
 
 function checkApiKey() {
     const banner = document.getElementById("no-key-banner");
+    const isLocal = state.settings.provider === "local";
     banner.classList.toggle(
         "hidden",
-        !!getCurrentProviderKey() || !state.activeProject,
+        isLocal || !!getCurrentProviderKey() || !state.activeProject,
     );
 }
 
 async function clearAllData() {
     if (
         !confirm(
-            "This will delete ALL projects, templates, documents, and chat history. Are you sure?",
+            "This will delete ALL projects, templates, documents, notes, and chat history. Are you sure?",
         )
     )
         return;
-    const stores = ["templates", "projects", "docs", "chats", "settings"];
+    const stores = [
+        "templates",
+        "projects",
+        "docs",
+        "chats",
+        "settings",
+        "notes",
+    ];
     for (const s of stores) {
         const items = await dbGetAll(s);
         for (const item of items)
@@ -1500,6 +1631,332 @@ async function exportDatabase() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// ─── GOOGLE DRIVE CONNECTOR ──────────────────────────────────────────────────
+
+function openDriveModal() {
+    const tokenEl = document.getElementById("drive-token-input");
+    if (tokenEl) tokenEl.value = state.settings.driveToken || "";
+    updateDriveStatus();
+    showModal("modal-drive");
+    if (state.settings.driveToken) {
+        listDriveFiles();
+    }
+}
+
+function updateDriveStatus() {
+    const hasToken = !!state.settings.driveToken;
+    const browserEl = document.getElementById("drive-browser");
+    const backupEl = document.getElementById("drive-backup-section");
+    const statusEl = document.getElementById("drive-connect-status");
+    if (hasToken) {
+        if (browserEl) browserEl.classList.remove("hidden");
+        if (backupEl) backupEl.classList.remove("hidden");
+        if (statusEl) {
+            statusEl.textContent =
+                "Token saved — click Connect / Verify to confirm it's still valid.";
+            statusEl.style.color = "var(--text-muted)";
+        }
+    } else {
+        if (browserEl) browserEl.classList.add("hidden");
+        if (backupEl) backupEl.classList.add("hidden");
+        if (statusEl) {
+            statusEl.textContent = "Not connected";
+            statusEl.style.color = "var(--text-muted)";
+        }
+    }
+}
+
+async function verifyDriveToken() {
+    const tokenEl = document.getElementById("drive-token-input");
+    const token = tokenEl ? tokenEl.value.trim() : "";
+    const statusEl = document.getElementById("drive-connect-status");
+    if (!token) {
+        if (statusEl) {
+            statusEl.textContent = "Paste an access token first.";
+            statusEl.style.color = "var(--danger)";
+        }
+        return;
+    }
+    if (statusEl) {
+        statusEl.textContent = "Verifying…";
+        statusEl.style.color = "var(--text-muted)";
+    }
+    try {
+        const res = await fetch(
+            "https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=" +
+                encodeURIComponent(token),
+        );
+        const info = await res.json();
+        if (info.error) {
+            throw new Error(info.error_description || info.error);
+        }
+        // Save token to state + DB
+        state.settings.driveToken = token;
+        await dbPut("settings", { key: "driveToken", value: token });
+
+        const email = info.email ? " as " + info.email : "";
+        const mins = info.expires_in
+            ? " · expires in " + Math.round(info.expires_in / 60) + " min"
+            : "";
+        if (statusEl) {
+            statusEl.textContent = "Connected" + email + mins;
+            statusEl.style.color = "var(--success)";
+        }
+        const browserEl = document.getElementById("drive-browser");
+        const backupEl = document.getElementById("drive-backup-section");
+        if (browserEl) browserEl.classList.remove("hidden");
+        if (backupEl) backupEl.classList.remove("hidden");
+        await listDriveFiles();
+    } catch (err) {
+        if (statusEl) {
+            statusEl.textContent = "Invalid or expired token: " + err.message;
+            statusEl.style.color = "var(--danger)";
+        }
+    }
+}
+
+async function disconnectDrive() {
+    state.settings.driveToken = "";
+    await dbPut("settings", { key: "driveToken", value: "" });
+    const tokenEl = document.getElementById("drive-token-input");
+    if (tokenEl) tokenEl.value = "";
+    const browserEl = document.getElementById("drive-browser");
+    const backupEl = document.getElementById("drive-backup-section");
+    const statusEl = document.getElementById("drive-connect-status");
+    const listEl = document.getElementById("drive-file-list");
+    if (browserEl) browserEl.classList.add("hidden");
+    if (backupEl) backupEl.classList.add("hidden");
+    if (statusEl) {
+        statusEl.textContent = "Disconnected";
+        statusEl.style.color = "var(--text-muted)";
+    }
+    if (listEl) listEl.innerHTML = "";
+}
+
+async function listDriveFiles() {
+    const token = state.settings.driveToken;
+    if (!token) return;
+    const searchEl = document.getElementById("drive-search");
+    const q = searchEl ? searchEl.value.trim() : "";
+    const listEl = document.getElementById("drive-file-list");
+    if (listEl) {
+        listEl.innerHTML =
+            '<div style="color:var(--text-muted);padding:12px;text-align:center;font-size:12px">Loading…</div>';
+    }
+
+    // Only list file types we can import as text
+    let gq =
+        "trashed=false and (" +
+        "mimeType='text/plain' or " +
+        "mimeType='text/markdown' or " +
+        "mimeType='text/csv' or " +
+        "mimeType='application/json' or " +
+        "mimeType='application/vnd.google-apps.document'" +
+        ")";
+    if (q) {
+        gq += " and name contains '" + q.replace(/'/g, "\\'") + "'";
+    }
+    const url =
+        "https://www.googleapis.com/drive/v3/files?" +
+        "q=" +
+        encodeURIComponent(gq) +
+        "&fields=files(id,name,mimeType,modifiedTime,size)" +
+        "&pageSize=50" +
+        "&orderBy=modifiedTime+desc";
+
+    try {
+        const res = await fetch(url, {
+            headers: { Authorization: "Bearer " + token },
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(
+                (err.error && err.error.message) ||
+                    "Drive API error " + res.status,
+            );
+        }
+        const data = await res.json();
+        renderDriveFileList(data.files || []);
+    } catch (err) {
+        if (listEl) {
+            listEl.innerHTML =
+                '<div style="color:var(--danger);padding:12px;font-size:12px">Error: ' +
+                err.message +
+                "</div>";
+        }
+    }
+}
+
+function renderDriveFileList(files) {
+    const listEl = document.getElementById("drive-file-list");
+    if (!listEl) return;
+    listEl.innerHTML = "";
+    if (!files.length) {
+        const empty = document.createElement("div");
+        empty.style.cssText =
+            "color:var(--text-muted);padding:12px;text-align:center;font-size:12px";
+        empty.textContent = "No supported files found";
+        listEl.appendChild(empty);
+        return;
+    }
+    for (const f of files) {
+        const item = document.createElement("div");
+        item.className = "drive-file-item";
+
+        const info = document.createElement("div");
+        info.className = "drive-file-info";
+
+        const nameEl = document.createElement("span");
+        nameEl.className = "drive-file-name";
+        nameEl.textContent = f.name;
+
+        const metaEl = document.createElement("span");
+        metaEl.className = "drive-file-meta";
+        const typeLabel =
+            f.mimeType === "application/vnd.google-apps.document"
+                ? "Google Doc"
+                : f.mimeType.split("/").pop().toUpperCase();
+        const dateLabel = f.modifiedTime
+            ? new Date(f.modifiedTime).toLocaleDateString()
+            : "";
+        metaEl.textContent = typeLabel + (dateLabel ? " · " + dateLabel : "");
+
+        info.appendChild(nameEl);
+        info.appendChild(metaEl);
+
+        const btn = document.createElement("button");
+        btn.className = "btn-secondary";
+        btn.style.cssText = "font-size:12px;padding:4px 10px;flex-shrink:0";
+        btn.textContent = "Import";
+        // Capture loop variables in closure
+        (function (fileId, fileName, mimeType) {
+            btn.onclick = function () {
+                importFromDrive(fileId, fileName, mimeType);
+            };
+        })(f.id, f.name, f.mimeType);
+
+        item.appendChild(info);
+        item.appendChild(btn);
+        listEl.appendChild(item);
+    }
+}
+
+async function importFromDrive(fileId, fileName, mimeType) {
+    if (!state.activeProject) {
+        alert(
+            "Open a project first — imported files are added as project documents.",
+        );
+        return;
+    }
+    const token = state.settings.driveToken;
+    if (!token) return;
+
+    let url;
+    if (mimeType === "application/vnd.google-apps.document") {
+        url =
+            "https://www.googleapis.com/drive/v3/files/" +
+            fileId +
+            "/export?mimeType=text%2Fplain";
+    } else {
+        url =
+            "https://www.googleapis.com/drive/v3/files/" +
+            fileId +
+            "?alt=media";
+    }
+
+    try {
+        const res = await fetch(url, {
+            headers: { Authorization: "Bearer " + token },
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(
+                (err.error && err.error.message) ||
+                    "Drive API error " + res.status,
+            );
+        }
+        const content = await res.text();
+        const doc = {
+            id: uid(),
+            projectId: state.activeProject.id,
+            name: fileName,
+            content: content,
+            uploadedAt: Date.now(),
+        };
+        await dbPut("docs", doc);
+        await renderRightPanel();
+        closeModal();
+        alert('"' + fileName + '" imported as a document in this project.');
+    } catch (err) {
+        alert("Import failed: " + err.message);
+    }
+}
+
+async function backupToDrive() {
+    const token = state.settings.driveToken;
+    if (!token) return;
+    const btn = document.getElementById("drive-backup-btn");
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Uploading…";
+    }
+    try {
+        const stores = [
+            "templates",
+            "projects",
+            "docs",
+            "chats",
+            "notes",
+            "settings",
+        ];
+        const data = {
+            version: DB_VERSION,
+            appVersion: APP_VERSION,
+            exportedAt: new Date().toISOString(),
+            stores: {},
+        };
+        for (const s of stores) data.stores[s] = await dbGetAll(s);
+        const json = JSON.stringify(data, null, 2);
+        const filename =
+            "sourcedesk-backup-" +
+            new Date().toISOString().slice(0, 10) +
+            ".json";
+        const metadata = { name: filename, mimeType: "application/json" };
+
+        const form = new FormData();
+        form.append(
+            "metadata",
+            new Blob([JSON.stringify(metadata)], { type: "application/json" }),
+        );
+        form.append("file", new Blob([json], { type: "application/json" }));
+
+        const res = await fetch(
+            "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+            {
+                method: "POST",
+                headers: { Authorization: "Bearer " + token },
+                body: form,
+            },
+        );
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(
+                (err.error && err.error.message) ||
+                    "Drive API error " + res.status,
+            );
+        }
+        const file = await res.json();
+        alert("Backup saved to Google Drive: " + (file.name || filename));
+    } catch (err) {
+        alert("Backup failed: " + err.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Backup Database to Drive";
+        }
+    }
+}
+
 function validateImportShape(obj) {
     if (!obj || typeof obj !== "object") return false;
     if (typeof obj.version !== "number") return false;
@@ -1558,23 +2015,38 @@ async function exportProject() {
         "projectId",
         state.activeProject.id,
     );
+
+    // Ask the user whether to include full document bodies (may be large)
+    const includeBodies = confirm(
+        "Include full document bodies in the export? The file may be large. Click OK to include, Cancel to exclude.",
+    );
+
     const payload = {
         project: state.activeProject,
         messages: state.messages,
-        docs: docs.map((d) => ({
-            id: d.id,
-            name: d.name,
-            uploadedAt: d.uploadedAt,
-        })),
+        docs: docs.map((d) => {
+            const base = {
+                id: d.id,
+                name: d.name,
+                uploadedAt: d.uploadedAt,
+            };
+            if (includeBodies) base.content = d.content;
+            return base;
+        }),
         exportedAt: new Date().toISOString(),
+        includeFullDocs: !!includeBodies,
     };
+
     const json = JSON.stringify(payload, null, 2);
     const url = URL.createObjectURL(
         new Blob([json], { type: "application/json" }),
     );
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${state.activeProject.name.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-export.json`;
+    const safeName = state.activeProject.name
+        .replace(/[^a-z0-9]/gi, "-")
+        .toLowerCase();
+    a.download = `${safeName}-export${includeBodies ? "-full" : ""}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

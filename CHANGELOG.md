@@ -5,6 +5,19 @@ All notable changes to SourceDesk will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 > Versions marked with 🗄️ include IndexedDB schema changes and a migration script.
+> Versions marked with 🖥️ include a local helper/server addition for hosted or homelab use.
+
+---
+
+## [0.4.3] - 2025-07-16
+
+### Added
+- **Local helper server** — `server.js` serves `SourceDesk.html` at `http://localhost:PORT`, injects `window.__SOURCEDESK_ENV__` from `.env`, and exposes `npm run serve` for local hosted/homelab workflows; supports `PORT`, `ENVIRONMENT`, `LOCAL_LLM_URL`, and `LOCAL_LLM_DEFAULT_MODEL`
+- **`.env.example`** — sample configuration file for the local server and local LLM defaults
+
+### Changed
+- `APP_VERSION` bumped to `v0.4.2`
+- `package.json` version bumped to `0.4.2`
 
 ---
 

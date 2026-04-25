@@ -331,20 +331,23 @@ When adding a new object store or index:
 - **Text contrast fix** — `--text-dim` raised to `#a8a49c`, `--text-muted` raised to `#72706a` (old muted was ~2.2:1 contrast on dark bg)
 - Test harness: 79 tests across 16 suites
 - `CHANGELOG.md`, `README.md`, `CLAUDE.md`
+- **Google Drive Connector** — `modal-drive` accessible via "Drive" topbar button; token-based auth (OAuth Playground workflow); `verifyDriveToken()` validates token via `tokeninfo` endpoint and shows connection status (email + expiry); `listDriveFiles()` lists text/plain, text/markdown, text/csv, application/json, and Google Docs files (filtered, sorted by `modifiedTime desc`); `renderDriveFileList(files)` builds DOM programmatically (no innerHTML injection, safe for arbitrary filenames); `importFromDrive(fileId, name, mimeType)` fetches file content or exports Google Docs as plain text and saves as a project doc; `backupToDrive()` uploads a full JSON backup (includes `notes` store, unlike local `exportDatabase()`); `disconnectDrive()` clears token from state + DB; token persisted to `settings` store under key `driveToken`; `state.settings.driveToken` initialized at boot; drive functions added to `build.js` mangle reserved list: `openDriveModal`, `verifyDriveToken`, `listDriveFiles`, `backupToDrive`, `disconnectDrive`; CSS classes: `.drive-file-item`, `.drive-file-info`, `.drive-file-name`, `.drive-file-meta`
+  - **Auth note**: Google OAuth does not allow `file://` as a JavaScript origin. Users must obtain a token manually via [Google OAuth Playground](https://developers.google.com/oauthplayground/?scope=https://www.googleapis.com/auth/drive) — select "Drive API v3", authorize, copy Access Token, paste into the Drive modal. Tokens expire in ~1 hour.
 
 ### Still outstanding (do next session)
 - ❌ Project export does not include full doc content (only metadata) — intentional for now but worth revisiting
 - ❌ Notes are not searchable across projects (only filters within current project's list)
 - ❌ No "recent notes" or cross-project note view
-- ❌ `clearAllData()` does not include the `notes` store — should be added to the stores list
+- ❌ `exportDatabase()` (local JSON download) and `importDatabase()` do not include the `notes` store — notes are silently excluded from local backups/restores. `backupToDrive()` correctly includes notes. Fix by adding `"notes"` to the `stores` array in both `exportDatabase()` and `importDatabase()`.
 - ❌ Extract Variables only detects dates — names, monetary amounts, and other entity types not yet supported
 - ❌ Template preview modal opens on top of template editor (both modals can't show simultaneously — preview pushes editor off screen); ideally preview opens as a split-pane or inline panel
+- ❌ Google Drive connector requires manual token paste (OAuth Playground workaround) — proper OAuth popup flow not possible from `file://` origin without user hosting the file on a server
 
 ---
 
 ## Next Steps (Ordered for Next Session)
 
-1. **Fix `clearAllData()`** — the `notes` store is missing from the stores list; add it so notes are cleared along with everything else
+1. **Fix `exportDatabase()` / `importDatabase()`** — add `"notes"` to the `stores` array in both functions so local JSON backups include notes (currently `backupToDrive()` correctly includes notes but the local export does not)
 2. **Full doc content in Project Export** — add an opt-in flag so `exportProject()` includes raw doc bodies; warn user that the file may be large
 3. **Template preview UX** — replace the separate `modal-preview` modal with an inline toggle panel below the textarea so the editor stays visible
 4. **Expand Extract Variables** — beyond dates: detect monetary amounts (`$N,NNN`), percentages, and `LABEL: value` key-value pairs in doc text
@@ -389,6 +392,14 @@ When adding a new object store or index:
 
 ### `clearAllData()` pattern
 - Iterates each store, gets all items, deletes them one by one (no `store.clear()` shortcut). This is intentional — it avoids needing a readwrite transaction on all stores simultaneously, which can fail if any store is locked.
+- `clearAllData()` already includes the `notes` store (CLAUDE.md previously said it didn't — that was wrong). The outstanding gap is in `exportDatabase()` / `importDatabase()`, which still omit `notes`.
+
+### Google Drive connector auth
+- Google OAuth 2.0 does not allow `file://` as a JavaScript origin (Google treats it as `null`), so the standard GIS popup flow cannot be used when `SourceDesk.html` is opened directly from disk.
+- The implemented approach: user visits [Google OAuth Playground](https://developers.google.com/oauthplayground/?scope=https://www.googleapis.com/auth/drive), authorizes "Drive API v3", and copies the short-lived access token into the Drive modal.
+- Token verification calls `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=TOKEN` — returns email + `expires_in` seconds.
+- Tokens expire in ~3600 seconds (1 hour). The UI shows the expiry but does not auto-refresh. Users must re-paste a new token after expiry.
+- If users serve `SourceDesk.html` from a local server (e.g. `python3 -m http.server`) and register `http://localhost:PORT` as an authorized JavaScript origin in their Google Cloud Console, a full GIS popup OAuth flow could replace the manual token approach.
 
 ---
 

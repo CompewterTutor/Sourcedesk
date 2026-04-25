@@ -1,5 +1,7 @@
 # Sourcedesk
 
+An in-browser RAG and project management tool that talks to AI providers directly from the browser. Runs completely client-side as a single HTML file for normal use — open it, it works. For local LLM support and the optional environment-injected server workflow, you can also run it through the included Node server. No install is needed for the browser app itself.
+
 An in-browser RAG and project management tool that talks to AI providers directly from the browser. Runs completely client-side as a single HTML file — open it, it works. No server, no install, no account.
 
 **Current version:** v0.4.2 — free OpenRouter models, improved text contrast
@@ -96,9 +98,22 @@ npm install          # first time only
 npm run build        # production minified build → SourceDesk.html
 npm run dev          # unminified dev build (fast, ~10 ms)
 npm run watch        # watch src/ and rebuild on save
+npm run serve        # optional local server for env injection / local LLM defaults
 ```
 
 Edit `src/main.js` and `src/index.html`. Never edit `SourceDesk.html` directly.
+
+If you want to use the local server workflow:
+- create a `.env` file next to `server.js`
+- set `LOCAL_LLM_URL` and optionally `LOCAL_LLM_DEFAULT_MODEL`
+- run `npm run serve`
+- open `http://localhost:3000` in your browser
+
+Example `.env` values:
+- `PORT=3000`
+- `ENVIRONMENT=homelab`
+- `LOCAL_LLM_URL=http://localhost:11434/v1`
+- `LOCAL_LLM_DEFAULT_MODEL=llama3.2`
 
 ---
 
@@ -113,6 +128,7 @@ Edit `src/main.js` and `src/index.html`. Never edit `SourceDesk.html` directly.
 - [x] **Notes** — per-project note editor; include-in-context toggle; autosave; real-time filter; Ctrl+S
 - [x] **Multi-Provider LLM Support** — Anthropic, OpenAI, OpenRouter, GitHub Models with per-provider key storage and model lists
 - [x] **Database Export / Import** — full JSON backup and restore via Settings
+- [x] **Local Server / Env Injection** — optional `npm run serve` workflow for `window.__SOURCEDESK_ENV__`, local LLM URL defaults, and hosted/homelab deployments
 - [x] **Project / Chat Export** — export active project + messages + doc metadata as JSON
 
 ### Templates
@@ -126,7 +142,7 @@ Edit `src/main.js` and `src/index.html`. Never edit `SourceDesk.html` directly.
 ### Retrieval & Context
 - [ ] **Client-side Semantic Embeddings** *(low priority)* — run `all-MiniLM-L6-v2` directly in the browser via `transformers.js` + WASM for true semantic search with no API cost; warn users about a ~30 MB one-time model download (cached by the browser after first use); alternative: use an API-based embedding provider (OpenAI `text-embedding-3-small`, etc.) so users who don't want the WASM download can still get semantic search
 - [ ] **Enhanced Retrieval** — hybrid BM25 + semantic similarity re-ranking once embeddings are available
-- [ ] **Google Drive Connector** — search and fetch Drive docs on demand; auto-sync a project with a specific Drive folder for backup and cross-device access
+- [x] **Google Drive Connector** — import supported Drive files into projects, verify short-lived OAuth Playground tokens, and back up the database to Drive
 
 ### Project Data & Contacts
 - [ ] **Important Contacts / Resources** — per-project contact info and links with tags; include-in-context toggle

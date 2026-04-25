@@ -114,6 +114,12 @@ async function build() {
                     "saveExtractedVars",
                     "createTemplateFromDoc",
                     "clearChatHistory",
+                    "openDriveModal",
+                    "verifyDriveToken",
+                    "listDriveFiles",
+                    "backupToDrive",
+                    "disconnectDrive",
+                    "fetchLocalModels",
                 ],
             },
             format: {
