@@ -14,10 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - **Local helper server** — `server.js` serves `SourceDesk.html` at `http://localhost:PORT`, injects `window.__SOURCEDESK_ENV__` from `.env`, and exposes `npm run serve` for local hosted/homelab workflows; supports `PORT`, `ENVIRONMENT`, `LOCAL_LLM_URL`, and `LOCAL_LLM_DEFAULT_MODEL`
 - **`.env.example`** — sample configuration file for the local server and local LLM defaults
+- **Google Drive Connector** — import files from Drive into a project, verify OAuth tokens, list supported file types, and back up the full database to Drive (see auth note below)
+- **Local LLM provider** — `fetchLocalModels()` auto-detects available models from the configured local endpoint's `/models` API; model list is dynamically populated in Settings
+
+### Fixed
+- **`exportDatabase()` / `importDatabase()` missing `notes` store** — the `notes` IndexedDB store was silently excluded from local JSON backups and restores; both functions now include `notes` in the stores list; `validateImportShape()` treats `notes` as optional so older backups without it still import cleanly; `importDatabase()` skips absent stores gracefully
 
 ### Changed
-- `APP_VERSION` bumped to `v0.4.2`
-- `package.json` version bumped to `0.4.2`
+- `APP_VERSION` bumped to `v0.4.3`
+- `package.json` version bumped to `0.4.3`
 
 ---
 

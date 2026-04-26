@@ -338,7 +338,7 @@ When adding a new object store or index:
 - ❌ Project export does not include full doc content (only metadata) — intentional for now but worth revisiting
 - ❌ Notes are not searchable across projects (only filters within current project's list)
 - ❌ No "recent notes" or cross-project note view
-- ❌ `exportDatabase()` (local JSON download) and `importDatabase()` do not include the `notes` store — notes are silently excluded from local backups/restores. `backupToDrive()` correctly includes notes. Fix by adding `"notes"` to the `stores` array in both `exportDatabase()` and `importDatabase()`.
+- ✅ `exportDatabase()` / `importDatabase()` now include the `notes` store — fixed in v0.4.3; `validateImportShape()` treats `notes` as optional for backward compat with older backups.
 - ❌ Extract Variables only detects dates — names, monetary amounts, and other entity types not yet supported
 - ❌ Template preview modal opens on top of template editor (both modals can't show simultaneously — preview pushes editor off screen); ideally preview opens as a split-pane or inline panel
 - ❌ Google Drive connector requires manual token paste (OAuth Playground workaround) — proper OAuth popup flow not possible from `file://` origin without user hosting the file on a server
@@ -347,8 +347,7 @@ When adding a new object store or index:
 
 ## Next Steps (Ordered for Next Session)
 
-1. **Fix `exportDatabase()` / `importDatabase()`** — add `"notes"` to the `stores` array in both functions so local JSON backups include notes (currently `backupToDrive()` correctly includes notes but the local export does not)
-2. **Full doc content in Project Export** — add an opt-in flag so `exportProject()` includes raw doc bodies; warn user that the file may be large
+1. **Full doc content in Project Export** — add an opt-in flag so `exportProject()` includes raw doc bodies; warn user that the file may be large
 3. **Template preview UX** — replace the separate `modal-preview` modal with an inline toggle panel below the textarea so the editor stays visible
 4. **Expand Extract Variables** — beyond dates: detect monetary amounts (`$N,NNN`), percentages, and `LABEL: value` key-value pairs in doc text
 5. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
@@ -392,7 +391,7 @@ When adding a new object store or index:
 
 ### `clearAllData()` pattern
 - Iterates each store, gets all items, deletes them one by one (no `store.clear()` shortcut). This is intentional — it avoids needing a readwrite transaction on all stores simultaneously, which can fail if any store is locked.
-- `clearAllData()` already includes the `notes` store (CLAUDE.md previously said it didn't — that was wrong). The outstanding gap is in `exportDatabase()` / `importDatabase()`, which still omit `notes`.
+- `clearAllData()` already includes the `notes` store (CLAUDE.md previously said it didn't — that was wrong). `exportDatabase()` / `importDatabase()` now also include `notes` (fixed v0.4.3).
 
 ### Google Drive connector auth
 - Google OAuth 2.0 does not allow `file://` as a JavaScript origin (Google treats it as `null`), so the standard GIS popup flow cannot be used when `SourceDesk.html` is opened directly from disk.

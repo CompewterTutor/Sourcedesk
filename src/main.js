@@ -1,7 +1,7 @@
 // ─── FLAGS ──────────────────────────────────────────────────────────────────
 const DEBUG = window.__SOURCEDESK_DEBUG__ || false;
 const TEST = window.__SOURCEDESK_TEST__ || false;
-const APP_VERSION = "0.4.2";
+const APP_VERSION = "0.4.3";
 function log(...args) {
     if (DEBUG) console.log("[SD]", ...args);
 }
@@ -1612,7 +1612,14 @@ async function clearChatHistory() {
 
 // ─── EXPORT / IMPORT ─────────────────────────────────────────────────────────
 async function exportDatabase() {
-    const stores = ["templates", "projects", "docs", "chats", "settings"];
+    const stores = [
+        "templates",
+        "projects",
+        "docs",
+        "chats",
+        "settings",
+        "notes",
+    ];
     const data = {
         version: DB_VERSION,
         appVersion: APP_VERSION,
@@ -1962,9 +1969,14 @@ function validateImportShape(obj) {
     if (typeof obj.version !== "number") return false;
     if (typeof obj.exportedAt !== "string") return false;
     if (!obj.stores || typeof obj.stores !== "object") return false;
-    return ["templates", "projects", "docs", "chats", "settings"].every((k) =>
-        Array.isArray(obj.stores[k]),
-    );
+    if (
+        !["templates", "projects", "docs", "chats", "settings"].every((k) =>
+            Array.isArray(obj.stores[k]),
+        )
+    )
+        return false;
+    // notes store is optional — older backups won't have it
+    return true;
 }
 
 function triggerImportDialog() {
@@ -1996,13 +2008,22 @@ async function importDatabase(file) {
         )
     )
         return;
-    const stores = ["templates", "projects", "docs", "chats", "settings"];
+    const stores = [
+        "templates",
+        "projects",
+        "docs",
+        "chats",
+        "settings",
+        "notes",
+    ];
     for (const s of stores) {
         const items = await dbGetAll(s);
         for (const item of items)
             await dbDelete(s, item[s === "settings" ? "key" : "id"]);
     }
     for (const s of stores) {
+        // notes may be absent in older backups — skip gracefully
+        if (!data.stores[s]) continue;
         for (const item of data.stores[s]) await dbPut(s, item);
     }
     location.reload();

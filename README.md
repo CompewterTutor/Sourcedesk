@@ -4,7 +4,7 @@ An in-browser RAG and project management tool that talks to AI providers directl
 
 An in-browser RAG and project management tool that talks to AI providers directly from the browser. Runs completely client-side as a single HTML file — open it, it works. No server, no install, no account.
 
-**Current version:** v0.4.2 — free OpenRouter models, improved text contrast
+**Current version:** v0.4.3 — notes included in local database export/import
 
 ---
 
@@ -87,7 +87,7 @@ The **Export** topbar button (visible when a project is loaded) downloads the ac
 
 ## Testing
 
-Open `tests/test.html` in a browser to run the unit test suite (65 tests, 13 suites). Covers BM25 search, markdown formatting, text chunking, stream parsing for all 4 providers, `buildApiCall` for all 4 providers, import shape validation, `parseConstants`, and `resolveTemplateVars`. No build step or server required.
+Open `tests/test.html` in a browser to run the unit test suite (79 tests, 16 suites). Covers BM25 search, markdown formatting, text chunking, stream parsing for all 4 providers, `buildApiCall` for all 4 providers, import shape validation, `parseConstants`, `resolveTemplateVars`, date arithmetic, and `extractDatesFromText`. No build step or server required.
 
 ---
 
