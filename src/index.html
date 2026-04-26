@@ -1610,6 +1610,44 @@
                         placeholder="Paste or write your template content here..."
                     ></textarea>
                 </div>
+                <div id="tmpl-preview-panel" style="display: none">
+                    <div
+                        style="
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            margin-bottom: 4px;
+                        "
+                    >
+                        <span style="font-size: 11px; color: var(--text-muted)"
+                            >Preview — vars resolved against active project.
+                            Remaining
+                            <code style="font-size: 10px">{{PLACEHOLDER}}</code>
+                            items need manual fill.</span
+                        >
+                        <span
+                            style="
+                                font-size: 11px;
+                                color: var(--text-muted);
+                                cursor: pointer;
+                            "
+                            onclick="togglePreviewPanel()"
+                            >✕ Hide</span
+                        >
+                    </div>
+                    <textarea
+                        class="form-textarea"
+                        id="tmpl-preview-content"
+                        style="
+                            min-height: 180px;
+                            font-family: &quot;DM Mono&quot;, monospace;
+                            font-size: 12px;
+                            resize: vertical;
+                            opacity: 0.85;
+                        "
+                        readonly
+                    ></textarea>
+                </div>
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="closeModal()">
                         Cancel
@@ -1988,42 +2026,13 @@
                 </div>
             </div>
 
-            <!-- Template Variable Preview Modal -->
-            <div id="modal-preview" class="modal hidden">
-                <div class="modal-title">Template Preview</div>
-                <div class="modal-subtitle">
-                    Variables and constants resolved against the active project.
-                    Remaining
-                    <code style="font-size: 11px">{{PLACEHOLDER}}</code> items
-                    need manual fill.
-                </div>
-                <div class="form-row">
-                    <textarea
-                        class="form-textarea"
-                        id="modal-preview-content"
-                        style="
-                            min-height: 240px;
-                            font-family: &quot;DM Mono&quot;, monospace;
-                            font-size: 12px;
-                            resize: vertical;
-                        "
-                        readonly
-                    ></textarea>
-                </div>
-                <div class="modal-actions">
-                    <button class="btn-secondary" onclick="closeModal()">
-                        Close
-                    </button>
-                </div>
-            </div>
-
             <!-- Extract Variables from Document Modal -->
             <div id="modal-extract-vars" class="modal hidden">
                 <div class="modal-title">Extract Variables</div>
                 <div class="modal-subtitle" id="modal-extract-title"></div>
                 <div class="form-row">
                     <label class="form-label"
-                        >Detected Dates
+                        >Detected Variables
                         <span style="color: var(--text-muted); font-size: 10px"
                             >— Name each constant; checked items will be
                             appended to Template Constants</span

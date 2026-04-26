@@ -120,6 +120,7 @@ async function build() {
                     "backupToDrive",
                     "disconnectDrive",
                     "fetchLocalModels",
+                    "togglePreviewPanel",
                 ],
             },
             format: {

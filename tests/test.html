@@ -1178,6 +1178,152 @@
                 });
             });
 
+            /* ── extractVarsFromText ────────────────────────────────────────────────── */
+            describe("extractVarsFromText", () => {
+                it("detects money amount ($1,234.56)", () => {
+                    const result = extractVarsFromText(
+                        "Total cost: $1,234.56 per unit.",
+                    );
+                    const money = result.filter((i) => i.type === "money");
+                    if (!money.some((i) => i.value === "$1,234.56"))
+                        throw new Error(
+                            "Money not found: " + JSON.stringify(money),
+                        );
+                });
+
+                it("assigns AMOUNT_N suggestedKey for money", () => {
+                    const result = extractVarsFromText("Fee: $500.00");
+                    const money = result.filter((i) => i.type === "money");
+                    if (!money.some((i) => i.suggestedKey === "AMOUNT_1"))
+                        throw new Error(
+                            "suggestedKey wrong: " + JSON.stringify(money),
+                        );
+                });
+
+                it("detects simple dollar amount ($50)", () => {
+                    const result = extractVarsFromText("Pay $50 now.");
+                    const money = result.filter((i) => i.type === "money");
+                    if (!money.some((i) => i.value === "$50"))
+                        throw new Error(
+                            "Simple dollar not found: " + JSON.stringify(money),
+                        );
+                });
+
+                it("detects percent value (12.5%)", () => {
+                    const result = extractVarsFromText(
+                        "Interest rate is 12.5% annually.",
+                    );
+                    const pct = result.filter((i) => i.type === "percent");
+                    if (!pct.some((i) => i.value === "12.5%"))
+                        throw new Error(
+                            "Percent not found: " + JSON.stringify(pct),
+                        );
+                });
+
+                it("assigns PCT_N suggestedKey for percent", () => {
+                    const result = extractVarsFromText("Discount: 10%");
+                    const pct = result.filter((i) => i.type === "percent");
+                    if (!pct.some((i) => i.suggestedKey === "PCT_1"))
+                        throw new Error(
+                            "PCT suggestedKey wrong: " + JSON.stringify(pct),
+                        );
+                });
+
+                it("detects integer percent (25%)", () => {
+                    const result = extractVarsFromText("25% off today.");
+                    const pct = result.filter((i) => i.type === "percent");
+                    if (!pct.some((i) => i.value === "25%"))
+                        throw new Error(
+                            "Integer percent not found: " + JSON.stringify(pct),
+                        );
+                });
+
+                it("detects key-value pair (LABEL: value)", () => {
+                    const result = extractVarsFromText(
+                        "Vendor Name: Acme Corp",
+                    );
+                    const kv = result.filter((i) => i.type === "kv");
+                    if (!kv.some((i) => i.value === "Acme Corp"))
+                        throw new Error(
+                            "KV value not found: " + JSON.stringify(kv),
+                        );
+                });
+
+                it("normalizes kv label to UPPER_SNAKE_CASE suggestedKey", () => {
+                    const result = extractVarsFromText(
+                        "Vendor Name: Acme Corp",
+                    );
+                    const kv = result.filter((i) => i.type === "kv");
+                    if (!kv.some((i) => i.suggestedKey === "VENDOR_NAME"))
+                        throw new Error(
+                            "KV suggestedKey wrong: " + JSON.stringify(kv),
+                        );
+                });
+
+                it("skips kv pair where value contains mid-sentence period", () => {
+                    const result = extractVarsFromText(
+                        "Notes: This is a sentence. Another sentence here.",
+                    );
+                    const kv = result.filter((i) => i.type === "kv");
+                    if (kv.length > 0)
+                        throw new Error(
+                            "Should have skipped sentence-like value: " +
+                                JSON.stringify(kv),
+                        );
+                });
+
+                it("returns results sorted: dates first, then money, percent, kv", () => {
+                    const text = [
+                        "Vendor Name: Acme Corp",
+                        "Rate: 5%",
+                        "Fee: $200",
+                        "Due: 2025-08-01",
+                    ].join("\n");
+                    const result = extractVarsFromText(text);
+                    const types = result.map((i) => i.type);
+                    const dateIdx = types.indexOf("date");
+                    const moneyIdx = types.indexOf("money");
+                    const pctIdx = types.indexOf("percent");
+                    const kvIdx = types.indexOf("kv");
+                    if (
+                        dateIdx > moneyIdx ||
+                        moneyIdx > pctIdx ||
+                        pctIdx > kvIdx
+                    )
+                        throw new Error(
+                            "Order wrong: " + JSON.stringify(types),
+                        );
+                });
+
+                it("deduplicates values across types", () => {
+                    const result = extractVarsFromText("$100 and $100 again");
+                    const money = result.filter((i) => i.type === "money");
+                    if (money.length !== 1)
+                        throw new Error(
+                            "Duplicate not removed: " + JSON.stringify(money),
+                        );
+                });
+
+                it("returns empty array for text with no vars", () => {
+                    const result = extractVarsFromText("Nothing to see here.");
+                    expect(result.length).toBe(0);
+                });
+
+                it("backward-compat: extractDatesFromText still returns string array", () => {
+                    const result = extractDatesFromText("Due 2025-03-15.");
+                    if (typeof result[0] !== "string")
+                        throw new Error(
+                            "extractDatesFromText should return strings, got: " +
+                                JSON.stringify(result),
+                        );
+                    if (!result.includes("2025-03-15"))
+                        throw new Error(
+                            "Date not found via alias: " +
+                                JSON.stringify(result),
+                        );
+                });
+            });
+
             /* ═══════════════════════════════════════════════════════════════════════════
    RENDER RESULTS
    ═══════════════════════════════════════════════════════════════════════════ */

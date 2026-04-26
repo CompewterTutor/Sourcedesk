@@ -324,9 +324,9 @@ When adding a new object store or index:
 - **`viewTemplateContent()` resolves vars** — auto-resolves before inserting into chat input
 - **Create Template from Document** — `createTemplateFromDoc(docId)` opens template modal pre-filled with doc content; `→Tmpl` button on each right-panel doc entry
 - **Date arithmetic in templates** — `resolveTemplateVars()` handles `{{TODAY+N}}`, `{{TODAY-N}}`, `{{TODAY+Nw}}` (weeks), `{{TODAY+Nm}}` (months); unit suffix case-insensitive; defaults to days
-- **Extract Variables from Document** — `openExtractVars(docId)` scans a doc for dates in 4 formats (ISO, US, long/short month name), deduplicates, shows modal with checkboxes + editable constant names; `saveExtractedVars()` appends to `state.settings.constants` and persists; **Extract** button on each right-panel doc entry
-- **`extractDatesFromText(text)`** — pure function; 4 regex patterns; Set-based deduplication; returns `string[]`
-- **Template Variable Preview** — `previewTemplateVars()` resolves vars against active project and shows result in read-only `modal-preview`; **Preview** button in template editor modal
+- **Extract Variables from Document** — `openExtractVars(docId)` scans a doc for dates, monetary amounts (`$N,NNN`), percentages, and `LABEL: value` key-value pairs; deduplicates, shows modal with type badges + checkboxes + editable constant names; `saveExtractedVars()` appends to `state.settings.constants` and persists; **Extract** button on each right-panel doc entry
+- **`extractVarsFromText(text)`** — pure function; returns `{ value, type, suggestedKey }[]` sorted by type: date → money → percent → kv; `extractDatesFromText` kept as backward-compat alias returning `string[]`
+- **Template Variable Preview** — `previewTemplateVars()` resolves vars against active project and shows result in an inline `#tmpl-preview-panel` below the content textarea (no separate modal); `togglePreviewPanel()` hides it; panel is reset on modal open
 - **OpenRouter free-tier models** — 5 new `:free` suffix models added (Gemma 4 26B/31B, Nemotron 120B, Minimax M2.5, GPT-OSS 120B)
 - **Text contrast fix** — `--text-dim` raised to `#a8a49c`, `--text-muted` raised to `#72706a` (old muted was ~2.2:1 contrast on dark bg)
 - Test harness: 79 tests across 16 suites
@@ -335,25 +335,22 @@ When adding a new object store or index:
   - **Auth note**: Google OAuth does not allow `file://` as a JavaScript origin. Users must obtain a token manually via [Google OAuth Playground](https://developers.google.com/oauthplayground/?scope=https://www.googleapis.com/auth/drive) — select "Drive API v3", authorize, copy Access Token, paste into the Drive modal. Tokens expire in ~1 hour.
 
 ### Still outstanding (do next session)
-- ❌ Project export does not include full doc content (only metadata) — intentional for now but worth revisiting
+- ✅ Project export now includes opt-in full doc bodies — `confirm()` dialog, `-full` suffix on filename, `includeFullDocs` flag in payload
 - ❌ Notes are not searchable across projects (only filters within current project's list)
 - ❌ No "recent notes" or cross-project note view
 - ✅ `exportDatabase()` / `importDatabase()` now include the `notes` store — fixed in v0.4.3; `validateImportShape()` treats `notes` as optional for backward compat with older backups.
-- ❌ Extract Variables only detects dates — names, monetary amounts, and other entity types not yet supported
-- ❌ Template preview modal opens on top of template editor (both modals can't show simultaneously — preview pushes editor off screen); ideally preview opens as a split-pane or inline panel
+- ✅ Extract Variables now detects dates, monetary amounts, percentages, and key-value pairs
+- ✅ Template preview is now inline (no separate modal) — `#tmpl-preview-panel` toggles below textarea
 - ❌ Google Drive connector requires manual token paste (OAuth Playground workaround) — proper OAuth popup flow not possible from `file://` origin without user hosting the file on a server
 
 ---
 
 ## Next Steps (Ordered for Next Session)
 
-1. **Full doc content in Project Export** — add an opt-in flag so `exportProject()` includes raw doc bodies; warn user that the file may be large
-3. **Template preview UX** — replace the separate `modal-preview` modal with an inline toggle panel below the textarea so the editor stays visible
-4. **Expand Extract Variables** — beyond dates: detect monetary amounts (`$N,NNN`), percentages, and `LABEL: value` key-value pairs in doc text
-5. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
-6. **Cross-project notes search** — global search across all project note titles/content
-7. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
-8. **Update CHANGELOG.md version tag + commit + push**
+1. **Cross-project notes search** — global search across all project note titles/content; a search bar in the Notes view that queries all projects
+2. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
+3. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
+4. **Update CHANGELOG.md version tag + commit + push**
 
 ---
 

@@ -249,27 +249,114 @@ function resolveTemplateVars(content) {
     return out;
 }
 
-function extractDatesFromText(text) {
-    // Match common date formats; returns deduplicated array of raw matched strings
-    const patterns = [
-        // ISO: 2025-07-16
+function extractVarsFromText(text) {
+    // Returns array of { value, type, suggestedKey } sorted by type order: date, money, percent, kv
+    const seenValues = new Set();
+    const results = [];
+
+    // ── Dates ────────────────────────────────────────────────────────────────
+    const datePatterns = [
         /\b\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\b/g,
-        // US: 7/16/2025 or 07/16/2025
         /\b(?:0?[1-9]|1[0-2])\/(?:0?[1-9]|[12]\d|3[01])\/\d{4}\b/g,
-        // Long month: July 16, 2025 or July 16 2025
         /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b/gi,
-        // Short month: Jul 16, 2025 or Jul. 16 2025
         /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{1,2},?\s+\d{4}\b/gi,
     ];
-    const found = new Set();
-    patterns.forEach(function (re) {
+    var dateItems = [];
+    datePatterns.forEach(function (re) {
         re.lastIndex = 0;
-        let m;
+        var m;
         while ((m = re.exec(text)) !== null) {
-            found.add(m[0].trim());
+            var v = m[0].trim();
+            if (!seenValues.has(v)) {
+                seenValues.add(v);
+                dateItems.push(v);
+            }
         }
     });
-    return Array.from(found);
+    dateItems.forEach(function (v, i) {
+        results.push({
+            value: v,
+            type: "date",
+            suggestedKey: "DATE_" + (i + 1),
+        });
+    });
+
+    // ── Money ────────────────────────────────────────────────────────────────
+    var moneyRe = /\$\d{1,3}(?:,\d{3})*(?:\.\d{2})?|\$\d+(?:\.\d{2})?/g;
+    var moneyItems = [];
+    moneyRe.lastIndex = 0;
+    var m;
+    while ((m = moneyRe.exec(text)) !== null) {
+        var v = m[0].trim();
+        if (!seenValues.has(v)) {
+            seenValues.add(v);
+            moneyItems.push(v);
+        }
+    }
+    moneyItems.forEach(function (v, i) {
+        results.push({
+            value: v,
+            type: "money",
+            suggestedKey: "AMOUNT_" + (i + 1),
+        });
+    });
+
+    // ── Percent ──────────────────────────────────────────────────────────────
+    var pctRe = /\b\d+(?:\.\d+)?%/g;
+    var pctItems = [];
+    pctRe.lastIndex = 0;
+    while ((m = pctRe.exec(text)) !== null) {
+        var v = m[0].trim();
+        if (!seenValues.has(v)) {
+            seenValues.add(v);
+            pctItems.push(v);
+        }
+    }
+    pctItems.forEach(function (v, i) {
+        results.push({
+            value: v,
+            type: "percent",
+            suggestedKey: "PCT_" + (i + 1),
+        });
+    });
+
+    // ── Key-Value pairs ──────────────────────────────────────────────────────
+    var lines = text.split("\n");
+    var kvItems = [];
+    lines.forEach(function (line) {
+        var kvMatch = /^([A-Z][A-Za-z\s]{1,30}):\s*(.{1,80})$/.exec(
+            line.trim(),
+        );
+        if (!kvMatch) return;
+        var label = kvMatch[1].trim();
+        var val = kvMatch[2].trim();
+        // Skip if value looks like a plain sentence (has mid-value period not at end)
+        if (/\.\s+\S/.test(val)) return;
+        if (val.length > 80) return;
+        if (seenValues.has(val)) return;
+        seenValues.add(val);
+        var key = label.toUpperCase().replace(/\s+/g, "_");
+        kvItems.push({ value: val, suggestedKey: key });
+    });
+    kvItems.forEach(function (item) {
+        results.push({
+            value: item.value,
+            type: "kv",
+            suggestedKey: item.suggestedKey,
+        });
+    });
+
+    return results;
+}
+
+function extractDatesFromText(text) {
+    return extractVarsFromText(text)
+        .filter(function (i) {
+            return i.type === "date";
+        })
+        .map(function (i) {
+            return i.value;
+        });
 }
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -962,6 +1049,8 @@ function openNewTemplate() {
     document.getElementById("tmpl-content").value = "";
     selectPillByVal("tmpl-category-pills", "RFP");
     selectPillByVal("tmpl-type-pills", "skeleton");
+    const pp = document.getElementById("tmpl-preview-panel");
+    if (pp) pp.style.display = "none";
     showModal("modal-template");
 }
 
@@ -975,6 +1064,8 @@ function openEditTemplate(id) {
     document.getElementById("tmpl-content").value = t.content;
     selectPillByVal("tmpl-category-pills", t.category);
     selectPillByVal("tmpl-type-pills", t.type);
+    const pp = document.getElementById("tmpl-preview-panel");
+    if (pp) pp.style.display = "none";
     showModal("modal-template");
 }
 
@@ -1291,28 +1382,33 @@ async function createTemplateFromDoc(docId) {
 async function openExtractVars(docId) {
     const doc = await dbGet("docs", docId);
     if (!doc) return;
-    const dates = extractDatesFromText(doc.content);
+    const items = extractVarsFromText(doc.content);
     document.getElementById("modal-extract-title").textContent =
-        'Dates detected in "' + doc.name + '"';
+        'Variables detected in "' + doc.name + '"';
     const listEl = document.getElementById("extract-vars-list");
     listEl.innerHTML = "";
-    if (!dates.length) {
+    if (!items.length) {
         listEl.innerHTML =
-            '<div style="color:var(--text-muted);font-size:12px;padding:8px 0">No dates detected in this document.</div>';
+            '<div style="color:var(--text-muted);font-size:12px;padding:8px 0">No variables detected in this document.</div>';
     } else {
-        dates.forEach(function (dateStr, i) {
+        items.forEach(function (item) {
             const row = document.createElement("div");
             row.style.cssText =
                 "display:flex;align-items:center;gap:8px;margin-bottom:6px";
+            const badge =
+                '<span style="background:var(--accent-dim,#2a2925);color:var(--text-dim);font-size:10px;padding:2px 5px;border-radius:3px">' +
+                item.type +
+                "</span>";
             row.innerHTML =
                 '<input type="checkbox" checked style="flex-shrink:0;accent-color:var(--accent)">' +
-                '<input class="form-input" style="width:140px;font-family:DM Mono,monospace;font-size:12px" value="DATE_' +
-                (i + 1) +
+                '<input class="form-input" style="width:140px;font-family:DM Mono,monospace;font-size:12px" value="' +
+                item.suggestedKey.replace(/"/g, "&quot;") +
                 '" data-value="' +
-                dateStr.replace(/"/g, "&quot;") +
+                item.value.replace(/"/g, "&quot;") +
                 '">' +
+                badge +
                 '<span style="font-size:12px;color:var(--text-dim);font-family:DM Mono,monospace;flex:1">' +
-                dateStr +
+                item.value +
                 "</span>";
             listEl.appendChild(row);
         });
@@ -1354,8 +1450,11 @@ function previewTemplateVars() {
         return;
     }
     const resolved = resolveTemplateVars(content);
-    document.getElementById("modal-preview-content").value = resolved;
-    showModal("modal-preview");
+    document.getElementById("tmpl-preview-content").value = resolved;
+    document.getElementById("tmpl-preview-panel").style.display = "block";
+}
+function togglePreviewPanel() {
+    document.getElementById("tmpl-preview-panel").style.display = "none";
 }
 
 function promptAttachTemplate() {
