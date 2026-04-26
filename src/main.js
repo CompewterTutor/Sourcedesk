@@ -1,7 +1,7 @@
 // ─── FLAGS ──────────────────────────────────────────────────────────────────
 const DEBUG = window.__SOURCEDESK_DEBUG__ || false;
 const TEST = window.__SOURCEDESK_TEST__ || false;
-const APP_VERSION = "0.4.3";
+const APP_VERSION = "0.4.4";
 function log(...args) {
     if (DEBUG) console.log("[SD]", ...args);
 }
@@ -2193,6 +2193,13 @@ async function _autoSaveCurrentNote() {
 
 async function loadNotes() {
     if (!state.activeProject) return;
+
+    // Reset global search state
+    const globalToggle = document.getElementById("notes-global-toggle");
+    if (globalToggle) globalToggle.checked = false;
+    const scopeEl = document.getElementById("notes-scope-label");
+    if (scopeEl) scopeEl.style.display = "none";
+
     const notes = await dbGetByIndex(
         "notes",
         "projectId",
@@ -2262,6 +2269,95 @@ function filterNotes(query) {
             el.querySelector(".note-item-title")?.textContent?.toLowerCase() ||
             "";
         el.style.display = !q || title.includes(q) ? "" : "none";
+    });
+}
+
+function searchNotes(query) {
+    const globalToggle = document.getElementById("notes-global-toggle");
+    const isGlobal = globalToggle && globalToggle.checked;
+    if (isGlobal) {
+        searchAllNotes(query);
+    } else {
+        // reset scope label
+        const scopeEl = document.getElementById("notes-scope-label");
+        if (scopeEl) scopeEl.style.display = "none";
+        filterNotes(query);
+    }
+}
+
+async function searchAllNotes(query) {
+    const q = (query || "").toLowerCase().trim();
+    const scopeEl = document.getElementById("notes-scope-label");
+    const list = document.getElementById("notes-list");
+    if (!list) return;
+
+    // Build a project id→name map from state
+    const projMap = {};
+    (state.projects || []).forEach((p) => {
+        projMap[p.id] = p.name;
+    });
+
+    // Fetch all notes across all projects
+    const allNotes = await dbGetAll("notes");
+
+    // Filter by query (title + content), then sort by updatedAt desc
+    const matched = allNotes.filter((n) => {
+        if (!q) return true;
+        const inTitle = (n.title || "").toLowerCase().includes(q);
+        const inContent = (n.content || "").toLowerCase().includes(q);
+        return inTitle || inContent;
+    });
+    matched.sort((a, b) => b.updatedAt - a.updatedAt);
+
+    // Update scope label
+    if (scopeEl) {
+        scopeEl.textContent = matched.length
+            ? matched.length +
+              " note" +
+              (matched.length === 1 ? "" : "s") +
+              " across all projects"
+            : "No notes found";
+        scopeEl.style.display = "block";
+    }
+
+    // Render results
+    list.innerHTML = "";
+    matched.forEach((n) => {
+        const projName = projMap[n.projectId] || "Unknown project";
+        const el = document.createElement("div");
+        el.className =
+            "note-item" +
+            (state.currentNote && state.currentNote.id === n.id
+                ? " active"
+                : "");
+        el.dataset.noteId = n.id;
+        el.innerHTML =
+            '<div class="note-item-title">' +
+            (n.title || "Untitled") +
+            "</div>" +
+            '<div class="note-item-date" style="display:flex;justify-content:space-between;gap:4px">' +
+            '<span style="color:var(--accent);opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px" title="' +
+            projName +
+            '">' +
+            projName +
+            "</span>" +
+            "<span>" +
+            new Date(n.updatedAt).toLocaleDateString() +
+            "</span>" +
+            "</div>";
+        el.onclick = async () => {
+            // Switch project if needed, then open the note
+            if (
+                !state.activeProject ||
+                state.activeProject.id !== n.projectId
+            ) {
+                await loadProject(n.projectId);
+                // Re-show notes view after project load (loadProject switches to chat)
+                showView("notes");
+            }
+            selectNote(n);
+        };
+        list.appendChild(el);
     });
 }
 

@@ -326,18 +326,19 @@ When adding a new object store or index:
 - **Date arithmetic in templates** — `resolveTemplateVars()` handles `{{TODAY+N}}`, `{{TODAY-N}}`, `{{TODAY+Nw}}` (weeks), `{{TODAY+Nm}}` (months); unit suffix case-insensitive; defaults to days
 - **Extract Variables from Document** — `openExtractVars(docId)` scans a doc for dates, monetary amounts (`$N,NNN`), percentages, and `LABEL: value` key-value pairs; deduplicates, shows modal with type badges + checkboxes + editable constant names; `saveExtractedVars()` appends to `state.settings.constants` and persists; **Extract** button on each right-panel doc entry
 - **`extractVarsFromText(text)`** — pure function; returns `{ value, type, suggestedKey }[]` sorted by type: date → money → percent → kv; `extractDatesFromText` kept as backward-compat alias returning `string[]`
+- **Cross-project Notes Search** — `searchNotes(query)` routes to either `filterNotes()` (current project) or `searchAllNotes()` (global) based on the `#notes-global-toggle` checkbox; `searchAllNotes(query)` fetches all notes via `dbGetAll("notes")`, filters by title+content, renders results with project name badge and date; clicking a cross-project result calls `loadProject()` then `selectNote()`; `#notes-scope-label` shows match count; `loadNotes()` resets the toggle on project switch
 - **Template Variable Preview** — `previewTemplateVars()` resolves vars against active project and shows result in an inline `#tmpl-preview-panel` below the content textarea (no separate modal); `togglePreviewPanel()` hides it; panel is reset on modal open
 - **OpenRouter free-tier models** — 5 new `:free` suffix models added (Gemma 4 26B/31B, Nemotron 120B, Minimax M2.5, GPT-OSS 120B)
 - **Text contrast fix** — `--text-dim` raised to `#a8a49c`, `--text-muted` raised to `#72706a` (old muted was ~2.2:1 contrast on dark bg)
-- Test harness: 79 tests across 16 suites
+- Test harness: 92 tests across 17 suites
 - `CHANGELOG.md`, `README.md`, `CLAUDE.md`
 - **Google Drive Connector** — `modal-drive` accessible via "Drive" topbar button; token-based auth (OAuth Playground workflow); `verifyDriveToken()` validates token via `tokeninfo` endpoint and shows connection status (email + expiry); `listDriveFiles()` lists text/plain, text/markdown, text/csv, application/json, and Google Docs files (filtered, sorted by `modifiedTime desc`); `renderDriveFileList(files)` builds DOM programmatically (no innerHTML injection, safe for arbitrary filenames); `importFromDrive(fileId, name, mimeType)` fetches file content or exports Google Docs as plain text and saves as a project doc; `backupToDrive()` uploads a full JSON backup (includes `notes` store, unlike local `exportDatabase()`); `disconnectDrive()` clears token from state + DB; token persisted to `settings` store under key `driveToken`; `state.settings.driveToken` initialized at boot; drive functions added to `build.js` mangle reserved list: `openDriveModal`, `verifyDriveToken`, `listDriveFiles`, `backupToDrive`, `disconnectDrive`; CSS classes: `.drive-file-item`, `.drive-file-info`, `.drive-file-name`, `.drive-file-meta`
   - **Auth note**: Google OAuth does not allow `file://` as a JavaScript origin. Users must obtain a token manually via [Google OAuth Playground](https://developers.google.com/oauthplayground/?scope=https://www.googleapis.com/auth/drive) — select "Drive API v3", authorize, copy Access Token, paste into the Drive modal. Tokens expire in ~1 hour.
 
 ### Still outstanding (do next session)
 - ✅ Project export now includes opt-in full doc bodies — `confirm()` dialog, `-full` suffix on filename, `includeFullDocs` flag in payload
-- ❌ Notes are not searchable across projects (only filters within current project's list)
-- ❌ No "recent notes" or cross-project note view
+- ✅ Cross-project notes search — "All projects" toggle in Notes panel; `searchAllNotes()` queries all projects; results show project name badge
+- ❌ No "recent notes" quick-access view (cross-project search covers the main use case)
 - ✅ `exportDatabase()` / `importDatabase()` now include the `notes` store — fixed in v0.4.3; `validateImportShape()` treats `notes` as optional for backward compat with older backups.
 - ✅ Extract Variables now detects dates, monetary amounts, percentages, and key-value pairs
 - ✅ Template preview is now inline (no separate modal) — `#tmpl-preview-panel` toggles below textarea
@@ -347,10 +348,9 @@ When adding a new object store or index:
 
 ## Next Steps (Ordered for Next Session)
 
-1. **Cross-project notes search** — global search across all project note titles/content; a search bar in the Notes view that queries all projects
+1. **CHANGELOG.md + version bump** — bump `APP_VERSION` to `v0.4.4` (or `v0.5.0` given the scope of this session), update `CHANGELOG.md` with entries for inline preview, expanded extract vars, cross-project notes search; commit + push
 2. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
 3. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
-4. **Update CHANGELOG.md version tag + commit + push**
 
 ---
 

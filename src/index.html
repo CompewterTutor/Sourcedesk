@@ -1401,9 +1401,57 @@
                                     id="notes-filter"
                                     class="form-input"
                                     placeholder="Search notes…"
-                                    oninput="filterNotes(this.value)"
+                                    oninput="searchNotes(this.value)"
                                 />
+                                <div
+                                    style="
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 6px;
+                                        margin-top: 4px;
+                                    "
+                                >
+                                    <label
+                                        style="
+                                            display: flex;
+                                            align-items: center;
+                                            gap: 4px;
+                                            font-size: 11px;
+                                            color: var(--text-muted);
+                                            cursor: pointer;
+                                            user-select: none;
+                                        "
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            id="notes-global-toggle"
+                                            style="
+                                                accent-color: var(--accent);
+                                                width: 12px;
+                                                height: 12px;
+                                            "
+                                            onchange="
+                                                searchNotes(
+                                                    document.getElementById(
+                                                        'notes-filter',
+                                                    ).value,
+                                                )
+                                            "
+                                        />
+                                        All projects
+                                    </label>
+                                </div>
                             </div>
+                            <div
+                                id="notes-scope-label"
+                                style="
+                                    display: none;
+                                    padding: 4px 12px 2px;
+                                    font-size: 10px;
+                                    color: var(--text-muted);
+                                    border-bottom: 1px solid var(--border);
+                                "
+                            ></div>
                             <div id="notes-list"></div>
                         </div>
                         <div class="notes-editor-panel">

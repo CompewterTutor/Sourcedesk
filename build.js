@@ -121,6 +121,8 @@ async function build() {
                     "disconnectDrive",
                     "fetchLocalModels",
                     "togglePreviewPanel",
+                    "searchNotes",
+                    "searchAllNotes",
                 ],
             },
             format: {

@@ -9,6 +9,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.4.4] - 2025-07-17
+
+### Added
+- **Cross-project Notes Search** — "All projects" checkbox toggle in the Notes panel header; when checked, `searchAllNotes(query)` fetches every note across all projects, filters by title and body, and renders results with a project-name badge and date; clicking a result switches to the correct project (via `loadProject()`) and opens the note; a `#notes-scope-label` bar shows the match count; the toggle and label reset automatically on project switch
+- **Template Preview inline panel** — the Preview button in the template editor no longer opens a separate modal; instead it reveals `#tmpl-preview-panel`, a collapsible panel directly below the content textarea so the editor stays visible; a ✕ Hide link (`togglePreviewPanel()`) collapses it; the panel is hidden whenever the template editor is opened fresh
+- **Expanded Extract Variables** — `extractVarsFromText(text)` replaces `extractDatesFromText` as the primary extraction engine; now detects four entity types: **date** (4 existing regex patterns, `DATE_N` keys), **money** (`$N,NNN` / `$N.NN`, `AMOUNT_N` keys), **percent** (`N%` / `N.N%`, `PCT_N` keys), and **key-value** (`LABEL: value` lines with uppercase-starting label ≤ 80 chars, keys normalized to `UPPER_SNAKE_CASE`); results are deduplicated across types and sorted date → money → percent → kv; the Extract modal now shows a type badge pill on each row and its title reads "Variables detected in …"
+
+### Changed
+- `extractDatesFromText(text)` kept as a backward-compatible alias (filters `extractVarsFromText` output to `type === 'date'` and maps to `string[]`); existing tests continue to pass
+- `APP_VERSION` bumped to `v0.4.4`
+- `package.json` version bumped to `0.4.4`
+
+### Removed
+- Separate `modal-preview` modal — superseded by the inline `#tmpl-preview-panel` inside the template editor
+
+---
+
 ## [0.4.3] - 2025-07-16
 
 ### Added
