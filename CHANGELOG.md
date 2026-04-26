@@ -9,6 +9,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.4.5] - 2025-07-17
+
+### Added
+- **Font redesign** — replaced the DM Serif Display / Instrument Sans / DM Mono stack with Syne 700 (display headings), Inter 400/500/600 (body UI), and JetBrains Mono 400/500 (labels, badges, code); more distinctive, less "Claude-flavored"
+- **Keyboard shortcuts** — global `keydown` handler added: `Ctrl+Enter` sends chat message; `Escape` closes any open modal; `Ctrl+N` creates a new note (Notes view only); `Ctrl+Shift+F` focuses the notes search bar; existing `Ctrl+S` for notes and working doc unchanged; shortcut reference grid added to Settings modal
+- **Pin / star notes** — ☆/★ toggle on every note item; pinned notes sort to the top of the list regardless of `updatedAt`; `toggleNotePin(noteId)` flips `pinned` flag and persists via `dbPut`; pin button works in both per-project and cross-project (global search) list views
+- **Retrieval debug panel** — after each assistant message, a collapsible `▸ N sources referenced` row appears; expanding it shows `.chunk-item` cards with the source doc/template name and a 120-char snippet for each BM25-retrieved chunk; `retrieveContext()` now returns `chunks: { source, snippet }[]` alongside `context` and `sources`; `chunks` persisted on message records
+
+### Changed
+- `APP_VERSION` bumped to `v0.4.5`
+- `package.json` version bumped to `0.4.5`
+
+---
+
 ## [0.4.4] - 2025-07-17
 
 ### Added

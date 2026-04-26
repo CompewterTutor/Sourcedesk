@@ -123,6 +123,7 @@ async function build() {
                     "togglePreviewPanel",
                     "searchNotes",
                     "searchAllNotes",
+                    "toggleNotePin",
                 ],
             },
             format: {

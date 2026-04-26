@@ -5,8 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>SourceDesk — Procurement Intelligence</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Syne:wght@700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
             rel="stylesheet"
         />
         <style>
@@ -39,7 +40,7 @@
             html,
             body {
                 height: 100%;
-                font-family: "Instrument Sans", sans-serif;
+                font-family: "Inter", sans-serif;
                 background: var(--bg);
                 color: var(--text);
                 overflow: hidden;
@@ -75,10 +76,10 @@
 
             /* ─── TOPBAR ──────────────────────────────────── */
             .logo {
-                font-family: "DM Serif Display", serif;
-                font-size: 18px;
+                font-family: "Syne", sans-serif;
+                font-size: 17px;
                 color: var(--accent);
-                letter-spacing: -0.3px;
+                letter-spacing: -0.5px;
             }
             .logo span {
                 color: var(--text-dim);
@@ -88,13 +89,13 @@
                 flex: 1;
             }
             #project-title {
-                font-family: "DM Serif Display", serif;
-                font-size: 15px;
+                font-family: "Syne", sans-serif;
+                font-size: 14px;
                 color: var(--text);
             }
             #project-type-badge {
                 font-size: 10px;
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
                 padding: 2px 8px;
                 border-radius: 20px;
                 background: var(--accent-glow);
@@ -111,7 +112,7 @@
                 padding: 5px 10px;
                 cursor: pointer;
                 font-size: 12px;
-                font-family: "Instrument Sans", sans-serif;
+                font-family: "Inter", sans-serif;
                 transition: all 0.15s;
                 display: flex;
                 align-items: center;
@@ -130,7 +131,7 @@
             .sidebar-section {
                 padding: 10px 12px 6px;
                 font-size: 9px;
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
                 color: var(--text-muted);
                 letter-spacing: 1.5px;
                 text-transform: uppercase;
@@ -276,7 +277,7 @@
                 align-items: center;
                 justify-content: center;
                 font-size: 11px;
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
             }
             .msg.assistant .msg-avatar {
                 background: var(--accent-glow);
@@ -322,7 +323,7 @@
                 font-weight: 600;
             }
             .msg-bubble code {
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
                 font-size: 12px;
                 background: var(--bg);
                 padding: 1px 5px;
@@ -374,7 +375,7 @@
                 border-radius: var(--radius-lg);
                 padding: 10px 14px;
                 color: var(--text);
-                font-family: "Instrument Sans", sans-serif;
+                font-family: "Inter", sans-serif;
                 font-size: 13.5px;
                 resize: none;
                 min-height: 42px;
@@ -397,7 +398,7 @@
                 padding: 10px 14px;
                 cursor: pointer;
                 font-size: 13px;
-                font-family: "Instrument Sans", sans-serif;
+                font-family: "Inter", sans-serif;
                 font-weight: 600;
                 transition: opacity 0.15s;
                 flex-shrink: 0;
@@ -415,7 +416,7 @@
                 padding: 12px 14px;
                 border-bottom: 1px solid var(--border);
                 font-size: 10px;
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
                 color: var(--text-muted);
                 letter-spacing: 1px;
                 text-transform: uppercase;
@@ -429,7 +430,7 @@
             }
             .rpanel-label {
                 font-size: 9px;
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
                 color: var(--text-muted);
                 text-transform: uppercase;
                 letter-spacing: 1px;
@@ -484,7 +485,7 @@
                 color: var(--text-muted);
                 cursor: pointer;
                 font-size: 11px;
-                font-family: "Instrument Sans", sans-serif;
+                font-family: "Inter", sans-serif;
                 transition: all 0.15s;
                 text-align: center;
             }
@@ -543,7 +544,7 @@
                 overflow-y: auto;
             }
             .modal-title {
-                font-family: "DM Serif Display", serif;
+                font-family: "Syne", sans-serif;
                 font-size: 20px;
                 margin-bottom: 4px;
                 color: var(--text);
@@ -558,7 +559,7 @@
             }
             .form-label {
                 font-size: 11px;
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
                 color: var(--text-dim);
                 margin-bottom: 5px;
                 display: block;
@@ -572,7 +573,7 @@
                 border-radius: var(--radius);
                 padding: 8px 12px;
                 color: var(--text);
-                font-family: "Instrument Sans", sans-serif;
+                font-family: "Inter", sans-serif;
                 font-size: 13px;
                 outline: none;
                 transition: border-color 0.15s;
@@ -587,7 +588,7 @@
                 border-radius: var(--radius);
                 padding: 8px 12px;
                 color: var(--text);
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
                 font-size: 12px;
                 outline: none;
                 resize: vertical;
@@ -605,7 +606,7 @@
                 border-radius: var(--radius);
                 padding: 8px 12px;
                 color: var(--text);
-                font-family: "Instrument Sans", sans-serif;
+                font-family: "Inter", sans-serif;
                 font-size: 13px;
                 outline: none;
                 cursor: pointer;
@@ -622,7 +623,7 @@
                 border: 1px solid var(--border);
                 cursor: pointer;
                 transition: all 0.15s;
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
                 color: var(--text-dim);
                 background: var(--surface2);
             }
@@ -647,7 +648,7 @@
                 padding: 8px 18px;
                 cursor: pointer;
                 font-size: 13px;
-                font-family: "Instrument Sans", sans-serif;
+                font-family: "Inter", sans-serif;
                 font-weight: 600;
                 transition: opacity 0.15s;
             }
@@ -662,7 +663,7 @@
                 padding: 8px 18px;
                 cursor: pointer;
                 font-size: 13px;
-                font-family: "Instrument Sans", sans-serif;
+                font-family: "Inter", sans-serif;
                 transition: all 0.15s;
             }
             .btn-secondary:hover {
@@ -677,7 +678,7 @@
                 padding: 8px 18px;
                 cursor: pointer;
                 font-size: 13px;
-                font-family: "Instrument Sans", sans-serif;
+                font-family: "Inter", sans-serif;
                 transition: all 0.15s;
             }
             .btn-danger:hover {
@@ -715,7 +716,7 @@
             }
             .template-card-type {
                 font-size: 9px;
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
                 text-transform: uppercase;
                 letter-spacing: 1px;
                 margin-bottom: 8px;
@@ -734,14 +735,14 @@
                 border: 1px solid rgba(90, 158, 111, 0.3);
             }
             .template-card-name {
-                font-family: "DM Serif Display", serif;
+                font-family: "Syne", sans-serif;
                 font-size: 15px;
                 margin-bottom: 6px;
             }
             .template-card-category {
                 font-size: 11px;
                 color: var(--text-muted);
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
             }
             .template-card-actions {
                 position: absolute;
@@ -764,7 +765,7 @@
                 font-size: 10px;
                 cursor: pointer;
                 transition: all 0.15s;
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
             }
             .tcard-btn:hover {
                 border-color: var(--accent-dim);
@@ -783,7 +784,7 @@
                 background: var(--surface);
             }
             .view-title {
-                font-family: "DM Serif Display", serif;
+                font-family: "Syne", sans-serif;
                 font-size: 17px;
                 flex: 1;
             }
@@ -894,7 +895,7 @@
             .drive-file-meta {
                 font-size: 11px;
                 color: var(--text-muted);
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
             }
             .hidden {
                 display: none !important;
@@ -913,7 +914,7 @@
                 padding: 40px;
             }
             #welcome-screen h2 {
-                font-family: "DM Serif Display", serif;
+                font-family: "Syne", sans-serif;
                 font-size: 28px;
                 color: var(--text-dim);
             }
@@ -929,17 +930,49 @@
             }
 
             .chunk-used {
-                font-size: 10px;
-                font-family: "DM Mono", monospace;
-                color: var(--text-muted);
-                margin-top: 8px;
-                padding: 4px 8px;
-                background: var(--surface);
-                border-radius: var(--radius);
-                border: 1px solid var(--border);
+                margin-top: 6px;
+                font-size: 11px;
             }
-            .chunk-source {
-                color: var(--accent-dim);
+            .chunk-toggle {
+                color: var(--text-muted);
+                cursor: pointer;
+                user-select: none;
+                transition: color 0.15s;
+            }
+            .chunk-toggle:hover {
+                color: var(--text-dim);
+            }
+            .chunk-details {
+                display: none;
+                margin-top: 6px;
+                flex-direction: column;
+                gap: 6px;
+            }
+            .chunk-used.expanded .chunk-toggle {
+                color: var(--text-dim);
+            }
+            .chunk-used.expanded .chunk-details {
+                display: flex;
+            }
+            .chunk-item {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                padding: 6px 8px;
+                background: var(--surface2);
+                border-radius: var(--radius);
+                border-left: 2px solid var(--accent-dim);
+            }
+            .chunk-item-source {
+                font-size: 10px;
+                color: var(--accent);
+                font-family: "JetBrains Mono", monospace;
+                font-weight: 500;
+            }
+            .chunk-item-snippet {
+                font-size: 11px;
+                color: var(--text-muted);
+                line-height: 1.4;
             }
             .no-key-banner {
                 background: rgba(192, 81, 58, 0.1);
@@ -961,7 +994,7 @@
                 border-radius: 4px;
                 cursor: pointer;
                 font-size: 11px;
-                font-family: "Instrument Sans", sans-serif;
+                font-family: "Inter", sans-serif;
             }
 
             /* ─── Notes View ─────────────────────────────────────────────────────────── */
@@ -1013,6 +1046,22 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
+            .note-pin-btn {
+                font-size: 11px;
+                color: var(--text-muted);
+                cursor: pointer;
+                flex-shrink: 0;
+                line-height: 1;
+                padding: 0 1px;
+                transition: color 0.1s;
+                user-select: none;
+            }
+            .note-pin-btn:hover {
+                color: var(--accent);
+            }
+            .note-pin-btn.pinned {
+                color: var(--accent);
+            }
             .note-item-date {
                 font-size: 10px;
                 color: var(--text-muted);
@@ -1047,7 +1096,7 @@
                 flex: 1;
                 resize: none;
                 min-height: 0;
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
                 font-size: 13px;
             }
             .note-editor-actions {
@@ -1088,7 +1137,7 @@
             #working-doc-editor {
                 flex: 1;
                 resize: none;
-                font-family: "DM Mono", monospace;
+                font-family: "JetBrains Mono", monospace;
                 font-size: 13px;
                 border: 1px solid var(--border);
                 border-radius: 6px;
@@ -1115,7 +1164,7 @@
                     id="app-version"
                     style="
                         font-size: 10px;
-                        font-family: &quot;DM Mono&quot;, monospace;
+                        font-family: &quot;JetBrains Mono&quot;, monospace;
                         color: var(--text-muted);
                         opacity: 0.7;
                     "
@@ -1688,7 +1737,7 @@
                         id="tmpl-preview-content"
                         style="
                             min-height: 180px;
-                            font-family: &quot;DM Mono&quot;, monospace;
+                            font-family: &quot;JetBrains Mono&quot;, monospace;
                             font-size: 12px;
                             resize: vertical;
                             opacity: 0.85;
@@ -1911,7 +1960,8 @@
                             >— Ollama:
                             <code
                                 style="
-                                    font-family: &quot;DM Mono&quot;, monospace;
+                                    font-family:
+                                        &quot;JetBrains Mono&quot;, monospace;
                                     background: var(--surface2);
                                     padding: 1px 4px;
                                     border-radius: 3px;
@@ -1921,7 +1971,8 @@
                             · LM Studio:
                             <code
                                 style="
-                                    font-family: &quot;DM Mono&quot;, monospace;
+                                    font-family:
+                                        &quot;JetBrains Mono&quot;, monospace;
                                     background: var(--surface2);
                                     padding: 1px 4px;
                                     border-radius: 3px;
@@ -1959,7 +2010,8 @@
                         block requests to localhost. Run
                         <code
                             style="
-                                font-family: &quot;DM Mono&quot;, monospace;
+                                font-family:
+                                    &quot;JetBrains Mono&quot;, monospace;
                                 background: var(--surface2);
                                 padding: 1px 4px;
                                 border-radius: 3px;
@@ -2000,13 +2052,86 @@
                         id="settings-constants"
                         style="
                             min-height: 70px;
-                            font-family: &quot;DM Mono&quot;, monospace;
+                            font-family: &quot;JetBrains Mono&quot;, monospace;
                             font-size: 12px;
                         "
                         placeholder="COMPANY_NAME=Acme University&#10;DEPT=Procurement&#10;FISCAL_YEAR=2025"
                     ></textarea>
                 </div>
 
+                <div class="form-row" style="margin-top: 8px">
+                    <label class="form-label">Keyboard Shortcuts</label>
+                    <div
+                        style="
+                            display: grid;
+                            grid-template-columns: auto 1fr;
+                            gap: 4px 12px;
+                            font-size: 11px;
+                            color: var(--text-dim);
+                        "
+                    >
+                        <kbd
+                            style="
+                                font-family:
+                                    &quot;JetBrains Mono&quot;, monospace;
+                                font-size: 10px;
+                                background: var(--surface2);
+                                border: 1px solid var(--border);
+                                border-radius: 3px;
+                                padding: 1px 5px;
+                            "
+                            >Ctrl+Enter</kbd
+                        ><span>Send message</span>
+                        <kbd
+                            style="
+                                font-family:
+                                    &quot;JetBrains Mono&quot;, monospace;
+                                font-size: 10px;
+                                background: var(--surface2);
+                                border: 1px solid var(--border);
+                                border-radius: 3px;
+                                padding: 1px 5px;
+                            "
+                            >Ctrl+N</kbd
+                        ><span>New note (in Notes view)</span>
+                        <kbd
+                            style="
+                                font-family:
+                                    &quot;JetBrains Mono&quot;, monospace;
+                                font-size: 10px;
+                                background: var(--surface2);
+                                border: 1px solid var(--border);
+                                border-radius: 3px;
+                                padding: 1px 5px;
+                            "
+                            >Ctrl+Shift+F</kbd
+                        ><span>Focus notes search</span>
+                        <kbd
+                            style="
+                                font-family:
+                                    &quot;JetBrains Mono&quot;, monospace;
+                                font-size: 10px;
+                                background: var(--surface2);
+                                border: 1px solid var(--border);
+                                border-radius: 3px;
+                                padding: 1px 5px;
+                            "
+                            >Ctrl+S</kbd
+                        ><span>Save note / working doc</span>
+                        <kbd
+                            style="
+                                font-family:
+                                    &quot;JetBrains Mono&quot;, monospace;
+                                font-size: 10px;
+                                background: var(--surface2);
+                                border: 1px solid var(--border);
+                                border-radius: 3px;
+                                padding: 1px 5px;
+                            "
+                            >Escape</kbd
+                        ><span>Close modal</span>
+                    </div>
+                </div>
                 <div class="modal-actions">
                     <button
                         class="btn-danger"
@@ -2057,7 +2182,7 @@
                         font-size: 11px;
                         color: var(--text-muted);
                         margin-bottom: 8px;
-                        font-family: &quot;DM Mono&quot;, monospace;
+                        font-family: &quot;JetBrains Mono&quot;, monospace;
                         padding: 6px 8px;
                         background: var(--surface);
                         border-radius: var(--radius);

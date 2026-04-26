@@ -1,7 +1,7 @@
 // ─── FLAGS ──────────────────────────────────────────────────────────────────
 const DEBUG = window.__SOURCEDESK_DEBUG__ || false;
 const TEST = window.__SOURCEDESK_TEST__ || false;
-const APP_VERSION = "0.4.4";
+const APP_VERSION = "0.4.5";
 function log(...args) {
     if (DEBUG) console.log("[SD]", ...args);
 }
@@ -535,19 +535,48 @@ function renderMessages() {
     const container = document.getElementById("chat-messages");
     container.innerHTML = "";
     state.messages.forEach((m) =>
-        appendMessageEl(m.role, m.content, m.sources),
+        appendMessageEl(m.role, m.content, m.sources, m.chunks),
     );
     container.scrollTop = container.scrollHeight;
 }
 
-function appendMessageEl(role, content, sources) {
+function appendMessageEl(role, content, sources, chunks) {
     const container = document.getElementById("chat-messages");
     const div = document.createElement("div");
     div.className = `msg ${role}`;
     const avatarLabel = role === "assistant" ? "SD" : "You";
     let sourcesHtml = "";
     if (sources && sources.length) {
-        sourcesHtml = `<div class="chunk-used">Referenced: ${sources.map((s) => `<span class="chunk-source">${s}</span>`).join(", ")}</div>`;
+        const snippetsHtml =
+            chunks && chunks.length
+                ? chunks
+                      .map(
+                          (c) =>
+                              '<div class="chunk-item">' +
+                              '<span class="chunk-item-source">' +
+                              c.source +
+                              "</span>" +
+                              '<span class="chunk-item-snippet">' +
+                              c.snippet +
+                              (c.snippet.length >= 120 ? "…" : "") +
+                              "</span>" +
+                              "</div>",
+                      )
+                      .join("")
+                : "";
+        sourcesHtml =
+            '<div class="chunk-used">' +
+            "<span class=\"chunk-toggle\" onclick=\"this.closest('.chunk-used').classList.toggle('expanded')\">" +
+            "▸ " +
+            sources.length +
+            " source" +
+            (sources.length === 1 ? "" : "s") +
+            " referenced" +
+            "</span>" +
+            '<div class="chunk-details">' +
+            snippetsHtml +
+            "</div>" +
+            "</div>";
     }
     div.innerHTML = `
     <div class="msg-avatar">${avatarLabel}</div>
@@ -683,10 +712,14 @@ async function retrieveContext(query, topK = 4) {
     scores.sort((a, b) => b.score - a.score);
     const top = scores.slice(0, topK).filter((s) => s.score > 0);
     const sources = [...new Set(top.map((s) => allChunks[s.i].source))];
+    const chunks = top.map((s) => ({
+        source: allChunks[s.i].source,
+        snippet: allChunks[s.i].text.slice(0, 120).replace(/\s+/g, " ").trim(),
+    }));
     const context = top
         .map((s) => `[from: ${allChunks[s.i].source}]\n${allChunks[s.i].text}`)
         .join("\n\n---\n\n");
-    return { context, sources };
+    return { context, sources, chunks };
 }
 
 // ─── API CALL BUILDER ─────────────────────────────────────────────────────────
@@ -784,7 +817,7 @@ async function sendMessage() {
     state.messages.push({ role: "user", content: text });
     appendMessageEl("user", text);
 
-    const { context, sources } = await retrieveContext(text);
+    const { context, sources, chunks } = await retrieveContext(text);
 
     let systemPrompt = `You are SourceDesk, an expert AI assistant for strategic sourcing and procurement at a university. You help with RFPs, RFIs, vendor questionnaires, contract review, and supplier analysis.
 
@@ -864,13 +897,44 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
         }
 
         if (sources.length) {
+            const snippetsHtml =
+                chunks && chunks.length
+                    ? chunks
+                          .map(
+                              (c) =>
+                                  '<div class="chunk-item">' +
+                                  '<span class="chunk-item-source">' +
+                                  c.source +
+                                  "</span>" +
+                                  '<span class="chunk-item-snippet">' +
+                                  c.snippet +
+                                  (c.snippet.length >= 120 ? "…" : "") +
+                                  "</span>" +
+                                  "</div>",
+                          )
+                          .join("")
+                    : "";
             const src = document.createElement("div");
             src.className = "chunk-used";
-            src.innerHTML = `Referenced: ${sources.map((s) => `<span class="chunk-source">${s}</span>`).join(", ")}`;
+            src.innerHTML =
+                "<span class=\"chunk-toggle\" onclick=\"this.closest('.chunk-used').classList.toggle('expanded')\">" +
+                "▸ " +
+                sources.length +
+                " source" +
+                (sources.length === 1 ? "" : "s") +
+                " referenced" +
+                "</span>" +
+                '<div class="chunk-details">' +
+                snippetsHtml +
+                "</div>";
             msgDiv.appendChild(src);
         }
-
-        state.messages.push({ role: "assistant", content: fullText, sources });
+        state.messages.push({
+            role: "assistant",
+            content: fullText,
+            sources,
+            chunks,
+        });
         await saveChat();
     } catch (e) {
         typingDiv.remove();
@@ -2227,7 +2291,12 @@ function renderNotesList(notes) {
     const list = document.getElementById("notes-list");
     if (!list) return;
     list.innerHTML = "";
-    notes.forEach((n) => {
+    // Sort: pinned first, then by updatedAt desc
+    const sorted = [...notes].sort((a, b) => {
+        if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+        return b.updatedAt - a.updatedAt;
+    });
+    sorted.forEach((n) => {
         const el = document.createElement("div");
         el.className =
             "note-item" +
@@ -2235,10 +2304,51 @@ function renderNotesList(notes) {
                 ? " active"
                 : "");
         el.dataset.noteId = n.id;
-        el.innerHTML = `<div class="note-item-title">${n.title || "Untitled"}</div><div class="note-item-date">${new Date(n.updatedAt).toLocaleDateString()}</div>`;
-        el.onclick = () => selectNote(n);
+        el.innerHTML =
+            '<div style="display:flex;align-items:center;gap:4px">' +
+            '<span class="note-pin-btn' +
+            (n.pinned ? " pinned" : "") +
+            '" data-id="' +
+            n.id +
+            '" title="' +
+            (n.pinned ? "Unpin" : "Pin to top") +
+            '">' +
+            (n.pinned ? "★" : "☆") +
+            "</span>" +
+            '<div class="note-item-title">' +
+            (n.title || "Untitled") +
+            "</div>" +
+            "</div>" +
+            '<div class="note-item-date">' +
+            new Date(n.updatedAt).toLocaleDateString() +
+            "</div>";
+        el.onclick = (e) => {
+            if (e.target.classList.contains("note-pin-btn")) return;
+            selectNote(n);
+        };
+        el.querySelector(".note-pin-btn").addEventListener(
+            "click",
+            async (e) => {
+                e.stopPropagation();
+                await toggleNotePin(n.id);
+            },
+        );
         list.appendChild(el);
     });
+}
+
+async function toggleNotePin(noteId) {
+    const note = await dbGet("notes", noteId);
+    if (!note) return;
+    note.pinned = !note.pinned;
+    note.updatedAt = Date.now();
+    await dbPut("notes", note);
+    if (state.currentNote && state.currentNote.id === noteId) {
+        state.currentNote.pinned = note.pinned;
+    }
+    await loadNotes();
+    // Re-select the currently open note so the editor doesn't lose state
+    if (state.currentNote) selectNote(state.currentNote);
 }
 
 async function selectNote(note) {
@@ -2332,8 +2442,19 @@ async function searchAllNotes(query) {
                 : "");
         el.dataset.noteId = n.id;
         el.innerHTML =
+            '<div style="display:flex;align-items:center;gap:4px">' +
+            '<span class="note-pin-btn' +
+            (n.pinned ? " pinned" : "") +
+            '" data-id="' +
+            n.id +
+            '" title="' +
+            (n.pinned ? "Unpin" : "Pin to top") +
+            '">' +
+            (n.pinned ? "★" : "☆") +
+            "</span>" +
             '<div class="note-item-title">' +
             (n.title || "Untitled") +
+            "</div>" +
             "</div>" +
             '<div class="note-item-date" style="display:flex;justify-content:space-between;gap:4px">' +
             '<span style="color:var(--accent);opacity:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px" title="' +
@@ -2345,7 +2466,8 @@ async function searchAllNotes(query) {
             new Date(n.updatedAt).toLocaleDateString() +
             "</span>" +
             "</div>";
-        el.onclick = async () => {
+        el.onclick = async (e) => {
+            if (e.target.classList.contains("note-pin-btn")) return;
             // Switch project if needed, then open the note
             if (
                 !state.activeProject ||
@@ -2357,6 +2479,13 @@ async function searchAllNotes(query) {
             }
             selectNote(n);
         };
+        el.querySelector(".note-pin-btn").addEventListener(
+            "click",
+            async (e) => {
+                e.stopPropagation();
+                await toggleNotePin(n.id);
+            },
+        );
         list.appendChild(el);
     });
 }
@@ -2477,6 +2606,52 @@ if (!TEST) {
                     saveWorkingDoc();
                 }
             });
+        // Global keyboard shortcuts
+        document.addEventListener("keydown", function (e) {
+            const ctrl = e.ctrlKey || e.metaKey;
+
+            // Ctrl+Enter — send message
+            if (ctrl && e.key === "Enter") {
+                const chatView = document.getElementById("chat-view");
+                if (chatView && chatView.style.display !== "none") {
+                    e.preventDefault();
+                    sendMessage();
+                    return;
+                }
+            }
+
+            // Escape — close topmost modal
+            if (e.key === "Escape") {
+                const overlay = document.getElementById("modal-overlay");
+                if (overlay && !overlay.classList.contains("hidden")) {
+                    e.preventDefault();
+                    closeModal();
+                    return;
+                }
+            }
+
+            // Ctrl+N — new note (only in notes view)
+            if (ctrl && e.key === "n") {
+                const notesView = document.getElementById("notes-view");
+                if (notesView && notesView.style.display !== "none") {
+                    e.preventDefault();
+                    openNewNote();
+                    return;
+                }
+            }
+
+            // Ctrl+Shift+F — focus notes search
+            if (ctrl && e.shiftKey && e.key === "F") {
+                const notesView = document.getElementById("notes-view");
+                if (notesView && notesView.style.display !== "none") {
+                    e.preventDefault();
+                    const filterEl = document.getElementById("notes-filter");
+                    if (filterEl) filterEl.focus();
+                    return;
+                }
+            }
+        });
+
         showView("chat");
         boot();
     });
