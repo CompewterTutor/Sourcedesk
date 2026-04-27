@@ -15,7 +15,24 @@ const isDev = args.includes("--dev") || args.includes("--watch");
 const isWatch = args.includes("--watch");
 
 const SRC_HTML = path.join(__dirname, "src", "index.html");
-const SRC_JS = path.join(__dirname, "src", "main.js");
+const SRC_FILES = [
+    "src/flags.js",
+    "src/db.js",
+    "src/state.js",
+    "src/boot.js",
+    "src/messages.js",
+    "src/retrieval.js",
+    "src/api.js",
+    "src/chat.js",
+    "src/panel.js",
+    "src/templates.js",
+    "src/projects.js",
+    "src/fill.js",
+    "src/settings.js",
+    "src/drive.js",
+    "src/notes.js",
+    "src/ui.js",
+].map((f) => path.join(__dirname, f));
 const OUT_HTML = path.join(__dirname, "SourceDesk.html");
 const PLACEHOLDER = "  <!-- BUILD:JS -->";
 
@@ -26,12 +43,14 @@ async function build() {
     if (!fs.existsSync(SRC_HTML)) {
         throw new Error(`Template not found: ${SRC_HTML}`);
     }
-    if (!fs.existsSync(SRC_JS)) {
-        throw new Error(`Source JS not found: ${SRC_JS}`);
+    for (const f of SRC_FILES) {
+        if (!fs.existsSync(f)) {
+            throw new Error(`Source JS not found: ${f}`);
+        }
     }
 
     const html = fs.readFileSync(SRC_HTML, "utf8");
-    const js = fs.readFileSync(SRC_JS, "utf8");
+    const js = SRC_FILES.map((f) => fs.readFileSync(f, "utf8")).join("\n");
 
     if (!html.includes(PLACEHOLDER)) {
         throw new Error(
