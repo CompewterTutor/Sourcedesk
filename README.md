@@ -147,11 +147,12 @@ Example `.env` values:
 - [x] **Duplicate Template** — one-click copy of any template
 - [x] **Template Variables & Constants** — built-in auto-variables (`{{PROJECT_NAME}}`, `{{TODAY}}`, etc.) plus user-defined constants (`KEY=value` in Settings); auto-resolved before manual fill; fill modal shows what was auto-filled
 - [x] **Create Template from Document** — `→Tmpl` button on any uploaded doc opens the template editor pre-filled with the document's content
-- [ ] **Template variable date expressions** — e.g. `{{TODAY+7}}` for relative dates; auto-extraction of names, dates, and entities from uploaded docs as suggested constants
-- [ ] **Template variable preview** — "Preview resolved" button in the template editor that shows the output against the current active project without saving
+- [x] **Template variable date expressions** — `{{TODAY+7}}`, `{{TODAY-2w}}`, `{{TODAY+1m}}` etc.; auto-extraction of dates, monetary amounts, percentages, and key-value pairs from uploaded docs as suggested constants
+- [x] **Template variable preview** — inline "Preview resolved" panel in the template editor that shows the output against the current active project without saving
 
 ### Retrieval & Context
 - [ ] **Client-side Semantic Embeddings** *(low priority)* — run `all-MiniLM-L6-v2` directly in the browser via `transformers.js` + WASM for true semantic search with no API cost; warn users about a ~30 MB one-time model download (cached by the browser after first use); alternative: use an API-based embedding provider (OpenAI `text-embedding-3-small`, etc.) so users who don't want the WASM download can still get semantic search
+- [x] **Local model quick-selector** — when the Local LLM provider is active, a compact model dropdown appears in the topbar so you can switch models without opening Settings; includes a ⟳ re-detect button that re-queries `/models` from the configured base URL
 - [ ] **Enhanced Retrieval** — hybrid BM25 + semantic similarity re-ranking once embeddings are available
 - [x] **Google Drive Connector** — import supported Drive files into projects, verify short-lived OAuth Playground tokens, and back up the database to Drive
 
@@ -169,3 +170,8 @@ Example `.env` values:
 
 ### Platform
 - [ ] **Mobile Optimisation** — responsive layout for the context panel and chat on smaller screens
+
+### AI Provider UX
+- [x] **Local model quick-selector** — topbar dropdown (visible only when provider = Local LLM) lets you switch models and re-detect available models without opening Settings
+- [ ] **Per-project provider override** — allow a project to pin a specific provider/model independently of the global setting
+- [ ] **Token usage display** — show approximate token counts for the current context window alongside each reply

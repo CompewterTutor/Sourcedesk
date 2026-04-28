@@ -9,6 +9,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.5.1] - 2025-07-19
+
+### Added
+- **Local model quick-selector** — when provider is set to Local LLM, a compact model `<select>` dropdown and ⟳ re-detect button appear directly in the topbar, letting you switch models or re-query `/models` without opening Settings; hidden for all other providers
+- **`topbarModelChange(modelId)`** — persists the selected model to `state.settings` and IndexedDB; syncs the Settings modal selector if it is open
+- **`refreshTopbarModels()`** — re-runs `fetchLocalModels()` then calls `syncTopbarModelSelect()` to mirror the updated list in the topbar
+- **`syncTopbarModelSelect()`** — copies options and selected value from the settings-modal `<select>` into the topbar selector; called automatically after every model detection run and when Settings opens on the local provider
+
+### Changed
+- Chat input placeholder updated from "Ask Claude anything about this project…" to "Ask the AI model anything about this project…"
+- Working Document editor placeholder updated to replace "Claude" with "the AI model"
+- `updateProviderUI()` now toggles visibility of `#topbar-local-model` alongside the existing local-URL row
+- `build.js` — `topbarModelChange`, `refreshTopbarModels`, `syncTopbarModelSelect` added to `mangle.reserved`
+- README roadmap — marked **Template variable date expressions** and **Template variable preview** as completed (both shipped in v0.4.x); added **Local model quick-selector** as completed; added new **AI Provider UX** roadmap section with future items
+
+---
+
 ## [0.5.0] - 2026-04-28 🗄️
 
 ### Added

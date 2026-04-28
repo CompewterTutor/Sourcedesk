@@ -56,6 +56,7 @@ async function fetchLocalModels() {
                 sel.value = models[0].id;
             }
         }
+        syncTopbarModelSelect();
     } catch (err) {
         if (sel)
             sel.innerHTML =
@@ -77,6 +78,9 @@ function openSettings() {
     if (_localUrlEl) _localUrlEl.value = state.settings.localLlmUrl || "";
     updateApiKeyStatus(!!getCurrentProviderKey());
     showModal("modal-settings");
+    // Sync topbar model selector in case it's stale
+    if ((state.settings.provider || "anthropic") === "local")
+        syncTopbarModelSelect();
 }
 
 function updateProviderUI(provider) {
@@ -116,6 +120,10 @@ function updateProviderUI(provider) {
             );
         }
     }
+    // Show/hide topbar local model selector
+    const topbarLocal = document.getElementById("topbar-local-model");
+    if (topbarLocal)
+        topbarLocal.classList.toggle("hidden", provider !== "local");
 }
 
 function onProviderChange(provider) {
@@ -166,6 +174,31 @@ async function saveSettings() {
 
     closeModal();
     checkApiKey();
+}
+
+function topbarModelChange(modelId) {
+    if (!modelId) return;
+    state.settings.model = modelId;
+    dbPut("settings", { key: "model", value: modelId });
+    // Sync to settings modal selector if open
+    const settingsSel = document.getElementById("settings-model");
+    if (settingsSel && settingsSel.value !== modelId)
+        settingsSel.value = modelId;
+}
+
+async function refreshTopbarModels() {
+    // Re-run fetchLocalModels and also sync result to topbar selector
+    await fetchLocalModels();
+    syncTopbarModelSelect();
+}
+
+function syncTopbarModelSelect() {
+    const topbarSel = document.getElementById("topbar-model-select");
+    const settingsSel = document.getElementById("settings-model");
+    if (!topbarSel || !settingsSel) return;
+    // Copy options from settings selector to topbar selector
+    topbarSel.innerHTML = settingsSel.innerHTML;
+    topbarSel.value = settingsSel.value || state.settings.model || "";
 }
 
 function updateApiKeyStatus(hasKey) {

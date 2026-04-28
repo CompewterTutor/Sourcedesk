@@ -1221,6 +1221,41 @@
                     >No project selected</span
                 >
                 <span id="project-type-badge" class="hidden"></span>
+                <!-- Local model quick-selector (shown only when provider=local) -->
+                <div
+                    id="topbar-local-model"
+                    class="hidden"
+                    style="
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        margin-left: 8px;
+                    "
+                >
+                    <select
+                        id="topbar-model-select"
+                        style="
+                            font-size: 11px;
+                            font-family: &quot;JetBrains Mono&quot;, monospace;
+                            background: var(--surface2);
+                            color: var(--text);
+                            border: 1px solid var(--border);
+                            border-radius: 5px;
+                            padding: 3px 6px;
+                            cursor: pointer;
+                        "
+                        onchange="topbarModelChange(this.value)"
+                        title="Active local model"
+                    ></select>
+                    <button
+                        class="btn-icon"
+                        onclick="refreshTopbarModels()"
+                        title="Re-detect local models"
+                        style="padding: 3px 6px; font-size: 10px"
+                    >
+                        ⟳
+                    </button>
+                </div>
                 <div style="flex: 1"></div>
                 <button
                     class="btn-icon hidden"
@@ -1457,7 +1492,7 @@
                     <div id="chat-input-area" class="hidden">
                         <textarea
                             id="chat-input"
-                            placeholder="Ask Claude anything about this project…"
+                            placeholder="Ask the AI model anything about this project…"
                             rows="1"
                         ></textarea>
                         <button id="send-btn" onclick="sendMessage()">
@@ -1483,7 +1518,7 @@
                     </div>
                     <textarea
                         id="working-doc-editor"
-                        placeholder="Your working document content… paste in a template, RFP draft, or any structured text you want Claude to reference and help you refine."
+                        placeholder="Your working document content… paste in a template, RFP draft, or any structured text you want the AI model to reference and help you refine."
                     ></textarea>
                 </div>
 

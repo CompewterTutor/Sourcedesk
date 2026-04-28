@@ -172,6 +172,9 @@ async function build() {
                     "filterSQList",
                     "toggleAllSQCheckboxes",
                     "scheduleSQAutoSave",
+                    "topbarModelChange",
+                    "refreshTopbarModels",
+                    "syncTopbarModelSelect",
                 ],
             },
             format: {
