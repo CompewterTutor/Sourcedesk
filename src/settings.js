@@ -120,7 +120,10 @@ function updateProviderUI(provider) {
 
 function onProviderChange(provider) {
     // Snapshot the key the user typed for the old provider before switching UI
-    const oldProv = getActivePill("provider-pills") || state.settings.provider;
+    // NOTE: getActivePill() already reflects the new provider at this point because
+    // selectPill() runs before onProviderChange() in the onclick handler.
+    // Use state.settings.provider instead, which still holds the previous provider.
+    const oldProv = state.settings.provider || "anthropic";
     const typedKey = document.getElementById("settings-apikey").value;
     // Also snapshot the local LLM URL if we're leaving that provider
     if (oldProv === "local") {

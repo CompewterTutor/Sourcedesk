@@ -303,7 +303,8 @@ When adding a new object store or index:
   - `PROVIDERS` config constant, `buildApiCall()`, `parseStreamDelta()`
   - Per-provider key storage in DB; legacy `apiKey` → `apiKey_anthropic` migration
   - `onProviderChange()` in settings modal with live UI switching
-- **Version string** `v0.4.2` displayed in topbar at boot
+  - **Bug fix (v0.4.6)**: `onProviderChange()` now reads `state.settings.provider` (the previous provider) instead of `getActivePill()` to determine where to save the typed key — `selectPill()` runs before `onProviderChange()` in the onclick handler, so the pill was already pointing at the new provider, causing keys to be saved in the wrong slot
+- **Version string** `v0.4.6` displayed in topbar at boot
 - **Global Instructions** label (renamed from "Sourcing Context")
 - **Per-project Instructions** field in project creation modal; injected into system prompt; textarea cleared on modal open
 - **Database Export** — `exportDatabase()` downloads all stores as timestamped JSON backup
@@ -336,21 +337,15 @@ When adding a new object store or index:
   - **Auth note**: Google OAuth does not allow `file://` as a JavaScript origin. Users must obtain a token manually via [Google OAuth Playground](https://developers.google.com/oauthplayground/?scope=https://www.googleapis.com/auth/drive) — select "Drive API v3", authorize, copy Access Token, paste into the Drive modal. Tokens expire in ~1 hour.
 
 ### Still outstanding (do next session)
-- ✅ Project export now includes opt-in full doc bodies — `confirm()` dialog, `-full` suffix on filename, `includeFullDocs` flag in payload
-- ✅ Cross-project notes search — "All projects" toggle in Notes panel; `searchAllNotes()` queries all projects; results show project name badge
 - ❌ No "recent notes" quick-access view (cross-project search covers the main use case)
-- ✅ `exportDatabase()` / `importDatabase()` now include the `notes` store — fixed in v0.4.3; `validateImportShape()` treats `notes` as optional for backward compat with older backups.
-- ✅ Extract Variables now detects dates, monetary amounts, percentages, and key-value pairs
-- ✅ Template preview is now inline (no separate modal) — `#tmpl-preview-panel` toggles below textarea
 - ❌ Google Drive connector requires manual token paste (OAuth Playground workaround) — proper OAuth popup flow not possible from `file://` origin without user hosting the file on a server
 
 ---
 
 ## Next Steps (Ordered for Next Session)
 
-1. **CHANGELOG.md + version bump** — bump `APP_VERSION` to `v0.4.4` (or `v0.5.0` given the scope of this session), update `CHANGELOG.md` with entries for inline preview, expanded extract vars, cross-project notes search; commit + push
-2. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
-3. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
+1. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
+2. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
 
 ---
 

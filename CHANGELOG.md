@@ -9,6 +9,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.4.6] - 2025-07-18
+
+### Fixed
+- **Provider API key switching** — switching providers in the Settings modal now correctly saves the previously-typed key under the old provider before loading the new provider's key. Previously, `onProviderChange()` called `getActivePill("provider-pills")` to determine the old provider, but `selectPill()` runs first in the onclick handler, so the pill had already switched to the new provider — causing the key to be saved under the wrong slot. Fixed by reading `state.settings.provider` instead, which still holds the previous provider until Save is clicked.
+
+### Changed
+- `APP_VERSION` bumped to `v0.4.6`
+- `package.json` version bumped to `0.4.6`
+
+---
+
 ## [0.4.5] - 2025-07-17
 
 ### Added
