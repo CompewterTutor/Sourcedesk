@@ -441,6 +441,104 @@
             .attach-chip-remove:hover {
                 color: var(--danger);
             }
+            /* ─── PROMPT LIBRARY ─── */
+            .chat-prompt-lib-btn {
+                flex-shrink: 0;
+                width: 32px;
+                height: 32px;
+                border-radius: var(--radius);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+                position: relative;
+            }
+            #prompt-lib-dropdown {
+                position: absolute;
+                bottom: calc(100% + 8px);
+                left: 0;
+                width: 280px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-lg);
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+                z-index: 200;
+                overflow: hidden;
+                display: none;
+            }
+            #prompt-lib-dropdown.open {
+                display: block;
+            }
+            .plib-header {
+                padding: 8px 12px;
+                font-size: 10px;
+                font-family: "JetBrains Mono", monospace;
+                color: var(--text-muted);
+                letter-spacing: 1.2px;
+                text-transform: uppercase;
+                border-bottom: 1px solid var(--border);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .plib-section-label {
+                padding: 6px 12px 2px;
+                font-size: 9px;
+                font-family: "JetBrains Mono", monospace;
+                color: var(--text-muted);
+                letter-spacing: 1px;
+                text-transform: uppercase;
+            }
+            .plib-entry {
+                padding: 7px 12px;
+                cursor: pointer;
+                font-size: 12px;
+                color: var(--text-dim);
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transition: background 0.12s;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .plib-entry:hover {
+                background: var(--surface2);
+                color: var(--text);
+            }
+            .plib-empty {
+                padding: 10px 12px;
+                font-size: 11px;
+                color: var(--text-muted);
+                font-style: italic;
+            }
+            .plib-footer {
+                border-top: 1px solid var(--border);
+                padding: 6px 8px;
+                display: flex;
+                justify-content: flex-end;
+            }
+            .msg-save-prompt-btn {
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-size: 13px;
+                opacity: 0;
+                padding: 2px 5px;
+                border-radius: 3px;
+                color: var(--text-muted);
+                transition: opacity 0.15s;
+                align-self: flex-start;
+                margin-top: 2px;
+                flex-shrink: 0;
+            }
+            .msg.user:hover .msg-save-prompt-btn {
+                opacity: 1;
+            }
+            .msg-save-prompt-btn:hover {
+                color: var(--accent);
+                background: var(--accent-glow);
+            }
             #streaming-indicator {
                 display: flex;
                 align-items: center;
@@ -1681,6 +1779,25 @@
                                 accept=".txt,.md,.csv,.json,.pdf,.docx,image/*"
                                 onchange="handleAttachFiles(this.files)"
                             />
+                            <button
+                                class="btn-icon chat-prompt-lib-btn"
+                                id="prompt-lib-btn"
+                                onclick="openPromptLibrary()"
+                                title="Prompt Library"
+                            >
+                                <svg
+                                    viewBox="0 0 16 16"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.5"
+                                >
+                                    <path
+                                        d="M2 2h8a1 1 0 011 1v10a1 1 0 01-1 1H2a1 1 0 01-1-1V3a1 1 0 011-1z"
+                                    />
+                                    <path d="M5 2v12M8 5h2M8 8h2" />
+                                </svg>
+                                <div id="prompt-lib-dropdown"></div>
+                            </button>
                             <textarea
                                 id="chat-input"
                                 placeholder="Ask the AI model anything about this project…"

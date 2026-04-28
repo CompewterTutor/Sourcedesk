@@ -9,6 +9,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.7.0] - 2025-07-19 🗄️
+
+### Added
+- **Prompt Library** — save, organise, and reuse prompts across any chat session:
+  - **📚 book icon button** left of the chat input (between the 📎 attach button and the textarea) opens a dropdown showing library entries; favorites at the top, then the 5 most recent non-favorited entries below a divider; clicking any entry inserts it directly into the chat input
+  - **Save to library button** — a 📚 button appears on hover next to any user message bubble; clicking it opens a modal to give the prompt a title, preview the content, and optionally mark it as a ★ favorite
+  - **Manage Library modal** — accessible from the "Manage library" footer link in the dropdown; shows all entries sorted favorites-first then newest; each row has inline ★/☆ favorite toggle, ✎ inline edit (title + content), and ✕ delete with confirmation
+  - `openPromptLibrary()` / `closePromptLibrary()` — toggle the dropdown; closes on outside click
+  - `renderPromptLibraryDropdown()` — renders favorites section + up to 5 recent entries; wires click handlers via `addEventListener`
+  - `insertPrompt(content)` — sets `#chat-input` value and fires `input` event so the textarea auto-resizes
+  - `openSavePromptModal(content)` — modal with title input, content preview, and favorite checkbox; content stashed in a data attribute to avoid escaping issues
+  - `openManagePromptLibrary()` — full manager modal with inline edit/delete/favorite per entry
+  - `savePromptEntry(entry)` / `deletePromptEntry(id)` / `togglePromptFavorite(id)` — DB wrappers
+  - `src/promptLibrary.js` — new source file; all prompt library logic
+
+### Changed
+- `DB_VERSION` bumped `4` → `5`; `onupgradeneeded` adds the `promptLibrary` object store (keyPath `id`, no indexes)
+- `promptLibrary` store shape: `{ id, title, content, favorite, createdAt, updatedAt }`
+- `appendMessageEl()` in `src/messages.js` — user message bubbles now include a hover-revealed 📚 save-to-library button; click handler attached via `addEventListener` to avoid content-escaping issues
+- `build.js` — `src/promptLibrary.js` added to `SRC_FILES` (between `src/attachments.js` and `src/ui.js`); `openPromptLibrary`, `closePromptLibrary`, `renderPromptLibraryDropdown`, `insertPrompt`, `openSavePromptModal`, `openManagePromptLibrary`, `savePromptEntry`, `deletePromptEntry`, `togglePromptFavorite` added to `mangle.reserved`
+
+### Build
+- Total bundle size: 201.9 KB (+13.7 KB over v0.6.0)  |  JS 81.3 KB
+
+---
+
 ## [0.6.0] - 2025-07-19
 
 ### Added

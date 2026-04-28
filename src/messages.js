@@ -46,12 +46,21 @@ function appendMessageEl(role, content, sources, chunks) {
             "</div>" +
             "</div>";
     }
+    const savePromptBtn =
+        role === "user"
+            ? `<button class="msg-save-prompt-btn" data-prompt-content title="Save to prompt library">📚</button>`
+            : "";
     div.innerHTML = `
     <div class="msg-avatar">${avatarLabel}</div>
     <div>
       <div class="msg-bubble">${formatMarkdown(content)}</div>
       ${sourcesHtml}
-    </div>`;
+    </div>${savePromptBtn}`;
+    if (role === "user") {
+        const btn = div.querySelector(".msg-save-prompt-btn");
+        if (btn)
+            btn.addEventListener("click", () => openSavePromptModal(content));
+    }
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
     return div;

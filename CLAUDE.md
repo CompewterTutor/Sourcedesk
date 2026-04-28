@@ -50,6 +50,9 @@ Sourcedesk/
 │   ├── attachments.js      ← Temporary file attachments, context usage meter,
 │   │                          streaming indicator (showStreamingIndicator / hide),
 │   │                          _runtimeContextLimits, setModelContextLimit(), getContextLimit()
+│   ├── promptLibrary.js    ← Prompt Library CRUD + UI; openPromptLibrary(), insertPrompt(),
+│   │                          openSavePromptModal(), openManagePromptLibrary(),
+│   │                          savePromptEntry(), deletePromptEntry(), togglePromptFavorite()
 │   └── ui.js               ← Modal helpers, pill helpers, input resize, keyboard shortcuts
 ├── tests/
 │   └── test.html           ← Self-contained browser test runner (no server needed, file:// works)
@@ -99,7 +102,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 
 ## Architecture
 
-### IndexedDB Stores (current schema: `DB_VERSION = 4`)
+### IndexedDB Stores (current schema: `DB_VERSION = 5`)
 
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
@@ -110,6 +113,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 | `settings` | `key` | — | `{key, value}` — keys: `provider`, `model`, `globalContext`, `constants`, `localLlmUrl`, `driveToken`, `apiKey_anthropic`, `apiKey_openai`, `apiKey_openrouter`, `apiKey_github` (legacy: `apiKey` migrated → `apiKey_anthropic` on first boot) |
 | `notes` | `id` | `projectId` | `{id, projectId, title, content, pinned, includeInContext, createdAt, updatedAt}` |
 | `supplierQuestions` | `id` | `projectId` | `{id, projectId, text, draftAnswer, createdAt, updatedAt}` |
+| `promptLibrary` | `id` | — | `{id, title, content, favorite, createdAt, updatedAt}` |
 
 ### DB Helper Pattern
 All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)`, `dbDelete(store, key)`, `dbGetAll(store)`, `dbGetByIndex(store, index, val)`. All return Promises. Always await them.
@@ -363,14 +367,14 @@ When adding a new object store or index:
 
 ## Current State (as of last commit)
 
-**Current version: v0.6.0** — build output: `SourceDesk.html` (188.2 KB, 71.9 KB JS)
+**Current version: v0.7.0** — build output: `SourceDesk.html` (201.9 KB, 81.3 KB JS)
 
 ### Committed & working ✅
 
 #### Core infrastructure
-- Build pipeline: 18 `src/*.js` files + `src/index.html` → `npm run build` → single `SourceDesk.html`
+- Build pipeline: 19 `src/*.js` files + `src/index.html` → `npm run build` → single `SourceDesk.html`
 - `DEBUG`, `TEST`, `APP_VERSION` flags in `src/flags.js`; `log()` helper; `DOMContentLoaded` boot gated on `!TEST`
-- IndexedDB schema at `DB_VERSION = 4`; five CRUD helpers (`dbGet`, `dbPut`, `dbDelete`, `dbGetAll`, `dbGetByIndex`)
+- IndexedDB schema at `DB_VERSION = 5`; five CRUD helpers (`dbGet`, `dbPut`, `dbDelete`, `dbGetAll`, `dbGetByIndex`)
 - `uid()` for all record IDs; defensive field access everywhere (old records missing new fields just return `undefined`)
 
 #### Projects & Documents
@@ -453,6 +457,14 @@ When adding a new object store or index:
 - Backup to Drive includes the `notes` store (unlike local `exportDatabase()` — actually both include it now)
 - Token persisted in `settings` store under key `driveToken`; `state.settings.driveToken` loaded at boot
 
+#### Prompt Library (🗄️ DB_VERSION 5)
+- `promptLibrary` store: `{ id, title, content, favorite, createdAt, updatedAt }` — not tied to any project; global across all sessions
+- **📚 book icon button** left of the chat input opens a dropdown: favorites section at top (all starred entries), then up to 5 most recent non-favorited entries below a divider; clicking any entry calls `insertPrompt(content)` which sets `#chat-input` and fires `input` to trigger auto-resize
+- **Save from message** — hover any user message bubble to reveal a 📚 button; `openSavePromptModal(content)` opens a modal with title input, content preview, and ★ favorite checkbox; content stashed in `overlay.dataset.plibContent` to avoid escaping issues
+- **Manage Library modal** — `openManagePromptLibrary()` shows all entries sorted favorites-first then newest; each row has inline ★/☆ toggle (`_plibToggleFavAndRefresh`), ✎ inline edit (`_plibStartEdit` / `_plibSaveEdit` / `_plibCancelEdit`), ✕ delete with confirm (`_plibDeleteAndRefresh`)
+- Dropdown closes on outside click via a `document` click listener registered after a `setTimeout(0)` to avoid the opening click triggering it
+- All click handlers on dropdown entries use `addEventListener` (not `onclick` attributes) to avoid content-escaping issues
+
 #### UI / UX
 - Dark theme; CSS custom properties for all colours; font stack: Syne 700 / Inter / JetBrains Mono
 - Keyboard shortcuts: Ctrl+Enter (send), Escape (close modal), Ctrl+N (new note), Ctrl+Shift+F (focus notes filter), Ctrl+S (save note / working doc)
@@ -471,7 +483,7 @@ When adding a new object store or index:
 
 ## Next Steps (Ordered for Next Session)
 
-1. **`npm run build`** → verify 188 KB output, open `SourceDesk.html`, open `tests/test.html` → all 92 green
+1. **`npm run build`** → verify 201.9 KB output, open `SourceDesk.html`, open `tests/test.html` → all 92 green
 2. **Chat session titles** *(small)* — auto-generate a short title from the first user message (first 8 words or LLM-generated via a cheap model); store as `title` on the chat record; display in `#chat-session-list` instead of the raw content preview
 3. **Message editing / regeneration** *(medium)* — add an edit button on user message bubbles; re-run from that point, discarding later messages
 4. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place

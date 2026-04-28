@@ -4,7 +4,7 @@ An in-browser RAG and project management tool that talks to AI providers directl
 
 An in-browser RAG and project management tool that talks to AI providers directly from the browser. Runs completely client-side as a single HTML file — open it, it works. No server, no install, no account.
 
-**Current version:** v0.6.0 — Multi-session chat, temp file attachments, streaming indicator, context usage meter
+**Current version:** v0.7.0 — Prompt Library, multi-session chat, temp file attachments, streaming indicator, context usage meter
 
 ---
 
@@ -84,6 +84,14 @@ Per-project Q&A manager for RFP/procurement workflows (sidebar → Supplier Q �
 
 ### Multi-Session Chat
 Each project supports multiple saved chat sessions. Use the **+** button in the sidebar "Chats" section to start a fresh session — prior sessions are preserved and listed with a timestamp and message preview. Click any session to reload it.
+
+### Prompt Library
+Save and reuse prompts across any chat session. Click the 📚 book icon button left of the chat input to open the library dropdown:
+- **Favorites** appear at the top (★ toggle per entry); the 5 most recent non-favorited entries appear below a divider
+- **Click any entry** to insert it directly into the chat input
+- **Save from a message** — hover any user message bubble and click the 📚 button to open a save modal; give the prompt a title and optionally mark it as a favorite
+- **Manage library** — the dropdown footer opens a full manager modal where you can inline-edit titles and content, toggle favorites, and delete entries
+- Stored in IndexedDB; persists across sessions; not tied to any specific project
 
 ### Temporary File Attachments
 Click the 📎 button left of the chat input to attach files to the current message only — they are **not** saved to the project document store.
@@ -197,6 +205,7 @@ Example `.env` values:
 - [x] **Temporary file attachments** — attach files to a single message; text injected into context, images sent via vision API
 - [x] **Streaming indicator** — animated pulse while AI is writing
 - [x] **Context usage meter** — live token estimate with colour-coded fill bar
+- [x] **Prompt Library** — save prompts from any user message (📚 hover button); insert from a dropdown left of the chat input; favorites pinned at top; manage all entries with inline edit, delete, and favorite toggle
 - [ ] **Chat session titles** — auto-generate a short title from the first message for easier navigation
 - [ ] **Session search** — find past sessions by keyword across all projects
 - [ ] **Message editing / regeneration** — edit a sent message and re-run from that point
