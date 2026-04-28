@@ -20,18 +20,48 @@
 ```
 Sourcedesk/
 ├── src/
-│   ├── index.html      ← HTML + CSS template; JS replaced by <!-- BUILD:JS --> at build time
-│   └── main.js         ← All application JavaScript (source of truth)
+│   ├── index.html          ← HTML + CSS template; JS injected at build time via <!-- BUILD:JS -->
+│   ├── flags.js            ← DEBUG, TEST, APP_VERSION, PROVIDERS constant, log()
+│   ├── db.js               ← IndexedDB open/CRUD helpers; DB_VERSION
+│   ├── state.js            ← Global `state` object; getCurrentProviderKey / setProviderKey
+│   ├── boot.js             ← boot(), showView(), renderSidebar(), loadProject()
+│   ├── messages.js         ← renderMessages(), appendMessageEl(), formatMarkdown()
+│   ├── retrieval.js        ← BM25 tokenize/index/score, chunkText(), retrieveContext()
+│   ├── api.js              ← buildApiCall(), parseStreamDelta()
+│   ├── chat.js             ← sendMessage(), saveChat(), newChat(),
+│   │                          renderChatSessionList(), loadChatSession()
+│   ├── panel.js            ← renderRightPanel(), toggleDoc(), toggleOtherProject(),
+│   │                          handleDocUpload(), deleteDoc(), toggleRightPanel()
+│   ├── templates.js        ← Template CRUD, renderTemplatesGrid(), duplicateTemplate(),
+│   │                          createTemplateFromDoc(), openExtractVars(), extractVarsFromText()
+│   ├── projects.js         ← openNewProject(), saveProject(), openEditProject(), deleteProject()
+│   ├── fill.js             ← openFillTemplate(), applyFill(), viewTemplateContent(),
+│   │                          resolveTemplateVars(), parseConstants(), previewTemplateVars()
+│   ├── settings.js         ← openSettings(), saveSettings(), fetchLocalModels(),
+│   │                          updateProviderUI(), onProviderChange(), clearChatHistory(),
+│   │                          openWorkingDoc(), saveWorkingDoc(), exportDatabase(),
+│   │                          importDatabase(), clearAllData(), topbarModelChange(),
+│   │                          refreshTopbarModels(), syncTopbarModelSelect()
+│   ├── drive.js            ← Google Drive connector (openDriveModal, verifyDriveToken,
+│   │                          listDriveFiles, importFromDrive, backupToDrive, disconnectDrive)
+│   ├── notes.js            ← Notes view CRUD, renderNotesList(), filterNotes(),
+│   │                          searchNotes(), searchAllNotes(), toggleNotePin()
+│   ├── supplierQuestions.js← Supplier Questions view; all SQ CRUD + AI generation + export
+│   ├── attachments.js      ← Temporary file attachments, context usage meter,
+│   │                          streaming indicator (showStreamingIndicator / hide),
+│   │                          _runtimeContextLimits, setModelContextLimit(), getContextLimit()
+│   └── ui.js               ← Modal helpers, pill helpers, input resize, keyboard shortcuts
 ├── tests/
-│   └── test.html       ← Self-contained browser test runner (no server needed, file:// works)
-├── build.js            ← Node build script (terser minification + injection)
-├── package.json        ← npm project; devDep: terser ^5.37.0
+│   └── test.html           ← Self-contained browser test runner (no server needed, file:// works)
+├── build.js                ← Node build script; SRC_FILES order; terser mangle.reserved list
+├── server.js               ← Optional local server for env injection / local LLM defaults
+├── package.json            ← npm project; devDep: terser ^5.37.0
 ├── package-lock.json
-├── SourceDesk.html     ← Compiled output (committed; this is what users open)
-├── CHANGELOG.md        ← Versioned changelog; 🗄️ marks DB schema changes
-├── README.md           ← User-facing docs; roadmap as checkboxes
-├── CLAUDE.md           ← This file
-└── .gitignore          ← node_modules/, etc. (already comprehensive)
+├── SourceDesk.html         ← Compiled output (committed; this is what users open)
+├── CHANGELOG.md            ← Versioned changelog; 🗄️ marks DB schema changes
+├── README.md               ← User-facing docs; roadmap as checkboxes
+├── CLAUDE.md               ← This file
+└── .gitignore              ← node_modules/, etc.
 ```
 
 **Never edit `SourceDesk.html` directly.** Edit `src/` files and rebuild.
@@ -44,9 +74,10 @@ Sourcedesk/
 
 ```sh
 npm install          # first time only
-npm run build        # production: minified, ~49 KB total
-npm run dev          # dev: unminified, ~10 ms, good for devtools debugging
+npm run build        # production: minified, ~188 KB total
+npm run dev          # dev: unminified, fast, good for devtools debugging
 npm run watch        # watch src/ and rebuild on save (dev mode)
+npm run serve        # optional local server for env injection / local LLM defaults
 ```
 
 ### Run the app
@@ -56,7 +87,7 @@ Open `SourceDesk.html` in a browser. No server needed.
 Open `tests/test.html` in a browser. No server needed. Results render immediately.
 
 ### Typical feature loop
-1. Edit `src/main.js` and/or `src/index.html`
+1. Edit the relevant `src/*.js` file(s) and/or `src/index.html`
 2. `npm run dev` to get a fast unminified build
 3. Open/refresh `SourceDesk.html` to test manually
 4. Open/refresh `tests/test.html` to run unit tests
@@ -68,16 +99,16 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 
 ## Architecture
 
-### IndexedDB Stores (current schema: `DB_VERSION = 3`)
+### IndexedDB Stores (current schema: `DB_VERSION = 4`)
 
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
 | `templates` | `id` | — | `{id, name, category, type, content, updatedAt}` |
 | `projects` | `id` | — | `{id, name, category, templateId, notes, instructions, workingContent, createdAt}` |
 | `docs` | `id` | `projectId` | `{id, projectId, name, content, uploadedAt}` |
-| `chats` | `id` | `projectId` | `{id, projectId, messages: [{role, content, sources}]}` |
-| `settings` | `key` | — | `{key, value}` — keys: `provider`, `model`, `globalContext`, `constants`, `apiKey_anthropic`, `apiKey_openai`, `apiKey_openrouter`, `apiKey_github` (legacy: `apiKey` migrated → `apiKey_anthropic` on first boot) |
-| `notes` | `id` | `projectId` | `{id, projectId, title, content, createdAt, updatedAt}` |
+| `chats` | `id` | `projectId`, `sessionId` | `{id, projectId, sessionId, messages: [{role, content, sources, chunks}], createdAt, updatedAt}` |
+| `settings` | `key` | — | `{key, value}` — keys: `provider`, `model`, `globalContext`, `constants`, `localLlmUrl`, `driveToken`, `apiKey_anthropic`, `apiKey_openai`, `apiKey_openrouter`, `apiKey_github` (legacy: `apiKey` migrated → `apiKey_anthropic` on first boot) |
+| `notes` | `id` | `projectId` | `{id, projectId, title, content, pinned, includeInContext, createdAt, updatedAt}` |
 | `supplierQuestions` | `id` | `projectId` | `{id, projectId, text, draftAnswer, createdAt, updatedAt}` |
 
 ### DB Helper Pattern
@@ -89,19 +120,22 @@ let state = {
   projects: [],           // all projects (loaded at boot)
   templates: [],          // all templates (loaded at boot)
   settings: {
-    provider: 'anthropic',       // 'anthropic' | 'openai' | 'openrouter' | 'github'
+    provider: 'anthropic',  // 'anthropic' | 'openai' | 'openrouter' | 'github' | 'local'
     model: 'claude-sonnet-4-6',
     globalContext: '',
     anthropicKey: '',
     openaiKey: '',
     openrouterKey: '',
     githubKey: '',
-    constants: '',         // "KEY=value" lines; parsed by parseConstants(); used in resolveTemplateVars()
+    constants: '',          // "KEY=value" lines; parsed by parseConstants(); used in resolveTemplateVars()
+    driveToken: '',         // Google Drive OAuth access token (short-lived, ~1 hour)
+    localLlmUrl: '',        // base URL for local OpenAI-compat server, e.g. http://localhost:11434/v1
   },
-  activeProject: null,    // full project object; may have .instructions field
+  activeProject: null,    // full project object; may have .instructions, .workingContent fields
   activeDocs: new Set(),  // doc IDs toggled ON in context
   activeOtherProjects: new Set(), // other project IDs whose docs are pulled in
-  messages: [],           // current project's chat history
+  messages: [],           // current chat session's messages
+  activeChatId: null,     // id of the currently loaded chats record; null = unsaved new session
   streaming: false,       // true while SSE stream is open
   rightPanelOpen: true,
   editingTemplateId: null,
@@ -115,15 +149,18 @@ let state = {
 No virtual DOM, no framework — direct DOM manipulation. Key render functions:
 - `renderSidebar()` — projects list in sidebar
 - `renderMessages()` — full chat replay from `state.messages`
-- `appendMessageEl(role, content, sources)` — appends a single message bubble
+- `appendMessageEl(role, content, sources, chunks)` — appends a single message bubble
 - `renderRightPanel()` — template ref, project docs, other-project checkboxes
 - `renderTemplatesGrid()` — templates library view
+- `renderChatSessionList()` — sidebar "Chats" section; all saved sessions for active project
+- `renderNotesList()` — notes list panel in Notes view
+- `renderSQList()` — supplier questions list panel
 
 ### Modal System
 One overlay div (`#modal-overlay`), multiple modal divs inside it. `showModal(id)` hides all modals then shows the target one. `closeModal()` hides the overlay. `closeModalOnOverlay(e)` checks `e.target` before closing.
 
 ### View System
-`showView(v)` toggles between `'chat'`, `'templates'` (and future views). Sets `display:flex` or `display:none` on the respective view divs.
+`showView(v)` toggles between `'chat'`, `'templates'`, `'notes'`, `'working-doc'`, `'sq'`. Sets `display:flex` or `display:none` on the respective view divs. Auto-saves the current note when leaving the notes view.
 
 ### Retrieval Pipeline (BM25)
 `retrieveContext(query, topK=4)`:
@@ -133,15 +170,28 @@ One overlay div (`#modal-overlay`), multiple modal divs inside it. `showModal(id
 4. `buildIndex(chunks)` → IDF table + per-chunk TF + avgLen
 5. `bm25Score(query, idx, i)` for each chunk
 6. Sort descending, take top-K with score > 0
-7. Return `{ context: string, sources: string[] }`
-8. `context` is injected into system prompt; `sources` are shown below the reply bubble
+7. Return `{ context: string, sources: string[], chunks: {source, snippet}[] }`
+8. `context` is injected into system prompt; `sources` + `chunks` are shown as a collapsible "▸ N sources referenced" row below the reply bubble
 
 ### Multi-Provider Architecture
 
-`PROVIDERS` constant (top of `src/main.js`) defines config for each provider:
+`PROVIDERS` constant (in `src/flags.js`) defines config for each provider:
 ```js
 PROVIDERS[provider] = { label, keyLabel, keyPlaceholder, keyHint, models[], defaultModel }
 ```
+Providers: `anthropic`, `openai`, `openrouter`, `github`, `local`.
+
+For the `local` provider, `models[]` starts as `[{ id: "", label: "— click Detect Models —" }]` and is populated at runtime by `fetchLocalModels()`, which calls `GET {localLlmUrl}/models`. Context window sizes reported by the server (`context_length` / `context_window` / `n_ctx` / `max_context_length`) are stored in `_runtimeContextLimits{}` via `setModelContextLimit()` and used by `getContextLimit()` in `attachments.js` — taking priority over the static `CONTEXT_LIMITS` map.
+
+### Temporary Attachments & Context Meter (`src/attachments.js`)
+- `_pendingAttachments[]` — `{ name, type: 'text'|'image', content }` — cleared after every send
+- Text files injected into system prompt as `## Attached Files (this message only)`
+- Images sent as vision content arrays (Anthropic `source.base64` / OpenAI-compat `image_url`)
+- `updateContextMeter()` — estimates tokens as `totalChars / 4`; tallies messages + pending attachments + current input; updates `#context-meter-bar` width and colour (accent < 60% → amber → danger)
+- `showStreamingIndicator()` / `hideStreamingIndicator()` — toggle `#streaming-indicator` pulse animation
+
+### Multi-Session Chat
+Each project stores multiple chat records in the `chats` store, each with its own `id`, `sessionId` (same as `id`), `createdAt`, and `updatedAt`. `state.activeChatId` tracks the currently loaded session. `saveChat()` creates a new record if `activeChatId` is null (first send in a new session) or updates the existing record. `loadProject()` loads the session with the highest `updatedAt`. `newChat()` clears messages and `activeChatId`. `renderChatSessionList()` renders all sessions for the active project into `#chat-session-list` in the sidebar.
 
 Two helper functions:
 - `getCurrentProviderKey()` — returns `state.settings[provider + 'Key']`
@@ -173,27 +223,29 @@ Two helper functions:
 | OpenAI | `api.openai.com/v1/chat/completions` | `Authorization: Bearer {key}` | First message `{role:'system'}` |
 | OpenRouter | `openrouter.ai/api/v1/chat/completions` | `Authorization: Bearer {key}` | First message `{role:'system'}` |
 | GitHub Models | `models.inference.ai.azure.com/chat/completions` | `Authorization: Bearer {PAT}` | First message `{role:'system'}` |
+| Local LLM | `{localLlmUrl}/chat/completions` | `Authorization: Bearer {key}` (optional) | First message `{role:'system'}` |
 
-**Model IDs** (as of 2025-07-14):
+**Model IDs** (as of 2025-07-19):
 - Anthropic: `claude-sonnet-4-6`, `claude-opus-4-6`, `claude-haiku-4-5-20251001`
 - OpenAI: `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-4o`, `gpt-4o-mini`, `o4-mini`
-- OpenRouter: `anthropic/claude-sonnet-4-5`, `openai/gpt-4o`, `google/gemini-2.5-pro-preview`, `google/gemini-2.5-flash-preview`, `meta-llama/llama-3.3-70b-instruct`, `deepseek/deepseek-r1`, `x-ai/grok-3-beta`, `mistralai/mistral-large`
+- OpenRouter: `openai/gpt-4o`, `google/gemini-2.5-pro-preview`, `google/gemini-2.5-flash-preview`, `meta-llama/llama-3.3-70b-instruct`, `deepseek/deepseek-r1`, `x-ai/grok-3-beta`, `mistralai/mistral-large`; free-tier: `google/gemma-4-26b-a4b-it:free`, `google/gemma-4-31b-it:free`, `nvidia/nemotron-3-super-120b-a12b:free`, `minimax/minimax-m2.5:free`, `openai/gpt-oss-120b:free`
 - GitHub Models: `gpt-4o`, `gpt-4o-mini`, `Meta-Llama-3.3-70B-Instruct`, `Phi-4`, `DeepSeek-V3-0324`, `Mistral-Large-2411`
+- Local LLM: populated at runtime by `fetchLocalModels()` from `GET {localLlmUrl}/models`
 
 Check provider docs before adding new models — IDs change frequently.
 
-## Flags & Constants (top of `src/main.js`)
+## Flags & Constants (`src/flags.js`)
 
 ```js
 const DEBUG       = window.__SOURCEDESK_DEBUG__ || false;
 const TEST        = window.__SOURCEDESK_TEST__  || false;
-const APP_VERSION = '0.4.2';
+const APP_VERSION = '0.6.0';
 function log(...args) { if (DEBUG) console.log('[SD]', ...args); }
 ```
 
 - Set `window.__SOURCEDESK_DEBUG__ = true` in console to enable logging without a rebuild.
 - `TEST` suppresses `DOMContentLoaded` + `boot()` so the test page can load the script without touching the DOM or IndexedDB.
-- `APP_VERSION` should be bumped in `src/main.js` **and** `package.json` together.
+- `APP_VERSION` should be bumped in `src/flags.js` **and** `package.json` together.
 
 ---
 
@@ -203,7 +255,7 @@ function log(...args) { if (DEBUG) console.log('[SD]', ...args); }
 `build.js` reads `src/index.html`, finds the literal string `  <!-- BUILD:JS -->`, and replaces it with `<script>\n{js}\n</script>`. If the placeholder is missing, the build throws.
 
 ### Terser reserved names — CRITICAL
-Terser mangle will rename any function not in the `reserved` list. Every function called from an HTML `onclick="..."` attribute **must** be in `build.js`'s `mangle.reserved` array. Current list:
+Terser mangle will rename any function not in the `reserved` list. Every function called from an HTML `onclick="..."` attribute **must** be in `build.js`'s `mangle.reserved` array. Current list (as of v0.6.0):
 
 ```
 showView, openNewProject, saveProject, openNewTemplate, openEditTemplate,
@@ -216,7 +268,20 @@ exportProject, openNewNote, selectNote, saveCurrentNote, deleteCurrentNote,
 loadNotes, renderNotesList, validateImportShape, filterNotes, toggleNoteInContext,
 openEditProject, deleteProject, duplicateTemplate, openWorkingDoc, saveWorkingDoc,
 clearChatHistory, previewTemplateVars, openExtractVars, saveExtractedVars,
-createTemplateFromDoc
+createTemplateFromDoc, openDriveModal, verifyDriveToken, listDriveFiles,
+backupToDrive, disconnectDrive, fetchLocalModels, togglePreviewPanel,
+searchNotes, searchAllNotes, toggleNotePin,
+loadSupplierQuestions, renderSQList, selectQuestion, openAddQuestionsModal,
+saveAddedQuestions, generateAnswerForQuestion, generateSelectedAnswers,
+saveCurrentSQAnswer, deleteQuestion, copyQuestionToClipboard,
+copyAnswerToClipboard, exportSelectedQuestions, exportAllQuestions,
+filterSQList, toggleAllSQCheckboxes, scheduleSQAutoSave,
+topbarModelChange, refreshTopbarModels, syncTopbarModelSelect,
+newChat, renderChatSessionList, loadChatSession,
+openAttachMenu, handleAttachFiles, removeAttachment, clearPendingAttachments,
+renderAttachBar, getPendingAttachments, updateContextMeter,
+showStreamingIndicator, hideStreamingIndicator,
+setModelContextLimit, getContextLimit
 ```
 
 **When you add a new function called from HTML, add it to this list or the minified build will silently break.**
@@ -226,15 +291,16 @@ createTemplateFromDoc
 ## Testing
 
 ### How it works
-`tests/test.html` sets `window.__SOURCEDESK_TEST__ = true` in an inline script, then loads `../src/main.js` via `<script src>`. Because `TEST` is true, `main.js` skips the DOM boot. All pure functions are then available globally and the test suite runs against them.
+`tests/test.html` sets `window.__SOURCEDESK_TEST__ = true` in an inline script, then loads all `src/*.js` source files (in the same order as `build.js` `SRC_FILES`) via `<script src>` tags. Because `TEST` is true, `ui.js` skips the `DOMContentLoaded` handler and `boot()` never runs. All pure functions are available globally and the test suite runs against them.
 
-### Current test coverage (79 tests, 16 suites)
-`tokenize`, `chunkText`, `buildIndex`, `bm25Score`, `formatMarkdown`, `uid`, `validateImportShape`, `parseStreamDelta` (all 4 providers), `buildApiCall` (all 4 providers), `PROVIDERS` config integrity, `parseConstants`, `resolveTemplateVars`, `resolveTemplateVars — date arithmetic`, `extractDatesFromText`.
+### Current test coverage (92 tests, 17 suites)
+`tokenize`, `chunkText`, `buildIndex`, `bm25Score`, `formatMarkdown`, `uid`, `validateImportShape`, `parseStreamDelta` (all 5 providers including local), `buildApiCall` (all 5 providers), `PROVIDERS` config integrity, `parseConstants`, `resolveTemplateVars`, `resolveTemplateVars — date arithmetic`, `extractDatesFromText`, `extractVarsFromText`.
 
 ### Adding a test
 1. Add a `describe`/`it` block in `tests/test.html` inside the existing test script block.
-2. If testing a new pure function, it just needs to be exported from `src/main.js` as a regular function declaration (all `function` declarations are global in browser JS).
+2. The function under test must be a `function` declaration (not `const fn = () => {}`) in one of the `src/*.js` files — all declarations are global in browser JS.
 3. If testing something that needs IndexedDB, mock it — don't use the real one.
+4. If the function lives in a source file not yet loaded by `tests/test.html`, add a matching `<script src="../src/filename.js">` tag to the test page in the correct load order.
 
 ---
 
@@ -297,66 +363,118 @@ When adding a new object store or index:
 
 ## Current State (as of last commit)
 
-### Committed & working ✅
-- Full original app (v0.1.0): projects, templates, BM25 retrieval, doc upload, context panel
-- Build pipeline: `src/*.js` + `src/index.html` → `npm run build` → `SourceDesk.html`
-- `DEBUG`, `TEST`, `APP_VERSION` flags; `log()` helper; `DOMContentLoaded` gated on `!TEST`
-- **Multi-provider support**: Anthropic, OpenAI, OpenRouter, GitHub Models
-  - `PROVIDERS` config constant, `buildApiCall()`, `parseStreamDelta()`
-  - Per-provider key storage in DB; legacy `apiKey` → `apiKey_anthropic` migration
-  - `onProviderChange()` in settings modal with live UI switching
-  - **Bug fix (v0.4.6)**: `onProviderChange()` now reads `state.settings.provider` (the previous provider) instead of `getActivePill()` to determine where to save the typed key — `selectPill()` runs before `onProviderChange()` in the onclick handler, so the pill was already pointing at the new provider, causing keys to be saved in the wrong slot
-- **Version string** `v0.5.0` displayed in topbar at boot
-- **Global Instructions** label (renamed from "Sourcing Context")
-- **Per-project Instructions** field in project creation modal; injected into system prompt; textarea cleared on modal open
-- **Database Export** — `exportDatabase()` downloads all stores as timestamped JSON backup
-- **Database Import** — `importDatabase(file)` validates, clears, and reimports; Export DB / Import DB buttons in Settings modal
-- **`validateImportShape()`** — pure backup-validation helper
-- **Project/Chat Export** — `exportProject()` downloads active project + messages + doc metadata; "Export" topbar button visible when project is loaded
-- **Notes** (🗄️ DB_VERSION 2) — `notes` store with `projectId` index; two-panel Notes view (list + editor); full CRUD (`openNewNote`, `selectNote`, `saveCurrentNote`, `deleteCurrentNote`, `loadNotes`, `renderNotesList`); "Notes →" sidebar button; `state.currentNote` reset on project switch
-- **Notes autosave** — switching notes or navigating away from Notes view auto-saves silently (skips DB write if content unchanged)
-- **Notes "Include in chat context"** — per-note checkbox; when on, note title+body injected into system prompt as `## Active Note`; `includeInContext` flag persisted on note
-- **Notes search/filter** — `filterNotes(query)` hides non-matching items in real time; filter re-applied after list re-renders
-- **Edit Project** — ✏ button on each sidebar item opens modal pre-filled; `openEditProject(id)` sets `state.editingProjectId`; `saveProject()` handles create vs. update
-- **Delete Project** — ✕ button on each sidebar item; `deleteProject(id)` cascades to all docs, chats, and notes for that project; resets to welcome screen if active
-- **Ctrl+S / Cmd+S** in Notes editor and title input triggers `saveCurrentNote()`
-- **Template Variables** — `resolveTemplateVars(content)` auto-substitutes `{{PROJECT_NAME}}`, `{{PROJECT_CATEGORY}}`, `{{PROJECT_NOTES}}`, `{{PROJECT_INSTRUCTIONS}}`, `{{TODAY}}`, `{{TIMESTAMP}}` before any manual fill step
-- **Template Constants** — `Template Constants` textarea in Settings (`KEY=value` one per line, stored as `constants` key in `settings` store); available as `{{KEY}}` in any template; built-in project vars take priority over user constants
-- **`parseConstants(text)`** — pure helper; keys normalised to UPPER_CASE
-- **Auto-resolve in Fill modal** — `openFillTemplate()` resolves vars first; `#fill-auto-resolved` info bar lists what was auto-filled; only unresolved `{{PLACEHOLDER}}` fields shown for manual entry; if all resolved, inserts directly into chat without showing modal
-- **`viewTemplateContent()` resolves vars** — auto-resolves before inserting into chat input
-- **Create Template from Document** — `createTemplateFromDoc(docId)` opens template modal pre-filled with doc content; `→Tmpl` button on each right-panel doc entry
-- **Date arithmetic in templates** — `resolveTemplateVars()` handles `{{TODAY+N}}`, `{{TODAY-N}}`, `{{TODAY+Nw}}` (weeks), `{{TODAY+Nm}}` (months); unit suffix case-insensitive; defaults to days
-- **Extract Variables from Document** — `openExtractVars(docId)` scans a doc for dates, monetary amounts (`$N,NNN`), percentages, and `LABEL: value` key-value pairs; deduplicates, shows modal with type badges + checkboxes + editable constant names; `saveExtractedVars()` appends to `state.settings.constants` and persists; **Extract** button on each right-panel doc entry
-- **`extractVarsFromText(text)`** — pure function; returns `{ value, type, suggestedKey }[]` sorted by type: date → money → percent → kv; `extractDatesFromText` kept as backward-compat alias returning `string[]`
-- **Cross-project Notes Search** — `searchNotes(query)` routes to either `filterNotes()` (current project) or `searchAllNotes()` (global) based on the `#notes-global-toggle` checkbox; `searchAllNotes(query)` fetches all notes via `dbGetAll("notes")`, filters by title+content, renders results with project name badge and date; clicking a cross-project result calls `loadProject()` then `selectNote()`; `#notes-scope-label` shows match count; `loadNotes()` resets the toggle on project switch
-- **Template Variable Preview** — `previewTemplateVars()` resolves vars against active project and shows result in an inline `#tmpl-preview-panel` below the content textarea (no separate modal); `togglePreviewPanel()` hides it; panel is reset on modal open
-- **OpenRouter free-tier models** — 5 new `:free` suffix models added (Gemma 4 26B/31B, Nemotron 120B, Minimax M2.5, GPT-OSS 120B)
-- **Text contrast fix** — `--text-dim` raised to `#a8a49c`, `--text-muted` raised to `#72706a` (old muted was ~2.2:1 contrast on dark bg)
-- Test harness: 92 tests across 17 suites
-- `CHANGELOG.md`, `README.md`, `CLAUDE.md`
-- **Google Drive Connector** — `modal-drive` accessible via "Drive" topbar button; token-based auth (OAuth Playground workflow); `verifyDriveToken()` validates token via `tokeninfo` endpoint and shows connection status (email + expiry); `listDriveFiles()` lists text/plain, text/markdown, text/csv, application/json, and Google Docs files (filtered, sorted by `modifiedTime desc`); `renderDriveFileList(files)` builds DOM programmatically (no innerHTML injection, safe for arbitrary filenames); `importFromDrive(fileId, name, mimeType)` fetches file content or exports Google Docs as plain text and saves as a project doc; `backupToDrive()` uploads a full JSON backup (includes `notes` store, unlike local `exportDatabase()`); `disconnectDrive()` clears token from state + DB; token persisted to `settings` store under key `driveToken`; `state.settings.driveToken` initialized at boot; drive functions added to `build.js` mangle reserved list: `openDriveModal`, `verifyDriveToken`, `listDriveFiles`, `backupToDrive`, `disconnectDrive`; CSS classes: `.drive-file-item`, `.drive-file-info`, `.drive-file-name`, `.drive-file-meta`
-  - **Auth note**: Google OAuth does not allow `file://` as a JavaScript origin. Users must obtain a token manually via [Google OAuth Playground](https://developers.google.com/oauthplayground/?scope=https://www.googleapis.com/auth/drive) — select "Drive API v3", authorize, copy Access Token, paste into the Drive modal. Tokens expire in ~1 hour.
-- **Supplier Questions** (🗄️ DB_VERSION 3) — `supplierQuestions` store with `projectId` index; full-screen two-panel view (sidebar → "Supplier Q →"); `state.currentQuestion` tracks the open question; cascade-deleted with project
-  - **Add Questions modal** — smart paste parsing: blank-line split → numbered-list detection → single question fallback
-  - **Question list** — checkboxes for batch ops; ✅/○ icon for answer status; real-time filter (`filterSQList`); Select All toggle (`toggleAllSQCheckboxes`); hover-reveal delete button
-  - **Detail panel** — full question text; draft answer textarea; 📋 Copy Q / Copy A clipboard buttons; 1.5 s debounced autosave (`scheduleSQAutoSave`); manual Save Answer button
-  - **AI answer generation** — `generateAnswerForQuestion(id)` streams an LLM answer using `buildApiCall` + `retrieveContext`; live streaming preview; saves to DB on complete; re-renders list icon
-  - **Batch generation** — `generateSelectedAnswers()` iterates checked questions sequentially
-  - **Export** — `exportSelectedQuestions()` / `exportAllQuestions()` download a Markdown `.md` file (`## Question N` / `### Answer` / `---` format)
-  - **Notes access** — "Notes →" button in view header
-  - New functions in `build.js` reserved list: `loadSupplierQuestions`, `renderSQList`, `selectQuestion`, `openAddQuestionsModal`, `saveAddedQuestions`, `generateAnswerForQuestion`, `generateSelectedAnswers`, `saveCurrentSQAnswer`, `deleteQuestion`, `copyQuestionToClipboard`, `copyAnswerToClipboard`, `exportSelectedQuestions`, `exportAllQuestions`, `filterSQList`, `toggleAllSQCheckboxes`, `scheduleSQAutoSave`
+**Current version: v0.6.0** — build output: `SourceDesk.html` (188.2 KB, 71.9 KB JS)
 
-### Still outstanding (do next session)
-- ❌ No "recent notes" quick-access view (cross-project search covers the main use case)
-- ❌ Google Drive connector requires manual token paste (OAuth Playground workaround) — proper OAuth popup flow not possible from `file://` origin without user hosting the file on a server
+### Committed & working ✅
+
+#### Core infrastructure
+- Build pipeline: 18 `src/*.js` files + `src/index.html` → `npm run build` → single `SourceDesk.html`
+- `DEBUG`, `TEST`, `APP_VERSION` flags in `src/flags.js`; `log()` helper; `DOMContentLoaded` boot gated on `!TEST`
+- IndexedDB schema at `DB_VERSION = 4`; five CRUD helpers (`dbGet`, `dbPut`, `dbDelete`, `dbGetAll`, `dbGetByIndex`)
+- `uid()` for all record IDs; defensive field access everywhere (old records missing new fields just return `undefined`)
+
+#### Projects & Documents
+- Full project CRUD — create, edit (✏), delete (✕ with cascade to docs/chats/notes/supplierQuestions)
+- Categories: RFP, RFI, Vendor Q, Contract, Other
+- Per-project **Instructions** field injected into system prompt
+- **Working Document** — editable draft per project; opened from topbar; Ctrl+S saves
+- Document upload (`.txt`, `.md`, `.csv`, `.pdf`, `.docx`); per-doc include/exclude toggle in context panel
+- Cross-project document inclusion via checkboxes in context panel
+
+#### Chat & Sessions (🗄️ DB_VERSION 4)
+- **Multi-session chat** — each project stores multiple `chats` records; `state.activeChatId` tracks the loaded session
+- `saveChat()` creates a new record (with `createdAt`/`updatedAt`) on first send; updates `updatedAt` on subsequent sends
+- `loadProject()` loads the session with the highest `updatedAt`
+- **New Chat** `+` button in sidebar "Chats" section — `newChat()` clears messages + `activeChatId` (prompts confirm if session has messages)
+- `renderChatSessionList()` — sidebar list of all sessions for active project, sorted newest-first, with timestamp + 60-char preview
+- `loadChatSession(chatId)` — swap messages and `activeChatId`, re-render
+- `clearChatHistory()` — deletes all chat records for project, resets `activeChatId`, refreshes session list
+- **Streaming indicator** — `#streaming-indicator` animated 3-dot pulse shown while SSE stream is open; `showStreamingIndicator()` / `hideStreamingIndicator()` called from `sendMessage()`
+
+#### Temporary File Attachments (`src/attachments.js`)
+- Paperclip button left of chat input → hidden `<input type=file>` (no modal)
+- `_pendingAttachments[]` — `{ name, type: 'text'|'image', content }` — cleared after every send
+- Text files injected into system prompt as `## Attached Files (this message only — not saved to project)`
+- Images sent as vision content (Anthropic: `source.base64` / OpenAI-compat: `image_url`)
+- Chips rendered in `#chat-attachments-bar` above input row; each chip has an ✕ remove button
+
+#### Context Usage Meter (`src/attachments.js`)
+- Thin bar + `~Xk / Yk` label below chat input; updates on every keystroke and after each response
+- Estimates tokens as `totalChars / 4`; tallies all messages + pending attachment text + current input
+- Bar colour: accent (< 60%) → amber (60–85%) → danger (> 85%)
+- Static `CONTEXT_LIMITS` map in `attachments.js` for known model IDs; `_runtimeContextLimits{}` populated by `setModelContextLimit()` when `fetchLocalModels()` reads `context_length` / `context_window` / `n_ctx` / `max_context_length` from `/models` response — takes priority over static map
+- `getContextLimit(modelId)` — runtime map → static map → 100k default
+
+#### Multi-Provider LLM Support
+- Providers: `anthropic`, `openai`, `openrouter`, `github`, `local`
+- `PROVIDERS` constant in `src/flags.js`; `buildApiCall()` + `parseStreamDelta()` in `src/api.js`
+- Per-provider key storage in DB; legacy `apiKey` → `apiKey_anthropic` migration on first boot
+- `onProviderChange()` snapshots the old provider's key before switching UI (bug fixed v0.4.6)
+- **Local LLM provider** — Ollama / LM Studio / llama.cpp via OpenAI-compat API; key optional; `fetchLocalModels()` queries `GET {localLlmUrl}/models` and populates the model list + runtime context limits
+- **Local model topbar quick-selector** — compact `<select>` + ⟳ button in topbar, visible only when `provider = local`; `topbarModelChange()`, `refreshTopbarModels()`, `syncTopbarModelSelect()`
+
+#### Templates
+- Full CRUD; skeleton (`{{PLACEHOLDER}}`) and example types; Fill modal with auto-resolve
+- `resolveTemplateVars()` — auto-substitutes `{{PROJECT_NAME}}`, `{{PROJECT_CATEGORY}}`, `{{PROJECT_NOTES}}`, `{{PROJECT_INSTRUCTIONS}}`, `{{TODAY}}`, `{{TIMESTAMP}}`, `{{TODAY±N}}`, `{{TODAY±Nw}}`, `{{TODAY±Nm}}`, plus user-defined constants
+- `parseConstants(text)` — parses `KEY=value` lines; keys normalised to UPPER_CASE
+- Template Variable Preview — inline `#tmpl-preview-panel` below content textarea; `togglePreviewPanel()` hides it
+- Create Template from Document (`→Tmpl` button); Duplicate template
+- Extract Variables from Document — `extractVarsFromText(text)` finds dates, money, percentages, `LABEL: value` pairs; `saveExtractedVars()` appends to settings constants
+
+#### Notes (🗄️ DB_VERSION 2)
+- Per-project notes with title + body; full CRUD; `state.currentNote`
+- Autosave on view switch or note switch (skips DB write if content unchanged)
+- Include-in-context toggle — checked notes injected into system prompt as `## Active Note`
+- Pin/star toggle — `toggleNotePin(noteId)`; pinned notes sort to top
+- Real-time filter; cross-project search via `searchAllNotes()`; Ctrl+S to save
+- Ctrl+N (new note), Ctrl+Shift+F (focus filter) keyboard shortcuts
+
+#### Supplier Questions (🗄️ DB_VERSION 3)
+- Full-screen two-panel view (sidebar → "Supplier Q →"); `state.currentQuestion`; cascade-deleted with project
+- Smart paste parsing (blank-line → numbered-list → single question)
+- Checkboxes for batch ops; ✅/○ answer status icon; real-time filter; Select All toggle; hover-reveal delete
+- AI answer generation with BM25 retrieval context; live streaming preview; batch generate for checked questions
+- 1.5 s debounced autosave; manual Save button; 📋 Copy Q / Copy A clipboard buttons
+- Markdown export (selected or all): `## Question N` / `### Answer` / `---` format
+
+#### Retrieval (BM25)
+- `retrieveContext(query, topK=4)` — chunks all active docs + template; BM25 scores; returns `{ context, sources, chunks }`
+- Each reply bubble shows collapsible "▸ N sources referenced" with per-chunk source name and 120-char snippet
+
+#### Database & Export
+- `exportDatabase()` — all stores as timestamped JSON; `importDatabase(file)` validates + restores
+- `validateImportShape()` — pure shape-check helper
+- `exportProject()` — active project + messages + doc metadata as JSON
+- `clearAllData()` — iterates each store, deletes all records one by one (intentional; avoids multi-store transaction conflicts)
+
+#### Google Drive Connector
+- Token-based auth (OAuth Playground workaround for `file://` origin restriction)
+- `verifyDriveToken()`, `listDriveFiles()`, `importFromDrive()`, `backupToDrive()`, `disconnectDrive()`
+- Backup to Drive includes the `notes` store (unlike local `exportDatabase()` — actually both include it now)
+- Token persisted in `settings` store under key `driveToken`; `state.settings.driveToken` loaded at boot
+
+#### UI / UX
+- Dark theme; CSS custom properties for all colours; font stack: Syne 700 / Inter / JetBrains Mono
+- Keyboard shortcuts: Ctrl+Enter (send), Escape (close modal), Ctrl+N (new note), Ctrl+Shift+F (focus notes filter), Ctrl+S (save note / working doc)
+- Shortcut reference grid in Settings modal
+- Chat input placeholder: "Ask the AI model anything about this project…"
+- `#topbar-local-model` selector hidden for all non-local providers
+
+### Still outstanding
+- ❌ Google Drive connector requires manual token paste — proper OAuth popup not possible from `file://` origin
+- ❌ Chat session titles are auto-generated from first-message preview only (60 chars); no LLM-generated title
+- ❌ No message editing / regeneration
+- ❌ No cross-project session search
+- ❌ No "recent notes" quick-access (cross-project search covers the main use case)
 
 ---
 
 ## Next Steps (Ordered for Next Session)
 
-1. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
-2. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
+1. **`npm run build`** → verify 188 KB output, open `SourceDesk.html`, open `tests/test.html` → all 92 green
+2. **Chat session titles** *(small)* — auto-generate a short title from the first user message (first 8 words or LLM-generated via a cheap model); store as `title` on the chat record; display in `#chat-session-list` instead of the raw content preview
+3. **Message editing / regeneration** *(medium)* — add an edit button on user message bubbles; re-run from that point, discarding later messages
+4. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
 
 ---
 
@@ -379,7 +497,7 @@ When adding a new object store or index:
 - The section comment headers use Unicode box-drawing characters (e.g., `─`). Their exact byte sequence can vary depending on how text was copied or encoded. Don't rely on matching these characters in Python/shell string replacements — match the code content around them instead.
 
 ### Test page and file:// protocol
-- `tests/test.html` loads `../src/main.js` via a relative `<script src>`. This works from `file://` in Chrome and Firefox without a server.
+- `tests/test.html` loads each `../src/*.js` file via individual `<script src>` tags in the same order as `build.js` `SRC_FILES`. This works from `file://` in Chrome and Firefox without a server.
 - If a browser blocks it (some security settings), run a simple local server: `python3 -m http.server 8080` from the `Sourcedesk/` directory, then open `http://localhost:8080/tests/test.html`.
 
 ### IndexedDB in tests
@@ -407,13 +525,16 @@ When adding a new object store or index:
 
 ## Model Reference
 
-Models are now defined in the `PROVIDERS` constant in `src/main.js` and the `<select id="settings-model">` is populated dynamically by `updateProviderUI()`. To add a model, edit the `models[]` array for the appropriate provider in `PROVIDERS`.
+Models are defined in the `PROVIDERS` constant in `src/flags.js`. The `<select id="settings-model">` is populated dynamically by `updateProviderUI()` in `src/settings.js`. To add a model, edit the `models[]` array for the appropriate provider in `PROVIDERS`.
+
+For the `local` provider, models are populated at runtime by `fetchLocalModels()` — do not add static entries there.
 
 Always verify model IDs against provider docs before adding:
 - Anthropic: [docs.anthropic.com/en/docs/about-claude/models](https://docs.anthropic.com/en/docs/about-claude/models)
 - OpenAI: [platform.openai.com/docs/models](https://platform.openai.com/docs/models)
 - OpenRouter: [openrouter.ai/models](https://openrouter.ai/models)
 - GitHub Models: [github.com/marketplace/models](https://github.com/marketplace/models)
+- Local LLM: populated automatically from `GET {localLlmUrl}/models` — no manual entry needed
 
 ---
 
