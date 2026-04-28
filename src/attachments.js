@@ -15,11 +15,19 @@ async function handleAttachFiles(files) {
         const isImage = file.type.startsWith("image/");
         if (isImage) {
             const dataUrl = await _readAsDataURL(file);
-            _pendingAttachments.push({ name: file.name, type: "image", content: dataUrl });
+            _pendingAttachments.push({
+                name: file.name,
+                type: "image",
+                content: dataUrl,
+            });
         } else {
             // Extract text
             const text = await _readAsText(file);
-            _pendingAttachments.push({ name: file.name, type: "text", content: text });
+            _pendingAttachments.push({
+                name: file.name,
+                type: "text",
+                content: text,
+            });
         }
     }
     // Reset input so same file can be re-attached if needed
@@ -79,6 +87,23 @@ const CONTEXT_LIMITS = {
     _default: 100000,
 };
 
+// Runtime map populated by fetchLocalModels() from the /models response.
+// Keys are model IDs; values are context window sizes in tokens.
+// Takes priority over CONTEXT_LIMITS so local servers self-report correctly.
+const _runtimeContextLimits = {};
+
+function setModelContextLimit(modelId, tokens) {
+    if (modelId && tokens > 0) _runtimeContextLimits[modelId] = tokens;
+}
+
+function getContextLimit(modelId) {
+    return (
+        _runtimeContextLimits[modelId] ||
+        CONTEXT_LIMITS[modelId] ||
+        CONTEXT_LIMITS._default
+    );
+}
+
 function estimateTokens(text) {
     return Math.ceil((text || "").length / 4);
 }
@@ -91,10 +116,12 @@ function updateContextMeter() {
     // Tally messages
     let totalChars = 0;
     if (state && state.messages) {
-        state.messages.forEach(m => { totalChars += (m.content || "").length; });
+        state.messages.forEach((m) => {
+            totalChars += (m.content || "").length;
+        });
     }
     // Add pending attachment text sizes
-    _pendingAttachments.forEach(a => {
+    _pendingAttachments.forEach((a) => {
         if (a.type === "text") totalChars += a.content.length;
         else totalChars += 500; // rough estimate for image tokens
     });
@@ -106,7 +133,7 @@ function updateContextMeter() {
     const tokenCount = Math.ceil(totalChars / 4);
 
     const model = (state && state.settings && state.settings.model) || "";
-    const limit = CONTEXT_LIMITS[model] || CONTEXT_LIMITS._default;
+    const limit = getContextLimit(model);
     const pct = Math.min((tokenCount / limit) * 100, 100);
 
     bar.style.width = pct + "%";
@@ -115,7 +142,8 @@ function updateContextMeter() {
     else if (pct < 85) bar.style.background = "#e0a43a";
     else bar.style.background = "var(--danger)";
 
-    const fmtTokens = tokenCount >= 1000 ? (tokenCount / 1000).toFixed(1) + "k" : tokenCount;
+    const fmtTokens =
+        tokenCount >= 1000 ? (tokenCount / 1000).toFixed(1) + "k" : tokenCount;
     const fmtLimit = limit >= 1000 ? (limit / 1000).toFixed(0) + "k" : limit;
     label.textContent = `~${fmtTokens} / ${fmtLimit}`;
 }

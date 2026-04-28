@@ -176,6 +176,8 @@ async function build() {
                     "topbarModelChange",
                     "refreshTopbarModels",
                     "syncTopbarModelSelect",
+                    "setModelContextLimit",
+                    "getContextLimit",
                     "openAttachMenu",
                     "handleAttachFiles",
                     "removeAttachment",

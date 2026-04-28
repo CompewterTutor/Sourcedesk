@@ -30,6 +30,12 @@ async function fetchLocalModels() {
             .map((m) => ({
                 id: m.id || m.name || m.model,
                 label: m.id || m.name || m.model,
+                contextLength:
+                    m.context_length ||
+                    m.context_window ||
+                    m.n_ctx ||
+                    m.max_context_length ||
+                    0,
             }))
             .filter((m) => m.id);
 
@@ -37,6 +43,15 @@ async function fetchLocalModels() {
 
         PROVIDERS.local.models = models;
         PROVIDERS.local.defaultModel = models[0].id;
+
+        // Store any context limits the server reported so the context meter
+        // can self-calibrate without relying on the hardcoded CONTEXT_LIMITS map.
+        if (typeof setModelContextLimit === "function") {
+            models.forEach((m) => {
+                if (m.contextLength)
+                    setModelContextLimit(m.id, m.contextLength);
+            });
+        }
 
         if (sel) {
             sel.innerHTML = "";
