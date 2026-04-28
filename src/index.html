@@ -1152,6 +1152,52 @@
                 outline: none;
                 border-color: var(--accent);
             }
+            /* ── Supplier Questions ─────────────────────────────────────────────────── */
+            .sq-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 8px 10px;
+                border-bottom: 1px solid var(--border);
+                cursor: pointer;
+                transition: background 0.1s;
+            }
+            .sq-item:hover {
+                background: var(--surface2);
+            }
+            .sq-item.active {
+                background: var(--surface2);
+                border-left: 2px solid var(--accent);
+            }
+            .sq-item-icon {
+                font-size: 13px;
+                flex-shrink: 0;
+            }
+            .sq-item-text {
+                flex: 1;
+                font-size: 12px;
+                color: var(--text);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .sq-item-del {
+                font-size: 11px;
+                color: var(--text-muted);
+                background: none;
+                border: none;
+                cursor: pointer;
+                padding: 2px 4px;
+                flex-shrink: 0;
+                opacity: 0;
+                transition: opacity 0.1s;
+            }
+            .sq-item:hover .sq-item-del {
+                opacity: 1;
+            }
+            .sq-item-del:hover {
+                color: var(--danger);
+            }
         </style>
     </head>
     <body>
@@ -1322,6 +1368,19 @@
                         id="notes-nav-btn"
                         onclick="showView('notes')"
                         title="Open notes"
+                        style="font-size: 14px"
+                    >
+                        →
+                    </button>
+                </div>
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-section" style="flex-shrink: 0">
+                    Supplier Q
+                    <button
+                        class="sidebar-add"
+                        id="sq-nav-btn"
+                        onclick="showView('sq')"
+                        title="Supplier Questions"
                         style="font-size: 14px"
                     >
                         →
@@ -1538,6 +1597,307 @@
                                         onclick="deleteCurrentNote()"
                                     >
                                         Delete Note
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supplier Questions View -->
+                <div
+                    id="sq-view"
+                    style="
+                        display: none;
+                        flex-direction: column;
+                        flex: 1;
+                        overflow: hidden;
+                    "
+                >
+                    <!-- view-header -->
+                    <div class="view-header">
+                        <div class="view-title">Supplier Questions</div>
+                        <button class="btn-icon" onclick="showView('chat')">
+                            ← Back
+                        </button>
+                        <button
+                            class="btn-icon"
+                            onclick="showView('notes')"
+                            title="Notes"
+                        >
+                            Notes →
+                        </button>
+                    </div>
+                    <!-- toolbar -->
+                    <div
+                        style="
+                            display: flex;
+                            gap: 8px;
+                            padding: 8px 16px;
+                            border-bottom: 1px solid var(--border);
+                            flex-shrink: 0;
+                            flex-wrap: wrap;
+                            align-items: center;
+                        "
+                    >
+                        <button
+                            class="btn-primary"
+                            onclick="openAddQuestionsModal()"
+                        >
+                            + Add Questions
+                        </button>
+                        <button
+                            class="btn-secondary"
+                            onclick="generateSelectedAnswers()"
+                        >
+                            ⚡ Generate Selected
+                        </button>
+                        <button
+                            class="btn-secondary"
+                            onclick="exportSelectedQuestions()"
+                        >
+                            ⬇ Export Selected
+                        </button>
+                        <button
+                            class="btn-secondary"
+                            onclick="exportAllQuestions()"
+                        >
+                            ⬇ Export All
+                        </button>
+                        <input
+                            id="sq-filter"
+                            class="form-input"
+                            placeholder="Filter questions…"
+                            oninput="filterSQList(this.value)"
+                            style="width: 180px; margin-left: auto"
+                        />
+                    </div>
+                    <!-- body: two panels -->
+                    <div style="display: flex; flex: 1; overflow: hidden">
+                        <!-- List panel -->
+                        <div
+                            id="sq-list-panel"
+                            style="
+                                width: 320px;
+                                min-width: 220px;
+                                border-right: 1px solid var(--border);
+                                display: flex;
+                                flex-direction: column;
+                                overflow: hidden;
+                                flex-shrink: 0;
+                            "
+                        >
+                            <div
+                                style="
+                                    padding: 8px;
+                                    border-bottom: 1px solid var(--border);
+                                    display: flex;
+                                    gap: 6px;
+                                    align-items: center;
+                                "
+                            >
+                                <label
+                                    style="
+                                        font-size: 11px;
+                                        color: var(--text-muted);
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 4px;
+                                        cursor: pointer;
+                                    "
+                                >
+                                    <input
+                                        type="checkbox"
+                                        id="sq-select-all"
+                                        onchange="
+                                            toggleAllSQCheckboxes(this.checked)
+                                        "
+                                        style="accent-color: var(--accent)"
+                                    />
+                                    All
+                                </label>
+                                <span
+                                    id="sq-count"
+                                    style="
+                                        font-size: 11px;
+                                        color: var(--text-muted);
+                                        margin-left: auto;
+                                    "
+                                ></span>
+                            </div>
+                            <div
+                                id="sq-list"
+                                style="overflow-y: auto; flex: 1"
+                            ></div>
+                        </div>
+                        <!-- Detail panel -->
+                        <div
+                            id="sq-detail-panel"
+                            style="
+                                flex: 1;
+                                display: flex;
+                                flex-direction: column;
+                                overflow: hidden;
+                                padding: 16px;
+                                gap: 12px;
+                            "
+                        >
+                            <div
+                                id="sq-detail-placeholder"
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    flex: 1;
+                                    color: var(--text-muted);
+                                    font-size: 13px;
+                                "
+                            >
+                                Select a question
+                            </div>
+                            <div
+                                id="sq-detail-area"
+                                style="
+                                    display: none;
+                                    flex-direction: column;
+                                    flex: 1;
+                                    gap: 10px;
+                                    overflow: hidden;
+                                "
+                            >
+                                <!-- Question -->
+                                <div
+                                    style="
+                                        display: flex;
+                                        flex-direction: column;
+                                        gap: 6px;
+                                        flex-shrink: 0;
+                                    "
+                                >
+                                    <div
+                                        style="
+                                            display: flex;
+                                            align-items: center;
+                                            gap: 8px;
+                                        "
+                                    >
+                                        <div
+                                            class="rpanel-label"
+                                            style="margin: 0"
+                                        >
+                                            Question
+                                        </div>
+                                        <button
+                                            class="btn-secondary"
+                                            style="
+                                                font-size: 11px;
+                                                padding: 2px 8px;
+                                            "
+                                            onclick="copyQuestionToClipboard()"
+                                            title="Copy question to clipboard"
+                                        >
+                                            📋 Copy Q
+                                        </button>
+                                    </div>
+                                    <div
+                                        id="sq-question-text"
+                                        style="
+                                            background: var(--surface2);
+                                            border-radius: var(--radius);
+                                            padding: 10px 12px;
+                                            font-size: 13px;
+                                            line-height: 1.6;
+                                            color: var(--text);
+                                            white-space: pre-wrap;
+                                            max-height: 140px;
+                                            overflow-y: auto;
+                                        "
+                                    ></div>
+                                </div>
+                                <!-- Answer -->
+                                <div
+                                    style="
+                                        display: flex;
+                                        flex-direction: column;
+                                        gap: 6px;
+                                        flex: 1;
+                                        min-height: 0;
+                                    "
+                                >
+                                    <div
+                                        style="
+                                            display: flex;
+                                            align-items: center;
+                                            gap: 8px;
+                                            flex-shrink: 0;
+                                        "
+                                    >
+                                        <div
+                                            class="rpanel-label"
+                                            style="margin: 0"
+                                        >
+                                            Draft Answer
+                                        </div>
+                                        <button
+                                            class="btn-secondary"
+                                            style="
+                                                font-size: 11px;
+                                                padding: 2px 8px;
+                                            "
+                                            onclick="copyAnswerToClipboard()"
+                                            title="Copy answer to clipboard"
+                                        >
+                                            📋 Copy A
+                                        </button>
+                                        <button
+                                            class="btn-primary"
+                                            style="
+                                                font-size: 11px;
+                                                padding: 2px 8px;
+                                                margin-left: auto;
+                                            "
+                                            id="sq-gen-btn"
+                                            onclick="
+                                                generateAnswerForQuestion(null)
+                                            "
+                                        >
+                                            ⚡ Generate
+                                        </button>
+                                    </div>
+                                    <div
+                                        id="sq-answer-streaming"
+                                        style="
+                                            display: none;
+                                            background: var(--surface2);
+                                            border-radius: var(--radius);
+                                            padding: 10px 12px;
+                                            font-size: 13px;
+                                            line-height: 1.6;
+                                            flex: 1;
+                                            overflow-y: auto;
+                                            white-space: pre-wrap;
+                                        "
+                                    ></div>
+                                    <textarea
+                                        id="sq-answer-editor"
+                                        class="form-textarea"
+                                        placeholder="Draft answer will appear here…"
+                                        style="
+                                            flex: 1;
+                                            min-height: 120px;
+                                            resize: none;
+                                        "
+                                        oninput="scheduleSQAutoSave()"
+                                    ></textarea>
+                                    <button
+                                        class="btn-secondary"
+                                        onclick="saveCurrentSQAnswer()"
+                                        style="
+                                            align-self: flex-start;
+                                            font-size: 12px;
+                                        "
+                                    >
+                                        Save Answer
                                     </button>
                                 </div>
                             </div>
@@ -2375,6 +2735,36 @@
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="closeModal()">
                         Close
+                    </button>
+                </div>
+            </div>
+
+            <!-- Add Supplier Questions Modal -->
+            <div id="modal-add-sq" class="modal hidden">
+                <div class="modal-title">Add Supplier Questions</div>
+                <div class="modal-subtitle">
+                    Paste one or more questions. Separate multiple questions
+                    with a blank line, or they'll be parsed as a numbered list.
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Questions</label>
+                    <textarea
+                        id="sq-add-textarea"
+                        class="form-textarea"
+                        rows="12"
+                        placeholder="1. What is your company's experience with similar projects?
+
+2. Describe your quality assurance process.
+
+Or paste numbered / blank-line separated questions…"
+                    ></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeModal()">
+                        Cancel
+                    </button>
+                    <button class="btn-primary" onclick="saveAddedQuestions()">
+                        Add Questions
                     </button>
                 </div>
             </div>

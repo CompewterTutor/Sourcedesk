@@ -60,9 +60,12 @@ function showView(v) {
         v === "notes" ? "flex" : "none";
     document.getElementById("working-doc-view").style.display =
         v === "working-doc" ? "flex" : "none";
+    document.getElementById("sq-view").style.display =
+        v === "sq" ? "flex" : "none";
     if (v === "templates") renderTemplatesGrid();
     if (v === "notes") loadNotes();
     if (v === "working-doc") _fillWorkingDocEditor();
+    if (v === "sq") loadSupplierQuestions();
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
@@ -99,6 +102,7 @@ async function loadProject(id) {
     state.activeDocs = new Set();
     state.activeOtherProjects = new Set();
     state.currentNote = null;
+    state.currentQuestion = null;
 
     // load chat history
     const chats = await dbGetByIndex("chats", "projectId", id);

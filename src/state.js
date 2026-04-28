@@ -23,6 +23,7 @@ let state = {
     editingTemplateId: null,
     editingProjectId: null,
     currentNote: null,
+    currentQuestion: null,
 };
 
 // ─── PROVIDER HELPERS ─────────────────────────────────────────────────────────

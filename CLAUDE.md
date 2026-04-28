@@ -68,7 +68,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 
 ## Architecture
 
-### IndexedDB Stores (current schema: `DB_VERSION = 2`)
+### IndexedDB Stores (current schema: `DB_VERSION = 3`)
 
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
@@ -78,6 +78,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 | `chats` | `id` | `projectId` | `{id, projectId, messages: [{role, content, sources}]}` |
 | `settings` | `key` | — | `{key, value}` — keys: `provider`, `model`, `globalContext`, `constants`, `apiKey_anthropic`, `apiKey_openai`, `apiKey_openrouter`, `apiKey_github` (legacy: `apiKey` migrated → `apiKey_anthropic` on first boot) |
 | `notes` | `id` | `projectId` | `{id, projectId, title, content, createdAt, updatedAt}` |
+| `supplierQuestions` | `id` | `projectId` | `{id, projectId, text, draftAnswer, createdAt, updatedAt}` |
 
 ### DB Helper Pattern
 All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)`, `dbDelete(store, key)`, `dbGetAll(store)`, `dbGetByIndex(store, index, val)`. All return Promises. Always await them.
@@ -106,6 +107,7 @@ let state = {
   editingTemplateId: null,
   currentNote: null,      // note object being edited in Notes view, or null
   editingProjectId: null, // project ID being edited in modal, or null (null = create mode)
+  currentQuestion: null,  // supplier question object being viewed, or null
 };
 ```
 
@@ -297,14 +299,14 @@ When adding a new object store or index:
 
 ### Committed & working ✅
 - Full original app (v0.1.0): projects, templates, BM25 retrieval, doc upload, context panel
-- Build pipeline: `src/main.js` + `src/index.html` → `npm run build` → `SourceDesk.html` (~98 KB)
+- Build pipeline: `src/*.js` + `src/index.html` → `npm run build` → `SourceDesk.html`
 - `DEBUG`, `TEST`, `APP_VERSION` flags; `log()` helper; `DOMContentLoaded` gated on `!TEST`
 - **Multi-provider support**: Anthropic, OpenAI, OpenRouter, GitHub Models
   - `PROVIDERS` config constant, `buildApiCall()`, `parseStreamDelta()`
   - Per-provider key storage in DB; legacy `apiKey` → `apiKey_anthropic` migration
   - `onProviderChange()` in settings modal with live UI switching
   - **Bug fix (v0.4.6)**: `onProviderChange()` now reads `state.settings.provider` (the previous provider) instead of `getActivePill()` to determine where to save the typed key — `selectPill()` runs before `onProviderChange()` in the onclick handler, so the pill was already pointing at the new provider, causing keys to be saved in the wrong slot
-- **Version string** `v0.4.6` displayed in topbar at boot
+- **Version string** `v0.5.0` displayed in topbar at boot
 - **Global Instructions** label (renamed from "Sourcing Context")
 - **Per-project Instructions** field in project creation modal; injected into system prompt; textarea cleared on modal open
 - **Database Export** — `exportDatabase()` downloads all stores as timestamped JSON backup
@@ -335,6 +337,15 @@ When adding a new object store or index:
 - `CHANGELOG.md`, `README.md`, `CLAUDE.md`
 - **Google Drive Connector** — `modal-drive` accessible via "Drive" topbar button; token-based auth (OAuth Playground workflow); `verifyDriveToken()` validates token via `tokeninfo` endpoint and shows connection status (email + expiry); `listDriveFiles()` lists text/plain, text/markdown, text/csv, application/json, and Google Docs files (filtered, sorted by `modifiedTime desc`); `renderDriveFileList(files)` builds DOM programmatically (no innerHTML injection, safe for arbitrary filenames); `importFromDrive(fileId, name, mimeType)` fetches file content or exports Google Docs as plain text and saves as a project doc; `backupToDrive()` uploads a full JSON backup (includes `notes` store, unlike local `exportDatabase()`); `disconnectDrive()` clears token from state + DB; token persisted to `settings` store under key `driveToken`; `state.settings.driveToken` initialized at boot; drive functions added to `build.js` mangle reserved list: `openDriveModal`, `verifyDriveToken`, `listDriveFiles`, `backupToDrive`, `disconnectDrive`; CSS classes: `.drive-file-item`, `.drive-file-info`, `.drive-file-name`, `.drive-file-meta`
   - **Auth note**: Google OAuth does not allow `file://` as a JavaScript origin. Users must obtain a token manually via [Google OAuth Playground](https://developers.google.com/oauthplayground/?scope=https://www.googleapis.com/auth/drive) — select "Drive API v3", authorize, copy Access Token, paste into the Drive modal. Tokens expire in ~1 hour.
+- **Supplier Questions** (🗄️ DB_VERSION 3) — `supplierQuestions` store with `projectId` index; full-screen two-panel view (sidebar → "Supplier Q →"); `state.currentQuestion` tracks the open question; cascade-deleted with project
+  - **Add Questions modal** — smart paste parsing: blank-line split → numbered-list detection → single question fallback
+  - **Question list** — checkboxes for batch ops; ✅/○ icon for answer status; real-time filter (`filterSQList`); Select All toggle (`toggleAllSQCheckboxes`); hover-reveal delete button
+  - **Detail panel** — full question text; draft answer textarea; 📋 Copy Q / Copy A clipboard buttons; 1.5 s debounced autosave (`scheduleSQAutoSave`); manual Save Answer button
+  - **AI answer generation** — `generateAnswerForQuestion(id)` streams an LLM answer using `buildApiCall` + `retrieveContext`; live streaming preview; saves to DB on complete; re-renders list icon
+  - **Batch generation** — `generateSelectedAnswers()` iterates checked questions sequentially
+  - **Export** — `exportSelectedQuestions()` / `exportAllQuestions()` download a Markdown `.md` file (`## Question N` / `### Answer` / `---` format)
+  - **Notes access** — "Notes →" button in view header
+  - New functions in `build.js` reserved list: `loadSupplierQuestions`, `renderSQList`, `selectQuestion`, `openAddQuestionsModal`, `saveAddedQuestions`, `generateAnswerForQuestion`, `generateSelectedAnswers`, `saveCurrentSQAnswer`, `deleteQuestion`, `copyQuestionToClipboard`, `copyAnswerToClipboard`, `exportSelectedQuestions`, `exportAllQuestions`, `filterSQList`, `toggleAllSQCheckboxes`, `scheduleSQAutoSave`
 
 ### Still outstanding (do next session)
 - ❌ No "recent notes" quick-access view (cross-project search covers the main use case)
@@ -344,8 +355,8 @@ When adding a new object store or index:
 
 ## Next Steps (Ordered for Next Session)
 
-1. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
-2. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
+1. **`npm run build`** → verify build, open `SourceDesk.html`, open `tests/test.html` → all green
+2. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
 
 ---
 

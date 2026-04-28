@@ -4,7 +4,7 @@ An in-browser RAG and project management tool that talks to AI providers directl
 
 An in-browser RAG and project management tool that talks to AI providers directly from the browser. Runs completely client-side as a single HTML file — open it, it works. No server, no install, no account.
 
-**Current version:** v0.4.3 — notes included in local database export/import
+**Current version:** v0.5.0 — Supplier Questions view for RFP Q&A management
 
 ---
 
@@ -71,6 +71,16 @@ Per-project note editor (sidebar → Notes →):
 - Filter notes by title in real time
 - Ctrl+S / Cmd+S to save without leaving the keyboard
 
+### Supplier Questions
+Per-project Q&A manager for RFP/procurement workflows (sidebar → Supplier Q →):
+- **Add Questions** — paste questions one at a time or in bulk; smart parsing splits on blank lines, then numbered-list detection, then falls back to a single question
+- **Question list** — checkboxes for batch selection; ✅ icon when a draft answer exists, ○ when not; real-time filter; Select All toggle
+- **Detail panel** — full question text with **Copy Q** clipboard button; draft answer textarea with **Copy A** clipboard button; auto-saves 1.5 s after you stop typing
+- **⚡ Generate** — streams an LLM-generated answer for the selected question using BM25 retrieval against active project documents as context
+- **⚡ Generate Selected** — runs answer generation sequentially for all checked questions
+- **⬇ Export Selected / Export All** — downloads a Markdown file (`## Question N` / `### Answer` / `---` format) for sharing with vendors or internal review
+- **Notes →** button in the header for quick access to the project's Notes view
+
 ### Working Document
 Every project has a working document — the editable draft that starts from the attached template's content. Open it with the **Working Doc** button in the topbar. Ctrl+S saves back to IndexedDB.
 
@@ -101,7 +111,7 @@ npm run watch        # watch src/ and rebuild on save
 npm run serve        # optional local server for env injection / local LLM defaults
 ```
 
-Edit `src/main.js` and `src/index.html`. Never edit `SourceDesk.html` directly.
+Edit source files in `src/`. Never edit `SourceDesk.html` directly.
 
 If you want to use the local server workflow:
 - create a `.env` file next to `server.js`
@@ -126,6 +136,7 @@ Example `.env` values:
 - [x] **Global Instructions** — a system prompt addition applied to every chat
 - [x] **Per-Project Instructions** — per-project system prompt additions
 - [x] **Notes** — per-project note editor; include-in-context toggle; autosave; real-time filter; Ctrl+S
+- [x] **Supplier Questions** — per-project Q&A view; bulk paste & smart parsing; AI answer generation with streaming & BM25 context; batch generate; clipboard copy for Q and A; Markdown export (selected or all)
 - [x] **Multi-Provider LLM Support** — Anthropic, OpenAI, OpenRouter, GitHub Models with per-provider key storage and model lists
 - [x] **Database Export / Import** — full JSON backup and restore via Settings
 - [x] **Local Server / Env Injection** — optional `npm run serve` workflow for `window.__SOURCEDESK_ENV__`, local LLM URL defaults, and hosted/homelab deployments

@@ -1,7 +1,7 @@
 // ─── FLAGS ──────────────────────────────────────────────────────────────────
 const DEBUG = window.__SOURCEDESK_DEBUG__ || false;
 const TEST = window.__SOURCEDESK_TEST__ || false;
-const APP_VERSION = "0.4.6";
+const APP_VERSION = "0.5.0";
 function log(...args) {
     if (DEBUG) console.log("[SD]", ...args);
 }

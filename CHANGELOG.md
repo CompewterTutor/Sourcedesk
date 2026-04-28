@@ -9,6 +9,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.5.0] - 2026-04-28 🗄️
+
+### Added
+- **Supplier Questions** — new full-screen view (sidebar → "Supplier Q →") for managing supplier/vendor questions against an RFP or procurement document:
+  - **Add Questions modal** — paste questions one at a time or in bulk; smart parsing splits on blank lines first, then falls back to numbered-list detection (`1.`, `2)`, etc.), then treats the whole input as a single question
+  - **Question list** — checkboxes for batch operations; ✅ icon when a draft answer exists, ○ when not; real-time filter input; question count badge; hover-reveal delete button; Select All checkbox
+  - **Detail panel** — full question text with **📋 Copy Q** button; draft answer textarea with **📋 Copy A** button; auto-saves 1.5 s after you stop typing; manual **Save Answer** button
+  - **⚡ Generate** — streams an LLM-generated answer for the current question; uses BM25 retrieval against active project documents as context; live streaming preview while generating
+  - **⚡ Generate Selected** — runs answer generation sequentially for all checked questions
+  - **⬇ Export Selected / Export All** — downloads a clean Markdown `.md` file (`## Question N` / `### Answer` / `---` format) for sharing with vendors or internal review
+  - **Notes →** button in the view header for quick access to the project's Notes view
+- **`supplierQuestions` IndexedDB store** — schema: `{id, projectId, text, draftAnswer, createdAt, updatedAt}`; indexed by `projectId`; cascade-deleted when the parent project is deleted
+
+### Changed
+- `DB_VERSION` bumped `2` → `3` to add the `supplierQuestions` store
+- `APP_VERSION` bumped to `v0.5.0`
+- `package.json` version bumped to `0.5.0`
+- `build.js` — `src/supplierQuestions.js` added to `SRC_FILES`; all 15 new SQ functions added to `mangle.reserved`
+
+---
+
 ## [0.4.6] - 2025-07-18
 
 ### Fixed

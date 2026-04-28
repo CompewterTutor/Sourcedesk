@@ -120,6 +120,8 @@ async function deleteProject(id) {
     for (const c of chats) await dbDelete("chats", c.id);
     const notes = await dbGetByIndex("notes", "projectId", id);
     for (const n of notes) await dbDelete("notes", n.id);
+    const sqs = await dbGetByIndex("supplierQuestions", "projectId", id);
+    for (const sq of sqs) await dbDelete("supplierQuestions", sq.id);
     await dbDelete("projects", id);
     state.projects = state.projects.filter((p) => p.id !== id);
     if (state.activeProject?.id === id) {

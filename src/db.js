@@ -1,6 +1,6 @@
 // ─── IndexedDB ────────────────────────────────────────────────────────────────
 const DB_NAME = "sourcedesk",
-    DB_VERSION = 2;
+    DB_VERSION = 3;
 let db;
 
 function openDB() {
@@ -25,6 +25,12 @@ function openDB() {
             if (!d.objectStoreNames.contains("notes")) {
                 const sn = d.createObjectStore("notes", { keyPath: "id" });
                 sn.createIndex("projectId", "projectId", { unique: false });
+            }
+            if (!d.objectStoreNames.contains("supplierQuestions")) {
+                const sq = d.createObjectStore("supplierQuestions", {
+                    keyPath: "id",
+                });
+                sq.createIndex("projectId", "projectId", { unique: false });
             }
         };
         req.onsuccess = (e) => {
