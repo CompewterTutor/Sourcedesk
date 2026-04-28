@@ -32,6 +32,7 @@ const SRC_FILES = [
     "src/drive.js",
     "src/notes.js",
     "src/supplierQuestions.js",
+    "src/attachments.js",
     "src/ui.js",
 ].map((f) => path.join(__dirname, f));
 const OUT_HTML = path.join(__dirname, "SourceDesk.html");
@@ -175,6 +176,18 @@ async function build() {
                     "topbarModelChange",
                     "refreshTopbarModels",
                     "syncTopbarModelSelect",
+                    "openAttachMenu",
+                    "handleAttachFiles",
+                    "removeAttachment",
+                    "clearPendingAttachments",
+                    "renderAttachBar",
+                    "getPendingAttachments",
+                    "updateContextMeter",
+                    "showStreamingIndicator",
+                    "hideStreamingIndicator",
+                    "newChat",
+                    "renderChatSessionList",
+                    "loadChatSession",
                 ],
             },
             format: {

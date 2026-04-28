@@ -18,6 +18,7 @@ let state = {
     activeDocs: new Set(),
     activeOtherProjects: new Set(),
     messages: [],
+    activeChatId: null,
     streaming: false,
     rightPanelOpen: true,
     editingTemplateId: null,

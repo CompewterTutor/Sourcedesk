@@ -38,6 +38,7 @@ if (!TEST) {
         ta.addEventListener("input", () => {
             ta.style.height = "auto";
             ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
+            if (typeof updateContextMeter === "function") updateContextMeter();
         });
         ta.addEventListener("keydown", (e) => {
             if (e.key === "Enter" && !e.shiftKey) {

@@ -1,6 +1,6 @@
 // ─── IndexedDB ────────────────────────────────────────────────────────────────
 const DB_NAME = "sourcedesk",
-    DB_VERSION = 3;
+    DB_VERSION = 4;
 let db;
 
 function openDB() {
@@ -19,6 +19,15 @@ function openDB() {
             if (!d.objectStoreNames.contains("chats")) {
                 const s = d.createObjectStore("chats", { keyPath: "id" });
                 s.createIndex("projectId", "projectId", { unique: false });
+            }
+            if (e.oldVersion < 4) {
+                const tx = e.target.transaction;
+                const chatsStore = tx.objectStore("chats");
+                if (!chatsStore.indexNames.contains("sessionId")) {
+                    chatsStore.createIndex("sessionId", "sessionId", {
+                        unique: false,
+                    });
+                }
             }
             if (!d.objectStoreNames.contains("settings"))
                 d.createObjectStore("settings", { keyPath: "key" });

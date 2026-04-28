@@ -9,6 +9,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.0] - 2025-07-19
+
+### Added
+- **Multi-session chat** — each project now supports multiple saved chat sessions instead of a single rolling conversation:
+  - **New Chat button** — `+` button in the sidebar "Chats" section starts a fresh session (prompts for confirmation if the current session has messages); previous sessions are preserved and accessible from the list
+  - **Chat session list** — sidebar "Chats" section shows all saved sessions for the active project, sorted newest-first, each showing timestamp and a 60-char preview of the first message; clicking a session loads it
+  - **`newChat()`** — clears `state.messages` and `state.activeChatId`, resets the message pane
+  - **`renderChatSessionList()`** — fetches all chat records for the active project and renders them into `#chat-session-list`; called on project load and after every save
+  - **`loadChatSession(chatId)`** — loads a specific session's messages into state and re-renders
+  - **`state.activeChatId`** — tracks the `id` of the currently loaded chat record; `null` for a brand-new unsaved session
+  - **`saveChat()` rewritten** — creates a new record (with `createdAt`/`updatedAt`) on first save of a new session; updates the existing record (bumps `updatedAt`) on subsequent saves
+- **Temporary file attachments** — paperclip 📎 button left of the chat input attaches files to the current message without saving them to the project document store:
+  - Supports `.txt`, `.md`, `.csv`, `.json`, `.pdf`, `.docx`, and all image formats
+  - Text files are extracted and injected into the system prompt under `## Attached Files (this message only)`
+  - Images are base64-encoded and sent as vision content (Anthropic native vision format and OpenAI-compat `image_url`)
+  - Attached files shown as removable chips in `#chat-attachments-bar` above the input row; cleared automatically after send
+  - `openAttachMenu()`, `handleAttachFiles(files)`, `removeAttachment(index)`, `clearPendingAttachments()`, `renderAttachBar()`, `getPendingAttachments()` — all in new `src/attachments.js`
+- **Streaming / "AI is writing" indicator** — animated three-dot pulse bar (`#streaming-indicator`) appears above the input area while a response is streaming; hidden at rest; `showStreamingIndicator()` / `hideStreamingIndicator()` called from `sendMessage()`
+- **Context usage meter** — thin bar and token counter below the chat input shows approximate context fill vs. the model's context window:
+  - Estimates tokens as `chars / 4`; tallies all messages + pending attachment text + current input
+  - Bar colour transitions: accent (< 60 %) → amber (60–85 %) → danger (> 85 %)
+  - Label format: `~Xk / 200k`; updates on every keystroke and after each streaming response
+  - Per-model context limits defined in `CONTEXT_LIMITS` map in `src/attachments.js`; defaults to 100k for unknown models
+  - `updateContextMeter()` — pure DOM update; safe to call at any time
+- **`src/attachments.js`** — new source file; all attachment, context-meter, and streaming-indicator logic
+
+### Changed
+- `DB_VERSION` bumped `3` → `4`; `onupgradeneeded` adds a `sessionId` index to the existing `chats` store on upgrade (idempotent guard via `indexNames.contains`)
+- `chats` store schema extended: records now carry `{ id, projectId, sessionId, messages[], createdAt, updatedAt }`
+- `loadProject()` now selects the session with the highest `updatedAt`/`createdAt` as the active session on project load
+- `clearChatHistory()` resets `state.activeChatId = null` and calls `renderChatSessionList()` after wiping messages
+- `sendMessage()` — snapshots and clears `_pendingAttachments` before async work; injects text attachments into system prompt; builds vision content arrays for image attachments (Anthropic and OpenAI-compat formats); calls `showStreamingIndicator` / `hideStreamingIndicator` / `updateContextMeter`
+- Chat input `oninput` handler now calls `updateContextMeter()` so the meter stays live as the user types
+- Sidebar "Chats" section added above "Recent" with `+` (New Chat) button and `#chat-session-list` scroll area (max-height 140 px)
+- `build.js` — `src/attachments.js` added to `SRC_FILES`; `newChat`, `renderChatSessionList`, `loadChatSession`, `openAttachMenu`, `handleAttachFiles`, `removeAttachment`, `clearPendingAttachments`, `renderAttachBar`, `getPendingAttachments`, `updateContextMeter`, `showStreamingIndicator`, `hideStreamingIndicator` added to `mangle.reserved`
+
+### Build
+- Total bundle size: 188.2 KB (+13.2 KB over v0.5.1)
+
+---
+
 ## [0.5.1] - 2025-07-19
 
 ### Added

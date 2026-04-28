@@ -14,8 +14,25 @@ async function sendMessage() {
     input.value = "";
     input.style.height = "auto";
 
-    state.messages.push({ role: "user", content: text });
-    appendMessageEl("user", text);
+    // Snapshot and clear pending attachments before async work
+    const attachments =
+        typeof getPendingAttachments === "function"
+            ? getPendingAttachments().slice()
+            : [];
+    if (typeof clearPendingAttachments === "function")
+        clearPendingAttachments();
+
+    // Build user message content — show attachment names inline
+    let userDisplayText = text;
+    if (attachments.length) {
+        const names = attachments
+            .map((a) => `[${a.type === "image" ? "🖼" : "📄"} ${a.name}]`)
+            .join(" ");
+        userDisplayText = text + (text ? "\n" : "") + names;
+    }
+
+    state.messages.push({ role: "user", content: userDisplayText });
+    appendMessageEl("user", userDisplayText);
 
     const { context, sources, chunks } = await retrieveContext(text);
 
@@ -44,10 +61,63 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
     if (context)
         systemPrompt += `\n\n## Retrieved Context (from project documents)\n${context}`;
 
-    const apiMessages = state.messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-    }));
+    // Inject temporary text attachments into system prompt
+    const textAttachments = attachments.filter((a) => a.type === "text");
+    if (textAttachments.length) {
+        systemPrompt +=
+            "\n\n## Attached Files (this message only — not saved to project)";
+        textAttachments.forEach((a) => {
+            systemPrompt += `\n\n### ${a.name}\n${a.content}`;
+        });
+    }
+
+    // Build API messages — for images, use vision content arrays where supported
+    const imageAttachments = attachments.filter((a) => a.type === "image");
+    const provider = state.settings.provider || "anthropic";
+    let apiMessages;
+    if (imageAttachments.length) {
+        // Replace last user message with a vision-capable content array
+        const baseMessages = state.messages
+            .slice(0, -1)
+            .map((m) => ({ role: m.role, content: m.content }));
+        let visionContent;
+        if (provider === "anthropic") {
+            visionContent = [
+                { type: "text", text: userDisplayText },
+                ...imageAttachments.map((a) => {
+                    const [meta, b64] = a.content.split(",");
+                    const mediaType =
+                        meta.match(/:(.*?);/)?.[1] || "image/jpeg";
+                    return {
+                        type: "image",
+                        source: {
+                            type: "base64",
+                            media_type: mediaType,
+                            data: b64,
+                        },
+                    };
+                }),
+            ];
+        } else {
+            // OpenAI-compat vision
+            visionContent = [
+                { type: "text", text: userDisplayText },
+                ...imageAttachments.map((a) => ({
+                    type: "image_url",
+                    image_url: { url: a.content },
+                })),
+            ];
+        }
+        apiMessages = [
+            ...baseMessages,
+            { role: "user", content: visionContent },
+        ];
+    } else {
+        apiMessages = state.messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+        }));
+    }
 
     const typingDiv = document.createElement("div");
     typingDiv.className = "msg assistant";
@@ -55,6 +125,7 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
     document.getElementById("chat-messages").appendChild(typingDiv);
     document.getElementById("chat-messages").scrollTop = 99999;
     document.getElementById("send-btn").disabled = true;
+    if (typeof showStreamingIndicator === "function") showStreamingIndicator();
     state.streaming = true;
 
     try {
@@ -143,13 +214,105 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
 
     state.streaming = false;
     document.getElementById("send-btn").disabled = false;
+    if (typeof hideStreamingIndicator === "function") hideStreamingIndicator();
+    if (typeof updateContextMeter === "function") updateContextMeter();
 }
 
 async function saveChat() {
     if (!state.activeProject) return;
-    await dbPut("chats", {
-        id: state.activeProject.id,
-        projectId: state.activeProject.id,
-        messages: state.messages,
+    const now = Date.now();
+    if (state.activeChatId) {
+        // Update existing session
+        await dbPut("chats", {
+            id: state.activeChatId,
+            projectId: state.activeProject.id,
+            sessionId: state.activeChatId,
+            messages: state.messages,
+            updatedAt: now,
+        });
+    } else {
+        // First message in a new session — create a record
+        const id = uid();
+        state.activeChatId = id;
+        await dbPut("chats", {
+            id,
+            projectId: state.activeProject.id,
+            sessionId: id,
+            messages: state.messages,
+            createdAt: now,
+            updatedAt: now,
+        });
+    }
+    renderChatSessionList();
+}
+
+function newChat() {
+    if (!state.activeProject) return;
+    if (
+        state.messages.length &&
+        !confirm(
+            "Start a new chat? The current conversation will be saved and accessible from the chat history list.",
+        )
+    )
+        return;
+    state.messages = [];
+    state.activeChatId = null;
+    renderMessages();
+}
+
+async function renderChatSessionList() {
+    const container = document.getElementById("chat-session-list");
+    if (!container || !state.activeProject) return;
+    const chats = await dbGetByIndex(
+        "chats",
+        "projectId",
+        state.activeProject.id,
+    );
+    // Sort newest first
+    chats.sort(
+        (a, b) =>
+            (b.updatedAt || b.createdAt || 0) -
+            (a.updatedAt || a.createdAt || 0),
+    );
+    container.innerHTML = "";
+    if (!chats.length) {
+        container.innerHTML =
+            '<div style="font-size:11px;color:var(--text-muted);padding:4px 8px;">No saved sessions yet</div>';
+        return;
+    }
+    chats.forEach((c) => {
+        const isActive = c.id === state.activeChatId;
+        const date = new Date(c.updatedAt || c.createdAt || 0);
+        const dateStr =
+            date.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+            }) +
+            " " +
+            date.toLocaleTimeString(undefined, {
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+        const preview = c.messages?.[0]?.content?.slice(0, 60) || "Empty chat";
+        const item = document.createElement("div");
+        item.className = "chat-session-item" + (isActive ? " active" : "");
+        item.title = preview;
+        item.innerHTML = `<span class="chat-session-date">${dateStr}</span><span class="chat-session-preview">${preview}${preview.length >= 60 ? "…" : ""}</span>`;
+        item.onclick = () => loadChatSession(c.id);
+        container.appendChild(item);
     });
+}
+
+async function loadChatSession(chatId) {
+    const allChats = await dbGetByIndex(
+        "chats",
+        "projectId",
+        state.activeProject.id,
+    );
+    const record = allChats.find((c) => c.id === chatId);
+    if (!record) return;
+    state.messages = record.messages || [];
+    state.activeChatId = chatId;
+    renderMessages();
+    renderChatSessionList();
 }

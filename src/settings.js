@@ -279,7 +279,9 @@ async function clearChatHistory() {
     );
     for (const c of chats) await dbDelete("chats", c.id);
     state.messages = [];
+    state.activeChatId = null;
     renderMessages();
+    renderChatSessionList();
 }
 
 // ─── EXPORT / IMPORT ─────────────────────────────────────────────────────────

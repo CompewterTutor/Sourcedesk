@@ -4,7 +4,7 @@ An in-browser RAG and project management tool that talks to AI providers directl
 
 An in-browser RAG and project management tool that talks to AI providers directly from the browser. Runs completely client-side as a single HTML file — open it, it works. No server, no install, no account.
 
-**Current version:** v0.5.0 — Supplier Questions view for RFP Q&A management
+**Current version:** v0.6.0 — Multi-session chat, temp file attachments, streaming indicator, context usage meter
 
 ---
 
@@ -12,7 +12,7 @@ An in-browser RAG and project management tool that talks to AI providers directl
 
 1. Download `SourceDesk.html` and open it in any modern browser.
 2. Go to **Settings** → paste your API key for your chosen provider.
-3. Create a project, upload documents, and start chatting. Claude (or any other supported model) will use your docs as context automatically.
+3. Create a project, upload documents, and start chatting. The AI model will use your docs as context automatically.
 
 ---
 
@@ -23,6 +23,7 @@ Create a project from a template or start blank. Each project has its own:
 - **Document collection** — upload `.txt`, `.md`, `.csv`, `.pdf`, `.docx` files
 - **Chat history** — full conversation per project, stored locally
 - **Working document** — the template content lands here as an editable draft (Working Doc button in the topbar)
+- **Multi-session chat** — each project keeps multiple named chat sessions; start a new one from the sidebar without losing history
 - **Notes** — per-project note editor with title + body; notes can be toggled into chat context individually
 - **Instructions** — per-project system prompt additions, separate from global instructions
 
@@ -81,6 +82,18 @@ Per-project Q&A manager for RFP/procurement workflows (sidebar → Supplier Q �
 - **⬇ Export Selected / Export All** — downloads a Markdown file (`## Question N` / `### Answer` / `---` format) for sharing with vendors or internal review
 - **Notes →** button in the header for quick access to the project's Notes view
 
+### Multi-Session Chat
+Each project supports multiple saved chat sessions. Use the **+** button in the sidebar "Chats" section to start a fresh session — prior sessions are preserved and listed with a timestamp and message preview. Click any session to reload it.
+
+### Temporary File Attachments
+Click the 📎 button left of the chat input to attach files to the current message only — they are **not** saved to the project document store.
+- Text files (`.txt`, `.md`, `.csv`, `.json`, `.docx`) are extracted and injected into the system prompt for that message
+- Images are sent as vision content (Anthropic native vision + OpenAI-compat `image_url`)
+- Attached files appear as removable chips above the input; they are cleared automatically after sending
+
+### Context Usage Meter
+A thin bar and token counter sit below the chat input, showing estimated context fill vs. the active model's context window. The bar shifts from accent → amber → red as the window fills. Updates on every keystroke and after each response.
+
 ### Working Document
 Every project has a working document — the editable draft that starts from the attached template's content. Open it with the **Working Doc** button in the topbar. Ctrl+S saves back to IndexedDB.
 
@@ -97,7 +110,7 @@ The **Export** topbar button (visible when a project is loaded) downloads the ac
 
 ## Testing
 
-Open `tests/test.html` in a browser to run the unit test suite (79 tests, 16 suites). Covers BM25 search, markdown formatting, text chunking, stream parsing for all 4 providers, `buildApiCall` for all 4 providers, import shape validation, `parseConstants`, `resolveTemplateVars`, date arithmetic, and `extractDatesFromText`. No build step or server required.
+Open `tests/test.html` in a browser to run the unit test suite (92 tests, 17 suites). Covers BM25 search, markdown formatting, text chunking, stream parsing for all 4 providers, `buildApiCall` for all 4 providers, import shape validation, `parseConstants`, `resolveTemplateVars`, date arithmetic, and `extractDatesFromText`. No build step or server required.
 
 ---
 
@@ -137,7 +150,11 @@ Example `.env` values:
 - [x] **Per-Project Instructions** — per-project system prompt additions
 - [x] **Notes** — per-project note editor; include-in-context toggle; autosave; real-time filter; Ctrl+S
 - [x] **Supplier Questions** — per-project Q&A view; bulk paste & smart parsing; AI answer generation with streaming & BM25 context; batch generate; clipboard copy for Q and A; Markdown export (selected or all)
-- [x] **Multi-Provider LLM Support** — Anthropic, OpenAI, OpenRouter, GitHub Models with per-provider key storage and model lists
+- [x] **Multi-Provider LLM Support** — Anthropic, OpenAI, OpenRouter, GitHub Models, Local LLM (Ollama / LM Studio) with per-provider key storage and model lists
+- [x] **Multi-Session Chat** — multiple saved chat sessions per project; New Chat button in sidebar; session list with timestamps and message previews; load any previous session
+- [x] **Temporary File Attachments** — paperclip button attaches files to a single message without persisting to the doc store; text extracted for context injection; images sent as vision content
+- [x] **Streaming Indicator** — animated pulse bar while AI is generating a response
+- [x] **Context Usage Meter** — live token estimate bar and label below the chat input; colour-coded fill vs. model context window
 - [x] **Database Export / Import** — full JSON backup and restore via Settings
 - [x] **Local Server / Env Injection** — optional `npm run serve` workflow for `window.__SOURCEDESK_ENV__`, local LLM URL defaults, and hosted/homelab deployments
 - [x] **Project / Chat Export** — export active project + messages + doc metadata as JSON
@@ -174,4 +191,12 @@ Example `.env` values:
 ### AI Provider UX
 - [x] **Local model quick-selector** — topbar dropdown (visible only when provider = Local LLM) lets you switch models and re-detect available models without opening Settings
 - [ ] **Per-project provider override** — allow a project to pin a specific provider/model independently of the global setting
-- [ ] **Token usage display** — show approximate token counts for the current context window alongside each reply
+
+### Chat & Conversation
+- [x] **Multi-session chat** — multiple named sessions per project with full history preserved
+- [x] **Temporary file attachments** — attach files to a single message; text injected into context, images sent via vision API
+- [x] **Streaming indicator** — animated pulse while AI is writing
+- [x] **Context usage meter** — live token estimate with colour-coded fill bar
+- [ ] **Chat session titles** — auto-generate a short title from the first message for easier navigation
+- [ ] **Session search** — find past sessions by keyword across all projects
+- [ ] **Message editing / regeneration** — edit a sent message and re-run from that point

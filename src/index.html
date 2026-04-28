@@ -229,6 +229,37 @@
                 flex: 1;
                 overflow-y: auto;
             }
+            .chat-session-item {
+                padding: 5px 10px;
+                cursor: pointer;
+                border-radius: 5px;
+                margin: 1px 4px;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                transition: background 0.15s;
+            }
+            .chat-session-item:hover {
+                background: var(--surface2);
+            }
+            .chat-session-item.active {
+                background: var(--surface2);
+                border-left: 2px solid var(--accent);
+                padding-left: 8px;
+            }
+            .chat-session-date {
+                font-size: 9px;
+                font-family: "JetBrains Mono", monospace;
+                color: var(--text-muted);
+                white-space: nowrap;
+            }
+            .chat-session-preview {
+                font-size: 11px;
+                color: var(--text-dim);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
 
             /* ─── MAIN PANELS ─────────────────────────────── */
             #panel-chat {
@@ -362,11 +393,120 @@
             }
 
             #chat-input-area {
-                padding: 12px 16px;
                 border-top: 1px solid var(--border);
+            }
+            .chat-input-row {
                 display: flex;
-                gap: 8px;
                 align-items: flex-end;
+                gap: 8px;
+                padding: 8px 16px 12px;
+            }
+            .chat-attach-btn {
+                flex-shrink: 0;
+                width: 32px;
+                height: 32px;
+                padding: 4px;
+                margin-bottom: 2px;
+            }
+            #chat-attachments-bar {
+                padding: 6px 16px 0;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            #chat-attachments-bar.hidden {
+                display: none !important;
+            }
+            .attach-chip {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 2px 8px 2px 6px;
+                font-size: 11px;
+                font-family: "JetBrains Mono", monospace;
+                color: var(--text-dim);
+            }
+            .attach-chip-remove {
+                background: none;
+                border: none;
+                cursor: pointer;
+                color: var(--text-muted);
+                padding: 0 0 0 2px;
+                font-size: 12px;
+                line-height: 1;
+            }
+            .attach-chip-remove:hover {
+                color: var(--danger);
+            }
+            #streaming-indicator {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 4px 16px;
+                font-size: 11px;
+                color: var(--accent);
+                font-family: "JetBrains Mono", monospace;
+            }
+            #streaming-indicator.hidden {
+                display: none !important;
+            }
+            .streaming-dot {
+                width: 5px;
+                height: 5px;
+                border-radius: 50%;
+                background: var(--accent);
+                animation: streaming-pulse 1.2s ease-in-out infinite;
+            }
+            .streaming-dot:nth-child(2) {
+                animation-delay: 0.2s;
+            }
+            .streaming-dot:nth-child(3) {
+                animation-delay: 0.4s;
+            }
+            @keyframes streaming-pulse {
+                0%,
+                80%,
+                100% {
+                    opacity: 0.2;
+                    transform: scale(0.8);
+                }
+                40% {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+            #context-meter-row {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 2px 16px 8px;
+            }
+            #context-meter-bar-wrap {
+                flex: 1;
+                height: 3px;
+                background: var(--surface2);
+                border-radius: 2px;
+                overflow: hidden;
+            }
+            #context-meter-bar {
+                height: 100%;
+                width: 0%;
+                background: var(--accent);
+                border-radius: 2px;
+                transition:
+                    width 0.3s ease,
+                    background 0.3s ease;
+            }
+            #context-meter-label {
+                font-size: 10px;
+                font-family: "JetBrains Mono", monospace;
+                color: var(--text-muted);
+                white-space: nowrap;
+                min-width: 60px;
+                text-align: right;
             }
             #chat-input {
                 flex: 1;
@@ -1389,6 +1529,24 @@
                 </div>
                 <div class="sidebar-list" id="projects-list"></div>
                 <div class="sidebar-divider"></div>
+                <div class="sidebar-section" style="flex-shrink: 0">
+                    Chats
+                    <button
+                        class="sidebar-add"
+                        id="new-chat-btn"
+                        onclick="newChat()"
+                        title="Start a new chat session"
+                        style="font-size: 13px; font-weight: 700"
+                    >
+                        +
+                    </button>
+                </div>
+                <div
+                    class="sidebar-scroll"
+                    id="chat-session-list"
+                    style="padding-bottom: 4px; max-height: 140px"
+                ></div>
+                <div class="sidebar-divider"></div>
                 <div class="sidebar-section" style="flex-shrink: 0">Recent</div>
                 <div
                     class="sidebar-scroll"
@@ -1490,14 +1648,54 @@
                     </div>
                     <div id="chat-messages" class="hidden"></div>
                     <div id="chat-input-area" class="hidden">
-                        <textarea
-                            id="chat-input"
-                            placeholder="Ask the AI model anything about this project…"
-                            rows="1"
-                        ></textarea>
-                        <button id="send-btn" onclick="sendMessage()">
-                            Send
-                        </button>
+                        <div id="streaming-indicator" class="hidden">
+                            <div class="streaming-dot"></div>
+                            <div class="streaming-dot"></div>
+                            <div class="streaming-dot"></div>
+                            <span>AI is writing…</span>
+                        </div>
+                        <div id="chat-attachments-bar" class="hidden"></div>
+                        <div class="chat-input-row">
+                            <button
+                                class="btn-icon chat-attach-btn"
+                                id="attach-btn"
+                                onclick="openAttachMenu()"
+                                title="Attach a file to this message (temporary — not saved to project)"
+                            >
+                                <svg
+                                    viewBox="0 0 16 16"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.5"
+                                >
+                                    <path
+                                        d="M13.5 7.5l-6.5 6.5a4 4 0 01-5.66-5.66l7-7a2.5 2.5 0 013.54 3.54l-7.07 7.07a1 1 0 01-1.41-1.41l6.5-6.5"
+                                    />
+                                </svg>
+                            </button>
+                            <input
+                                type="file"
+                                id="attach-file-input"
+                                style="display: none"
+                                multiple
+                                accept=".txt,.md,.csv,.json,.pdf,.docx,image/*"
+                                onchange="handleAttachFiles(this.files)"
+                            />
+                            <textarea
+                                id="chat-input"
+                                placeholder="Ask the AI model anything about this project…"
+                                rows="1"
+                            ></textarea>
+                            <button id="send-btn" onclick="sendMessage()">
+                                Send
+                            </button>
+                        </div>
+                        <div id="context-meter-row">
+                            <div id="context-meter-bar-wrap">
+                                <div id="context-meter-bar"></div>
+                            </div>
+                            <span id="context-meter-label">~0 / 100k</span>
+                        </div>
                     </div>
                 </div>
 

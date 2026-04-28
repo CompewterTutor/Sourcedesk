@@ -99,14 +99,24 @@ async function loadProject(id) {
     if (!proj) return;
     state.activeProject = proj;
     state.messages = [];
+    state.activeChatId = null;
     state.activeDocs = new Set();
     state.activeOtherProjects = new Set();
     state.currentNote = null;
     state.currentQuestion = null;
 
-    // load chat history
+    // load chat history — find the most recently updated session
     const chats = await dbGetByIndex("chats", "projectId", id);
-    if (chats.length) state.messages = chats[0].messages || [];
+    if (chats.length) {
+        const latest = chats.reduce((a, b) =>
+            (b.updatedAt || b.createdAt || 0) >
+            (a.updatedAt || a.createdAt || 0)
+                ? b
+                : a,
+        );
+        state.messages = latest.messages || [];
+        state.activeChatId = latest.id;
+    }
 
     // load docs for project — enable all by default
     const docs = await dbGetByIndex("docs", "projectId", id);
@@ -133,5 +143,6 @@ async function loadProject(id) {
     renderSidebar();
     renderMessages();
     await renderRightPanel();
+    renderChatSessionList();
     checkApiKey();
 }
