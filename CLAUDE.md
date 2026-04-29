@@ -53,6 +53,11 @@ Sourcedesk/
 │   ├── promptLibrary.js    ← Prompt Library CRUD + UI; openPromptLibrary(), insertPrompt(),
 │   │                          openSavePromptModal(), openManagePromptLibrary(),
 │   │                          savePromptEntry(), deletePromptEntry(), togglePromptFavorite()
+│   ├── versioning.js       ← Working document snapshots; saveDocVersion(), openVersionHistory(),
+│   │                          restoreDocVersion(), deleteDocVersion()
+│   ├── tasks.js            ← Per-project task management view; full CRUD; loadTasks(),
+│   │                          openNewTask(), selectTask(), saveCurrentTask(),
+│   │                          deleteCurrentTask(), filterTaskList(), toggleTaskInContext()
 │   └── ui.js               ← Modal helpers, pill helpers, input resize, keyboard shortcuts
 ├── tests/
 │   └── test.html           ← Self-contained browser test runner (no server needed, file:// works)
@@ -102,7 +107,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 
 ## Architecture
 
-### IndexedDB Stores (current schema: `DB_VERSION = 5`)
+### IndexedDB Stores (current schema: `DB_VERSION = 6`)
 
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
@@ -114,6 +119,8 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 | `notes` | `id` | `projectId` | `{id, projectId, title, content, pinned, includeInContext, createdAt, updatedAt}` |
 | `supplierQuestions` | `id` | `projectId` | `{id, projectId, text, draftAnswer, createdAt, updatedAt}` |
 | `promptLibrary` | `id` | — | `{id, title, content, favorite, createdAt, updatedAt}` |
+| `docVersions` | `id` | `projectId` | `{id, projectId, content, savedAt, label}` |
+| `tasks` | `id` | `projectId` | `{id, projectId, title, description, status, priority, dueDate, includeInContext, createdAt, updatedAt}` |
 
 ### DB Helper Pattern
 All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)`, `dbDelete(store, key)`, `dbGetAll(store)`, `dbGetByIndex(store, index, val)`. All return Promises. Always await them.
@@ -367,14 +374,14 @@ When adding a new object store or index:
 
 ## Current State (as of last commit)
 
-**Current version: v0.7.0** — build output: `SourceDesk.html` (201.9 KB, 81.3 KB JS)
+**Current version: v0.8.0** — build output: `SourceDesk.html` (230.6 KB, 95.1 KB JS)
 
 ### Committed & working ✅
 
 #### Core infrastructure
-- Build pipeline: 19 `src/*.js` files + `src/index.html` → `npm run build` → single `SourceDesk.html`
+- Build pipeline: 21 `src/*.js` files + `src/index.html` → `npm run build` → single `SourceDesk.html`
 - `DEBUG`, `TEST`, `APP_VERSION` flags in `src/flags.js`; `log()` helper; `DOMContentLoaded` boot gated on `!TEST`
-- IndexedDB schema at `DB_VERSION = 5`; five CRUD helpers (`dbGet`, `dbPut`, `dbDelete`, `dbGetAll`, `dbGetByIndex`)
+- IndexedDB schema at `DB_VERSION = 6`; five CRUD helpers (`dbGet`, `dbPut`, `dbDelete`, `dbGetAll`, `dbGetByIndex`)
 - `uid()` for all record IDs; defensive field access everywhere (old records missing new fields just return `undefined`)
 
 #### Projects & Documents
@@ -457,6 +464,32 @@ When adding a new object store or index:
 - Backup to Drive includes the `notes` store (unlike local `exportDatabase()` — actually both include it now)
 - Token persisted in `settings` store under key `driveToken`; `state.settings.driveToken` loaded at boot
 
+#### Chat Session Titles & Search
+- `saveChat()` derives a title from the first 8 words of the first user message (title-cased); stored as `title` on the `chats` record; existing sessions fall back to the 60-char content preview
+- `renderChatSessionList()` refactored to call shared `_renderChatSessionItems(container, chats, filterQuery)` helper; respects current value of `#chat-session-search` on every re-render
+- `filterChatSessions(query)` — `oninput` handler on the search input above `#chat-session-list`; searches both `title` and raw message content
+
+#### Message Editing and Regeneration
+- `appendMessageEl(role, content, sources, chunks, msgIndex)` — optional `msgIndex` param; `renderMessages()` passes the forEach index
+- **✏ Edit** button (`.msg-edit-btn`) on user bubbles — hover-revealed; calls `editMessageInline(msgDiv, index)`; replaces bubble with inline textarea + ✓ Resend / ✗ Cancel; Resend truncates `state.messages` at index, removes DOM elements from that index onward, calls `sendMessage()`
+- **↺ Regenerate** button (`.msg-regen-btn`) on assistant bubbles — hover-revealed; calls `regenLastAssistant(assistantDiv)`; removes last assistant message from state and DOM, puts prior user message in `#chat-input`, calls `sendMessage()`
+- CSS: `.msg-action-btn`, `.msg-edit-btn`, `.msg-regen-btn`, `.msg-edit-textarea`, `.msg-edit-actions`
+
+#### Working Document Versioning (🗄️ DB_VERSION 6)
+- `saveDocVersion(content)` — called automatically by `saveWorkingDoc()` after every `dbPut`; writes `{id, projectId, content, savedAt, label}` to `docVersions` store
+- **History button** in Working Document view header → `openVersionHistory()` modal; lists all snapshots for active project newest-first; each row shows auto-label ("Version N"), timestamp, 100-char preview
+- `restoreDocVersion(versionId)` — confirms, snapshots current content first, applies selected version to `state.activeProject.workingContent`, writes to DB, updates `#working-doc-editor` if visible
+- `deleteDocVersion(versionId)` — confirms, deletes from DB, re-renders the modal in place
+- All in `src/versioning.js`
+
+#### Task Management (🗄️ DB_VERSION 6)
+- Per-project task list; accessible via **Tasks →** sidebar button (shown after `loadProject()`)
+- Two-panel view (`#tasks-view`): left = scrollable task list with `filterTaskList()` filter input; right = detail/edit form
+- Task fields: `title`, `description`, `status` (todo / in-progress / done), `priority` (low / medium / high), `dueDate` (ISO date string), `includeInContext`
+- `includeInContext` tasks with `status !== 'done'` injected into system prompt as `## Active Tasks` in `sendMessage()`
+- `state.currentTask` — currently selected task object or null
+- All in `src/tasks.js`
+
 #### Prompt Library (🗄️ DB_VERSION 5)
 - `promptLibrary` store: `{ id, title, content, favorite, createdAt, updatedAt }` — not tied to any project; global across all sessions
 - **📚 book icon button** left of the chat input opens a dropdown: favorites section at top (all starred entries), then up to 5 most recent non-favorited entries below a divider; clicking any entry calls `insertPrompt(content)` which sets `#chat-input` and fires `input` to trigger auto-resize
@@ -483,10 +516,11 @@ When adding a new object store or index:
 
 ## Next Steps (Ordered for Next Session)
 
-1. **`npm run build`** → verify 201.9 KB output, open `SourceDesk.html`, open `tests/test.html` → all 92 green
-2. **Chat session titles** *(small)* — auto-generate a short title from the first user message (first 8 words or LLM-generated via a cheap model); store as `title` on the chat record; display in `#chat-session-list` instead of the raw content preview
-3. **Message editing / regeneration** *(medium)* — add an edit button on user message bubbles; re-run from that point, discarding later messages
-4. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
+1. **`npm run build`** → verify 230.6 KB output, open `SourceDesk.html`, open `tests/test.html` → all 92 green
+2. **Task export** *(small)* — export tasks for the active project as Markdown or CSV (similar to the supplier questions export)
+3. **Version labels** *(small)* — allow users to give a snapshot a custom label from the History modal (inline edit on each row)
+4. **Important Contacts / Resources** *(medium)* — per-project contact info and links with tags; include-in-context toggle
+5. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
 
 ---
 

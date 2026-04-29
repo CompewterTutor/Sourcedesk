@@ -9,6 +9,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.8.0] - 2025-07-19 🗄️
+
+### Added
+- **Chat session titles** — each chat session now has an auto-generated short title derived from the first 8 words of the first user message (title-cased); displayed in the sidebar "Chats" list instead of the raw content preview; stored as a `title` field on the `chats` record; existing sessions fall back gracefully to the content preview
+- **Chat session search** — a live search input above `#chat-session-list` in the sidebar filters sessions by title and message content in real time; `filterChatSessions(query)` fetches all sessions for the active project and delegates to a shared `_renderChatSessionItems()` helper used by both search and the standard list render
+- **Message editing and regeneration**:
+  - **✏ Edit** button appears on hover on every user message bubble; clicking it replaces the bubble with an inline textarea pre-filled with the original content plus **✓ Resend** and **✗ Cancel** buttons; Resend truncates `state.messages` at that index, removes DOM elements from that index onward, and calls `sendMessage()` with the new text
+  - **↺ Regenerate** button appears on hover on every assistant message bubble; clicking it removes the last assistant message from state and the DOM, restores the preceding user message into `#chat-input`, and calls `sendMessage()`
+  - `appendMessageEl()` now accepts an optional `msgIndex` parameter; `renderMessages()` passes the forEach index so edit/regen always know their position in history
+  - New CSS classes: `.msg-action-btn`, `.msg-edit-btn`, `.msg-regen-btn`, `.msg-edit-textarea`, `.msg-edit-actions`
+- **Working Document versioning** — every `saveWorkingDoc()` call silently snapshots the content into a new `docVersions` store:
+  - **History button** added to the Working Document view header (between ← Back and Save); opens a modal listing all snapshots for the active project, sorted newest-first, each showing auto-label ("Version N"), timestamp, and 100-char content preview
+  - **Restore** — prompts for confirmation, saves the current content as a snapshot first, then applies the selected version to `state.activeProject.workingContent`, writes to DB, and updates the editor textarea if open
+  - **Delete** — removes a single snapshot with confirmation; re-renders the history modal in place
+  - `saveDocVersion(content)`, `openVersionHistory()`, `restoreDocVersion(versionId)`, `deleteDocVersion(versionId)` in new `src/versioning.js`
+- **Task Management** — per-project task list, accessible via "Tasks →" in the sidebar (appears when a project is loaded):
+  - Two-panel layout: left panel is a scrollable task list with real-time filter; right panel is a detail/edit form
+  - Task fields: title (required), description (optional), status (To Do / In Progress / Done), priority (Low / Medium / High), due date (date picker), include-in-context toggle
+  - Full CRUD: `openNewTask()`, `selectTask(taskId)`, `saveCurrentTask()`, `deleteCurrentTask()`
+  - `filterTaskList(value)` — real-time filter on task title
+  - **Include in context** — tasks with `includeInContext = true` and `status !== 'done'` are injected into the system prompt as `## Active Tasks` on every `sendMessage()` call
+  - `state.currentTask` added to the global state object
+  - `src/tasks.js` — new source file; all task view logic
+
+### Changed
+- `DB_VERSION` bumped `5 → 6`; `onupgradeneeded` adds two new stores: `docVersions` (keyPath `id`, index `projectId`) and `tasks` (keyPath `id`, index `projectId`)
+- `docVersions` store shape: `{ id, projectId, content, savedAt, label }`
+- `tasks` store shape: `{ id, projectId, title, description, status, priority, dueDate, includeInContext, createdAt, updatedAt }`
+- `saveWorkingDoc()` in `src/settings.js` now calls `saveDocVersion(ta.value)` after writing to the `projects` store
+- `sendMessage()` in `src/chat.js` now queries `tasks` for `includeInContext` items and appends `## Active Tasks` to the system prompt
+- `showView()` in `src/boot.js` handles `'tasks'` view; `loadProject()` shows `#tasks-nav-btn`
+- `renderChatSessionList()` refactored to call shared `_renderChatSessionItems()` helper; respects current search input value on re-render
+- `build.js` — `src/versioning.js` and `src/tasks.js` added to `SRC_FILES`; `filterChatSessions`, `openVersionHistory`, `restoreDocVersion`, `deleteDocVersion`, `saveDocVersion`, `loadTasks`, `renderTaskList`, `selectTask`, `openNewTask`, `saveCurrentTask`, `deleteCurrentTask`, `filterTaskList`, `toggleTaskStatus`, `toggleTaskInContext` added to `mangle.reserved`
+
+### Build
+- Total bundle size: 230.6 KB (+28.7 KB over v0.7.0)  |  JS 95.1 KB
+
+---
+
 ## [0.7.0] - 2025-07-19 🗄️
 
 ### Added

@@ -273,6 +273,7 @@ async function saveWorkingDoc() {
     if (!ta) return;
     state.activeProject.workingContent = ta.value;
     await dbPut("projects", state.activeProject);
+    await saveDocVersion(ta.value);
     // brief visual feedback
     const btn = document.getElementById("working-doc-save-btn");
     if (btn) {

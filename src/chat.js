@@ -58,6 +58,29 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
         state.currentNote.content
     )
         systemPrompt += `\n\n## Active Note: ${state.currentNote.title || "Untitled"}\n${state.currentNote.content}`;
+
+    // Inject tasks marked includeInContext
+    if (state.activeProject) {
+        const activeTasks = await dbGetByIndex(
+            "tasks",
+            "projectId",
+            state.activeProject.id,
+        );
+        const ctxTasks = activeTasks.filter(
+            (t) => t.includeInContext && t.status !== "done",
+        );
+        if (ctxTasks.length) {
+            systemPrompt +=
+                "\n\n## Active Tasks\n" +
+                ctxTasks
+                    .map(
+                        (t) =>
+                            `- [${t.status}] ${t.title}${t.dueDate ? " (due " + t.dueDate + ")" : ""}${t.description ? ": " + t.description : ""}`,
+                    )
+                    .join("\n");
+        }
+    }
+
     if (context)
         systemPrompt += `\n\n## Retrieved Context (from project documents)\n${context}`;
 
@@ -222,26 +245,52 @@ async function saveChat() {
     if (!state.activeProject) return;
     const now = Date.now();
     if (state.activeChatId) {
-        // Update existing session
-        await dbPut("chats", {
+        // Update existing session — preserve existing title
+        const existing = await dbGet("chats", state.activeChatId);
+        const titleToKeep =
+            existing?.title ||
+            (() => {
+                const words = (state.messages[0]?.content || "")
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 8)
+                    .join(" ");
+                return words
+                    ? words.replace(/\b\w/g, (c) => c.toUpperCase())
+                    : undefined;
+            })();
+        const record = {
             id: state.activeChatId,
             projectId: state.activeProject.id,
             sessionId: state.activeChatId,
             messages: state.messages,
             updatedAt: now,
-        });
+        };
+        if (titleToKeep) record.title = titleToKeep;
+        await dbPut("chats", record);
     } else {
         // First message in a new session — create a record
         const id = uid();
         state.activeChatId = id;
-        await dbPut("chats", {
+        const firstContent = state.messages[0]?.content || "";
+        const words = firstContent
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 8)
+            .join(" ");
+        const title = words
+            ? words.replace(/\b\w/g, (c) => c.toUpperCase())
+            : undefined;
+        const record = {
             id,
             projectId: state.activeProject.id,
             sessionId: id,
             messages: state.messages,
             createdAt: now,
             updatedAt: now,
-        });
+        };
+        if (title) record.title = title;
+        await dbPut("chats", record);
     }
     renderChatSessionList();
 }
@@ -260,6 +309,54 @@ function newChat() {
     renderMessages();
 }
 
+function _renderChatSessionItems(container, chats, filterQuery) {
+    container.innerHTML = "";
+    const q = (filterQuery || "").toLowerCase().trim();
+    const filtered = q
+        ? chats.filter((c) => {
+              const titleMatch = (c.title || "").toLowerCase().includes(q);
+              const contentMatch = (c.messages || []).some((m) =>
+                  (m.content || "").toLowerCase().includes(q),
+              );
+              return titleMatch || contentMatch;
+          })
+        : chats;
+    if (!filtered.length) {
+        container.innerHTML =
+            '<div style="font-size:11px;color:var(--text-muted);padding:4px 8px;">' +
+            (q ? "No matching sessions" : "No saved sessions yet") +
+            "</div>";
+        return;
+    }
+    filtered.forEach((c) => {
+        const isActive = c.id === state.activeChatId;
+        const date = new Date(c.updatedAt || c.createdAt || 0);
+        const dateStr =
+            date.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+            }) +
+            " " +
+            date.toLocaleTimeString(undefined, {
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+        const displayText = c.title
+            ? c.title
+            : (() => {
+                  const preview =
+                      c.messages?.[0]?.content?.slice(0, 60) || "Empty chat";
+                  return preview + (preview.length >= 60 ? "…" : "");
+              })();
+        const item = document.createElement("div");
+        item.className = "chat-session-item" + (isActive ? " active" : "");
+        item.title = displayText;
+        item.innerHTML = `<span class="chat-session-date">${dateStr}</span><span class="chat-session-preview">${displayText}</span>`;
+        item.onclick = () => loadChatSession(c.id);
+        container.appendChild(item);
+    });
+}
+
 async function renderChatSessionList() {
     const container = document.getElementById("chat-session-list");
     if (!container || !state.activeProject) return;
@@ -274,33 +371,25 @@ async function renderChatSessionList() {
             (b.updatedAt || b.createdAt || 0) -
             (a.updatedAt || a.createdAt || 0),
     );
-    container.innerHTML = "";
-    if (!chats.length) {
-        container.innerHTML =
-            '<div style="font-size:11px;color:var(--text-muted);padding:4px 8px;">No saved sessions yet</div>';
-        return;
-    }
-    chats.forEach((c) => {
-        const isActive = c.id === state.activeChatId;
-        const date = new Date(c.updatedAt || c.createdAt || 0);
-        const dateStr =
-            date.toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-            }) +
-            " " +
-            date.toLocaleTimeString(undefined, {
-                hour: "2-digit",
-                minute: "2-digit",
-            });
-        const preview = c.messages?.[0]?.content?.slice(0, 60) || "Empty chat";
-        const item = document.createElement("div");
-        item.className = "chat-session-item" + (isActive ? " active" : "");
-        item.title = preview;
-        item.innerHTML = `<span class="chat-session-date">${dateStr}</span><span class="chat-session-preview">${preview}${preview.length >= 60 ? "…" : ""}</span>`;
-        item.onclick = () => loadChatSession(c.id);
-        container.appendChild(item);
-    });
+    const searchInput = document.getElementById("chat-session-search");
+    const currentQuery = searchInput ? searchInput.value : "";
+    _renderChatSessionItems(container, chats, currentQuery);
+}
+
+async function filterChatSessions(query) {
+    const container = document.getElementById("chat-session-list");
+    if (!container || !state.activeProject) return;
+    const chats = await dbGetByIndex(
+        "chats",
+        "projectId",
+        state.activeProject.id,
+    );
+    chats.sort(
+        (a, b) =>
+            (b.updatedAt || b.createdAt || 0) -
+            (a.updatedAt || a.createdAt || 0),
+    );
+    _renderChatSessionItems(container, chats, query);
 }
 
 async function loadChatSession(chatId) {

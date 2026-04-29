@@ -62,10 +62,13 @@ function showView(v) {
         v === "working-doc" ? "flex" : "none";
     document.getElementById("sq-view").style.display =
         v === "sq" ? "flex" : "none";
+    document.getElementById("tasks-view").style.display =
+        v === "tasks" ? "flex" : "none";
     if (v === "templates") renderTemplatesGrid();
     if (v === "notes") loadNotes();
     if (v === "working-doc") _fillWorkingDocEditor();
     if (v === "sq") loadSupplierQuestions();
+    if (v === "tasks") loadTasks();
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
@@ -139,6 +142,9 @@ async function loadProject(id) {
 
     const clearChatBtn = document.getElementById("clear-chat-btn");
     if (clearChatBtn) clearChatBtn.classList.remove("hidden");
+
+    const tasksBtn = document.getElementById("tasks-nav-btn");
+    if (tasksBtn) tasksBtn.style.display = "";
 
     renderSidebar();
     renderMessages();

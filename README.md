@@ -4,7 +4,7 @@ An in-browser RAG and project management tool that talks to AI providers directl
 
 An in-browser RAG and project management tool that talks to AI providers directly from the browser. Runs completely client-side as a single HTML file — open it, it works. No server, no install, no account.
 
-**Current version:** v0.7.0 — Prompt Library, multi-session chat, temp file attachments, streaming indicator, context usage meter
+**Current version:** v0.8.0 — Task management, working doc versioning, chat session titles & search, message edit/regen, prompt library
 
 ---
 
@@ -84,6 +84,21 @@ Per-project Q&A manager for RFP/procurement workflows (sidebar → Supplier Q �
 
 ### Multi-Session Chat
 Each project supports multiple saved chat sessions. Use the **+** button in the sidebar "Chats" section to start a fresh session — prior sessions are preserved and listed with a timestamp and message preview. Click any session to reload it.
+
+### Chat Session Titles & Search
+Each saved chat session now displays an auto-generated title (first 8 words of the first message) in the sidebar instead of a raw content preview. A live search input above the session list filters sessions by title and message content in real time.
+
+### Message Editing and Regeneration
+Hover any user message bubble to reveal a **✏ Edit** button — clicking it opens an inline textarea so you can adjust the message and resend. Everything after that point in the conversation is discarded and regenerated. Hover any assistant message bubble to reveal a **↺ Regenerate** button, which removes that response and replays the preceding user message from scratch.
+
+### Working Document Versioning
+Every time you save the working document a snapshot is stored automatically. Click the **History** button in the Working Document header to browse all snapshots — each shows a timestamp, auto-label, and content preview. Restore any version (your current content is snapshotted first) or delete old ones you no longer need.
+
+### Task Management
+Per-project task list, accessible from **Tasks →** in the sidebar when a project is loaded:
+- Two-panel layout — task list with real-time filter on the left, detail/edit form on the right
+- Task fields: title, description, status (To Do / In Progress / Done), priority (Low / Medium / High), due date
+- **Include in context** toggle — checked tasks with non-done status are injected into the system prompt as `## Active Tasks` on every message
 
 ### Prompt Library
 Save and reuse prompts across any chat session. Click the 📚 book icon button left of the chat input to open the library dropdown:
@@ -182,6 +197,7 @@ Example `.env` values:
 - [x] **Google Drive Connector** — import supported Drive files into projects, verify short-lived OAuth Playground tokens, and back up the database to Drive
 
 ### Project Data & Contacts
+- [x] **Task Management** — per-project tasks with title, description, status, priority, due date; include-in-context toggle injects active tasks into every chat message
 - [ ] **Important Contacts / Resources** — per-project contact info and links with tags; include-in-context toggle
 - [ ] **Vendor Catalog** — directory of vendors and agencies categorised by expertise; include in context for relevant projects
 - [ ] **Project Deliverables** — define expected outputs/artifacts with deadlines and milestones; export as a zip of generated files or structured JSON/CSV
@@ -191,7 +207,7 @@ Example `.env` values:
 - [ ] **Org Charts** — lightweight org chart creator and viewer for team structures and project stakeholders; include in context
 - [ ] **Calendar Integration** — sync deadlines and milestones from an external calendar; surface dates in project context
 - [ ] **Task Management** — per-project tasks with due dates, priority, and status; track progress without leaving the app
-- [ ] **Versioning** — save named snapshots of the working document; roll back to any previous version
+- [x] **Versioning** — automatic snapshots on every working document save; History button to browse, restore, or delete any snapshot
 
 ### Platform
 - [ ] **Mobile Optimisation** — responsive layout for the context panel and chat on smaller screens
@@ -206,6 +222,6 @@ Example `.env` values:
 - [x] **Streaming indicator** — animated pulse while AI is writing
 - [x] **Context usage meter** — live token estimate with colour-coded fill bar
 - [x] **Prompt Library** — save prompts from any user message (📚 hover button); insert from a dropdown left of the chat input; favorites pinned at top; manage all entries with inline edit, delete, and favorite toggle
-- [ ] **Chat session titles** — auto-generate a short title from the first message for easier navigation
-- [ ] **Session search** — find past sessions by keyword across all projects
-- [ ] **Message editing / regeneration** — edit a sent message and re-run from that point
+- [x] **Chat session titles** — auto-generated from first 8 words of the first message; displayed in sidebar session list
+- [x] **Session search** — live filter input above the chat session list; searches title and message content
+- [x] **Message editing / regeneration** — ✏ edit any user message inline and resend (discards everything after); ↺ regenerate any assistant response

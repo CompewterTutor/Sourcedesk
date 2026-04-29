@@ -25,6 +25,7 @@ let state = {
     editingProjectId: null,
     currentNote: null,
     currentQuestion: null,
+    currentTask: null,
 };
 
 // ─── PROVIDER HELPERS ─────────────────────────────────────────────────────────

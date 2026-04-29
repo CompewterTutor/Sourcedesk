@@ -539,6 +539,49 @@
                 color: var(--accent);
                 background: var(--accent-glow);
             }
+            .msg-action-btn {
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-size: 13px;
+                opacity: 0;
+                padding: 2px 5px;
+                border-radius: 3px;
+                color: var(--text-muted);
+                transition: opacity 0.15s;
+                align-self: flex-start;
+                margin-top: 2px;
+                flex-shrink: 0;
+            }
+            .msg.user:hover .msg-edit-btn,
+            .msg.assistant:hover .msg-regen-btn {
+                opacity: 1;
+            }
+            .msg-action-btn:hover {
+                color: var(--accent);
+                background: var(--accent-glow);
+            }
+            .msg-edit-textarea {
+                width: 100%;
+                min-height: 60px;
+                max-height: 200px;
+                background: var(--bg);
+                border: 1px solid var(--accent-dim);
+                border-radius: var(--radius);
+                color: var(--text);
+                font-family: Inter, sans-serif;
+                font-size: 13px;
+                padding: 8px 10px;
+                resize: vertical;
+                outline: none;
+                box-sizing: border-box;
+            }
+            .msg-edit-actions {
+                display: flex;
+                gap: 6px;
+                margin-top: 6px;
+                justify-content: flex-end;
+            }
             #streaming-indicator {
                 display: flex;
                 align-items: center;
@@ -1639,6 +1682,15 @@
                         +
                     </button>
                 </div>
+                <div style="padding: 4px 8px 2px">
+                    <input
+                        id="chat-session-search"
+                        class="form-input"
+                        placeholder="Search chats…"
+                        oninput="filterChatSessions(this.value)"
+                        style="width: 100%; font-size: 11px; padding: 4px 8px"
+                    />
+                </div>
                 <div
                     class="sidebar-scroll"
                     id="chat-session-list"
@@ -1673,6 +1725,19 @@
                         onclick="showView('sq')"
                         title="Supplier Questions"
                         style="font-size: 14px"
+                    >
+                        →
+                    </button>
+                </div>
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-section" style="flex-shrink: 0">
+                    Tasks
+                    <button
+                        class="sidebar-add"
+                        id="tasks-nav-btn"
+                        onclick="if (state.activeProject) showView('tasks');"
+                        title="Tasks"
+                        style="font-size: 14px; display: none"
                     >
                         →
                     </button>
@@ -1822,6 +1887,22 @@
                         <div class="view-title">Working Document</div>
                         <button class="btn-icon" onclick="showView('chat')">
                             ← Back
+                        </button>
+                        <button
+                            class="btn-icon"
+                            onclick="openVersionHistory()"
+                            title="Version history"
+                        >
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                            >
+                                <polyline points="1 4 1 10 7 10" />
+                                <path d="M1 10a7 7 0 1 0 .96-3.64" />
+                            </svg>
+                            History
                         </button>
                         <button
                             id="working-doc-save-btn"
@@ -2248,6 +2329,250 @@
                                         "
                                     >
                                         Save Answer
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tasks View -->
+                <div
+                    id="tasks-view"
+                    style="
+                        display: none;
+                        flex: 1;
+                        flex-direction: column;
+                        overflow: hidden;
+                    "
+                >
+                    <div class="view-header">
+                        <div class="view-title">Tasks</div>
+                        <button class="btn-icon" onclick="showView('chat')">
+                            ← Back
+                        </button>
+                    </div>
+                    <div style="display: flex; flex: 1; overflow: hidden">
+                        <!-- List panel -->
+                        <div
+                            style="
+                                width: 280px;
+                                min-width: 200px;
+                                border-right: 1px solid var(--border);
+                                display: flex;
+                                flex-direction: column;
+                                overflow: hidden;
+                                flex-shrink: 0;
+                            "
+                        >
+                            <div
+                                style="
+                                    padding: 8px;
+                                    border-bottom: 1px solid var(--border);
+                                    display: flex;
+                                    flex-direction: column;
+                                    gap: 6px;
+                                "
+                            >
+                                <button
+                                    class="btn-primary"
+                                    style="width: 100%"
+                                    onclick="openNewTask()"
+                                >
+                                    + New Task
+                                </button>
+                                <input
+                                    id="task-filter"
+                                    class="form-input"
+                                    placeholder="Filter tasks…"
+                                    oninput="filterTaskList(this.value)"
+                                />
+                            </div>
+                            <div
+                                id="task-list"
+                                style="overflow-y: auto; flex: 1"
+                            ></div>
+                        </div>
+                        <!-- Detail panel -->
+                        <div
+                            id="task-detail-panel"
+                            style="
+                                flex: 1;
+                                display: flex;
+                                flex-direction: column;
+                                padding: 20px;
+                                gap: 14px;
+                                overflow-y: auto;
+                            "
+                        >
+                            <div
+                                id="task-detail-placeholder"
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    flex: 1;
+                                    color: var(--text-muted);
+                                    font-size: 13px;
+                                "
+                            >
+                                Select or create a task
+                            </div>
+                            <div
+                                id="task-detail-form"
+                                style="
+                                    display: none;
+                                    flex-direction: column;
+                                    gap: 14px;
+                                "
+                            >
+                                <div class="form-row">
+                                    <label class="form-label">Title</label>
+                                    <input
+                                        id="task-title-input"
+                                        class="form-input"
+                                        placeholder="Task title…"
+                                    />
+                                </div>
+                                <div class="form-row">
+                                    <label class="form-label"
+                                        >Description</label
+                                    >
+                                    <textarea
+                                        id="task-desc-input"
+                                        class="form-textarea"
+                                        rows="3"
+                                        placeholder="Optional details…"
+                                        style="resize: vertical"
+                                    ></textarea>
+                                </div>
+                                <div class="form-row">
+                                    <label class="form-label">Status</label>
+                                    <div
+                                        class="type-pills"
+                                        id="task-status-pills"
+                                    >
+                                        <div
+                                            class="type-pill active"
+                                            data-val="todo"
+                                            onclick="
+                                                selectPill(
+                                                    this,
+                                                    'task-status-pills',
+                                                )
+                                            "
+                                        >
+                                            To Do
+                                        </div>
+                                        <div
+                                            class="type-pill"
+                                            data-val="in-progress"
+                                            onclick="
+                                                selectPill(
+                                                    this,
+                                                    'task-status-pills',
+                                                )
+                                            "
+                                        >
+                                            In Progress
+                                        </div>
+                                        <div
+                                            class="type-pill"
+                                            data-val="done"
+                                            onclick="
+                                                selectPill(
+                                                    this,
+                                                    'task-status-pills',
+                                                )
+                                            "
+                                        >
+                                            Done
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <label class="form-label">Priority</label>
+                                    <div
+                                        class="type-pills"
+                                        id="task-priority-pills"
+                                    >
+                                        <div
+                                            class="type-pill"
+                                            data-val="low"
+                                            onclick="
+                                                selectPill(
+                                                    this,
+                                                    'task-priority-pills',
+                                                )
+                                            "
+                                        >
+                                            Low
+                                        </div>
+                                        <div
+                                            class="type-pill active"
+                                            data-val="medium"
+                                            onclick="
+                                                selectPill(
+                                                    this,
+                                                    'task-priority-pills',
+                                                )
+                                            "
+                                        >
+                                            Medium
+                                        </div>
+                                        <div
+                                            class="type-pill"
+                                            data-val="high"
+                                            onclick="
+                                                selectPill(
+                                                    this,
+                                                    'task-priority-pills',
+                                                )
+                                            "
+                                        >
+                                            High
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <label class="form-label">Due Date</label>
+                                    <input
+                                        id="task-due-input"
+                                        class="form-input"
+                                        type="date"
+                                    />
+                                </div>
+                                <label
+                                    style="
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 8px;
+                                        cursor: pointer;
+                                        font-size: 13px;
+                                        color: var(--text-dim);
+                                    "
+                                >
+                                    <input
+                                        type="checkbox"
+                                        id="task-ctx-toggle"
+                                        style="accent-color: var(--accent)"
+                                    />
+                                    <span>Include in chat context</span>
+                                </label>
+                                <div style="display: flex; gap: 8px">
+                                    <button
+                                        class="btn-primary"
+                                        onclick="saveCurrentTask()"
+                                    >
+                                        Save Task
+                                    </button>
+                                    <button
+                                        class="btn-ghost"
+                                        id="task-delete-btn"
+                                        onclick="deleteCurrentTask()"
+                                        style="display: none"
+                                    >
+                                        Delete
                                     </button>
                                 </div>
                             </div>
