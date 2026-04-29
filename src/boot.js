@@ -1,61 +1,78 @@
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
+function _bootError(msg) {
+    document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;font-family:Inter,sans-serif;background:#0f0e0c;color:#e8e4dc">
+        <div style="font-size:18px;color:#c9a84c;font-weight:600">SourceDesk — Startup Error</div>
+        <div style="font-size:13px;color:#a8a49c;max-width:480px;text-align:center;line-height:1.6;white-space:pre-wrap">${String(msg).replace(/</g, "&lt;")}</div>
+        <button onclick="location.reload()" style="background:#c9a84c;border:none;color:#0f0e0c;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">Reload</button>
+    </div>`;
+}
+
 async function boot() {
     try {
         await openDB();
     } catch (err) {
-        document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;font-family:Inter,sans-serif;background:#0f0e0c;color:#e8e4dc">
-            <div style="font-size:18px;color:#c9a84c;font-weight:600">SourceDesk — Database Error</div>
-            <div style="font-size:13px;color:#a8a49c;max-width:420px;text-align:center;line-height:1.6">${err.message || "IndexedDB could not be opened. Close all other SourceDesk tabs and reload."}</div>
-            <button onclick="location.reload()" style="background:#c9a84c;border:none;color:#0f0e0c;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">Reload</button>
-        </div>`;
+        _bootError(
+            err.message ||
+                "IndexedDB could not be opened. Close all other SourceDesk tabs and reload.",
+        );
         return;
     }
-    state.templates = await dbGetAll("templates");
-    state.projects = await dbGetAll("projects");
 
-    const provider = await dbGet("settings", "provider");
-    const model = await dbGet("settings", "model");
-    const globalContext = await dbGet("settings", "globalContext");
-    const anthropicKey = await dbGet("settings", "apiKey_anthropic");
-    const openaiKey = await dbGet("settings", "apiKey_openai");
-    const openrouterKey = await dbGet("settings", "apiKey_openrouter");
-    const githubKey = await dbGet("settings", "apiKey_github");
-    const constants = await dbGet("settings", "constants");
-    const driveToken = await dbGet("settings", "driveToken");
-    // Legacy: old single apiKey → migrate to anthropicKey
-    const legacyKey = await dbGet("settings", "apiKey");
+    try {
+        state.templates = await dbGetAll("templates");
+        state.projects = await dbGetAll("projects");
 
-    if (provider) state.settings.provider = provider.value;
-    if (model) state.settings.model = model.value;
-    if (globalContext) state.settings.globalContext = globalContext.value;
-    if (anthropicKey) state.settings.anthropicKey = anthropicKey.value;
-    else if (legacyKey) state.settings.anthropicKey = legacyKey.value; // migrate
-    if (openaiKey) state.settings.openaiKey = openaiKey.value;
-    if (openrouterKey) state.settings.openrouterKey = openrouterKey.value;
-    if (githubKey) state.settings.githubKey = githubKey.value;
-    if (constants) state.settings.constants = constants.value;
-    if (driveToken) state.settings.driveToken = driveToken.value;
-    const localLlmUrl = await dbGet("settings", "localLlmUrl");
-    if (localLlmUrl) state.settings.localLlmUrl = localLlmUrl.value;
-    // Apply .env defaults injected by server.js (only if DB has no saved value)
-    const _senv = window.__SOURCEDESK_ENV__ || {};
-    if (!state.settings.localLlmUrl && _senv.localLlmUrl) {
-        state.settings.localLlmUrl = _senv.localLlmUrl;
+        const provider = await dbGet("settings", "provider");
+        const model = await dbGet("settings", "model");
+        const globalContext = await dbGet("settings", "globalContext");
+        const anthropicKey = await dbGet("settings", "apiKey_anthropic");
+        const openaiKey = await dbGet("settings", "apiKey_openai");
+        const openrouterKey = await dbGet("settings", "apiKey_openrouter");
+        const githubKey = await dbGet("settings", "apiKey_github");
+        const constants = await dbGet("settings", "constants");
+        const driveToken = await dbGet("settings", "driveToken");
+        // Legacy: old single apiKey → migrate to anthropicKey
+        const legacyKey = await dbGet("settings", "apiKey");
+
+        if (provider) state.settings.provider = provider.value;
+        if (model) state.settings.model = model.value;
+        if (globalContext) state.settings.globalContext = globalContext.value;
+        if (anthropicKey) state.settings.anthropicKey = anthropicKey.value;
+        else if (legacyKey) state.settings.anthropicKey = legacyKey.value; // migrate
+        if (openaiKey) state.settings.openaiKey = openaiKey.value;
+        if (openrouterKey) state.settings.openrouterKey = openrouterKey.value;
+        if (githubKey) state.settings.githubKey = githubKey.value;
+        if (constants) state.settings.constants = constants.value;
+        if (driveToken) state.settings.driveToken = driveToken.value;
+        const localLlmUrl = await dbGet("settings", "localLlmUrl");
+        if (localLlmUrl) state.settings.localLlmUrl = localLlmUrl.value;
+        // Apply .env defaults injected by server.js (only if DB has no saved value)
+        const _senv = window.__SOURCEDESK_ENV__ || {};
+        if (!state.settings.localLlmUrl && _senv.localLlmUrl) {
+            state.settings.localLlmUrl = _senv.localLlmUrl;
+        }
+        if (
+            _senv.localLlmDefaultModel &&
+            state.settings.provider === "local" &&
+            !state.settings.model
+        ) {
+            state.settings.model = _senv.localLlmDefaultModel;
+        }
+
+        // Set version string in topbar
+        const vEl = document.getElementById("app-version");
+        if (vEl) vEl.textContent = `v${APP_VERSION}`;
+
+        renderSidebar();
+        checkApiKey();
+    } catch (err) {
+        _bootError(
+            "Boot failed: " +
+                (err.message || err) +
+                "\n\nCheck the browser console for details.",
+        );
+        console.error("[SourceDesk boot error]", err);
     }
-    if (
-        _senv.localLlmDefaultModel &&
-        state.settings.provider === "local" &&
-        !state.settings.model
-    ) {
-        state.settings.model = _senv.localLlmDefaultModel;
-    }
-
-    // Set version string in topbar
-    const vEl = document.getElementById("app-version");
-    if (vEl) vEl.textContent = `v${APP_VERSION}`;
-
-    renderSidebar();
-    checkApiKey();
 }
 
 // ─── VIEWS ────────────────────────────────────────────────────────────────────
