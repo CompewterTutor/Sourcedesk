@@ -6,8 +6,16 @@ let db;
 function openDB() {
     return new Promise((res, rej) => {
         const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onblocked = () => {
+            rej(
+                new Error(
+                    "IndexedDB upgrade blocked — please close other tabs running SourceDesk and reload.",
+                ),
+            );
+        };
         req.onupgradeneeded = (e) => {
             const d = e.target.result;
+            d.onerror = (ev) => rej(ev.target.error);
             if (!d.objectStoreNames.contains("templates"))
                 d.createObjectStore("templates", { keyPath: "id" });
             if (!d.objectStoreNames.contains("projects"))
@@ -22,11 +30,19 @@ function openDB() {
             }
             if (e.oldVersion < 4) {
                 const tx = e.target.transaction;
-                const chatsStore = tx.objectStore("chats");
-                if (!chatsStore.indexNames.contains("sessionId")) {
-                    chatsStore.createIndex("sessionId", "sessionId", {
-                        unique: false,
-                    });
+                // chats store may have been just created above (oldVersion=0)
+                // or may already exist (oldVersion=1,2,3) — either way it's
+                // accessible via the upgrade transaction.
+                try {
+                    const chatsStore = tx.objectStore("chats");
+                    if (!chatsStore.indexNames.contains("sessionId")) {
+                        chatsStore.createIndex("sessionId", "sessionId", {
+                            unique: false,
+                        });
+                    }
+                } catch (err) {
+                    // store not yet in transaction scope — index will be
+                    // created via the createObjectStore path above
                 }
             }
             if (!d.objectStoreNames.contains("settings"))
@@ -56,9 +72,11 @@ function openDB() {
         };
         req.onsuccess = (e) => {
             db = e.target.result;
+            db.onerror = (ev) =>
+                console.error("IndexedDB error:", ev.target.error);
             res(db);
         };
-        req.onerror = () => rej(req.error);
+        req.onerror = (e) => rej(e.target.error || req.error);
     });
 }
 

@@ -1,6 +1,15 @@
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 async function boot() {
-    await openDB();
+    try {
+        await openDB();
+    } catch (err) {
+        document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;font-family:Inter,sans-serif;background:#0f0e0c;color:#e8e4dc">
+            <div style="font-size:18px;color:#c9a84c;font-weight:600">SourceDesk — Database Error</div>
+            <div style="font-size:13px;color:#a8a49c;max-width:420px;text-align:center;line-height:1.6">${err.message || "IndexedDB could not be opened. Close all other SourceDesk tabs and reload."}</div>
+            <button onclick="location.reload()" style="background:#c9a84c;border:none;color:#0f0e0c;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">Reload</button>
+        </div>`;
+        return;
+    }
     state.templates = await dbGetAll("templates");
     state.projects = await dbGetAll("projects");
 
