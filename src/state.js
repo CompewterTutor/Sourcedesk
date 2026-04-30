@@ -27,6 +27,7 @@ let state = {
     currentNote: null,
     currentQuestion: null,
     currentTask: null,
+    currentContact: null,
 };
 
 // ─── PROVIDER HELPERS ─────────────────────────────────────────────────────────

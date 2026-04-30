@@ -523,6 +523,7 @@ async function backupToDrive() {
             "notes",
             "settings",
             "embeddings",
+            "contacts",
         ];
         const data = {
             version: DB_VERSION,
@@ -1099,6 +1100,7 @@ async function importDatabase(file) {
         "settings",
         "notes",
         "embeddings",
+        "contacts",
     ];
     for (const s of stores) {
         const items = await dbGetAll(s);

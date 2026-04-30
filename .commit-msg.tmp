@@ -1,0 +1,47 @@
+feat(contacts,versioning): add Contacts & Resources panel and custom version labels
+
+Bumps DB_VERSION 7 → 8. Knocks two items off the upcoming-features list and
+captures a much-expanded long-term roadmap (items 13–22 + V2 plan) in CLAUDE.md.
+
+Custom version labels (versioning.js)
+- Each row in the Version History modal now has a ✎ button next to its label
+- Inline input replaces the label on click; Enter saves, Esc cancels
+- Empty label falls back to auto "Version N"; custom labels render solid,
+  auto labels render muted italic
+- New helpers: _vhStartLabelEdit, _vhSaveLabel (added to mangle.reserved)
+
+Contacts & Resources (new src/contacts.js, DB_VERSION 8)
+- New `contacts` IndexedDB store with `projectId` index
+- Per-project two-panel view (#contacts-view) with list + detail form
+- Sidebar nav button revealed after loadProject()
+- Two entry types via pill toggle:
+    👤 Contact: name, role, org, email, phone, url, tags, notes
+    🔗 Resource: title, url, tags, notes
+  Form auto-hides contact-only fields when type=resource
+- Tags input (comma-separated); rendered as pill chips on each row
+- Real-time filter across all text fields including tags
+- "Include in chat context" checkbox per entry; checked entries injected
+  into system prompt as "## Important Contacts & Resources" block via
+  _buildContactsContextBlock() called from chat.js > sendMessage()
+- Cascade-deleted with project; cascade also extended to `tasks` and
+  `docVersions` which were missing it before
+- Wired into exportDatabase / importDatabase / clearAllData / backupToDrive
+  store lists
+- Registered in build.js SRC_FILES + 9 reserved mangle names; added to
+  tests/test.html script list
+
+Roadmap (CLAUDE.md)
+- Marked items 2 (Version labels) and 3 (Contacts/Resources) as ✅ done
+- Added items 13–22 covering proper Help, autosave everywhere, rich-text
+  editor with raw/rendered toggle + toolbar, feature suggestion box,
+  version diffs, highlights/comments as document metadata with
+  export-with/without, branching version DAG, highlights aggregator panel,
+  Proposal Evaluation project type with weighted criteria + AI/multi-agent
+  auto-evaluator, and collaborative evaluation
+- Added V2 Roadmap section: TypeScript, modern framework, real DB,
+  Better Auth, CRDT collab, SOC 2 / GDPR / HIPAA compliance, S3 storage,
+  plugin/MCP architecture; explicit TODO to have Opus draft a full plan
+  before any v2 code is written
+- Updated DB schema table to v8 with contacts + embeddings rows
+
+Build: ✓ SourceDesk.html 280.5 KB / JS 123.6 KB (production minified)

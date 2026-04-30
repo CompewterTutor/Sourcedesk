@@ -93,11 +93,14 @@ function showView(v) {
         v === "sq" ? "flex" : "none";
     document.getElementById("tasks-view").style.display =
         v === "tasks" ? "flex" : "none";
+    document.getElementById("contacts-view").style.display =
+        v === "contacts" ? "flex" : "none";
     if (v === "templates") renderTemplatesGrid();
     if (v === "notes") loadNotes();
     if (v === "working-doc") _fillWorkingDocEditor();
     if (v === "sq") loadSupplierQuestions();
     if (v === "tasks") loadTasks();
+    if (v === "contacts") loadContacts();
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
@@ -174,6 +177,9 @@ async function loadProject(id) {
 
     const tasksBtn = document.getElementById("tasks-nav-btn");
     if (tasksBtn) tasksBtn.style.display = "";
+
+    const contactsBtn = document.getElementById("contacts-nav-btn");
+    if (contactsBtn) contactsBtn.style.display = "";
 
     renderSidebar();
     renderMessages();

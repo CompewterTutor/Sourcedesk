@@ -1742,6 +1742,19 @@
                         →
                     </button>
                 </div>
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-section" style="flex-shrink: 0">
+                    Contacts &amp; Resources
+                    <button
+                        class="sidebar-add"
+                        id="contacts-nav-btn"
+                        onclick="if (state.activeProject) showView('contacts');"
+                        title="Contacts &amp; Resources"
+                        style="font-size: 14px; display: none"
+                    >
+                        →
+                    </button>
+                </div>
             </div>
 
             <!-- MAIN -->
@@ -2598,6 +2611,237 @@
                                         class="btn-ghost"
                                         id="task-delete-btn"
                                         onclick="deleteCurrentTask()"
+                                        style="display: none"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contacts &amp; Resources View -->
+                <div
+                    id="contacts-view"
+                    style="
+                        display: none;
+                        flex: 1;
+                        flex-direction: column;
+                        overflow: hidden;
+                    "
+                >
+                    <div class="view-header">
+                        <div class="view-title">Contacts &amp; Resources</div>
+                        <button class="btn-icon" onclick="showView('chat')">
+                            ← Back
+                        </button>
+                    </div>
+                    <div style="display: flex; flex: 1; overflow: hidden">
+                        <!-- List panel -->
+                        <div
+                            style="
+                                width: 280px;
+                                min-width: 200px;
+                                border-right: 1px solid var(--border);
+                                display: flex;
+                                flex-direction: column;
+                                overflow: hidden;
+                                flex-shrink: 0;
+                            "
+                        >
+                            <div
+                                style="
+                                    padding: 8px;
+                                    border-bottom: 1px solid var(--border);
+                                    display: flex;
+                                    flex-direction: column;
+                                    gap: 6px;
+                                "
+                            >
+                                <button
+                                    class="btn-primary"
+                                    onclick="openNewContact()"
+                                >
+                                    + New Contact / Resource
+                                </button>
+                                <input
+                                    id="contact-filter"
+                                    class="form-input"
+                                    placeholder="Filter…"
+                                    oninput="filterContactList(this.value)"
+                                />
+                            </div>
+                            <div
+                                id="contact-list"
+                                style="overflow-y: auto; flex: 1"
+                            ></div>
+                        </div>
+                        <!-- Detail panel -->
+                        <div
+                            id="contact-detail-panel"
+                            style="
+                                flex: 1;
+                                display: flex;
+                                flex-direction: column;
+                                padding: 20px;
+                                gap: 14px;
+                                overflow-y: auto;
+                            "
+                        >
+                            <div
+                                id="contact-detail-placeholder"
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    flex: 1;
+                                    color: var(--text-muted);
+                                    font-size: 13px;
+                                "
+                            >
+                                Select or create an entry
+                            </div>
+                            <div
+                                id="contact-detail-form"
+                                style="
+                                    display: none;
+                                    flex-direction: column;
+                                    gap: 14px;
+                                "
+                            >
+                                <div class="form-row">
+                                    <label class="form-label">Type</label>
+                                    <div
+                                        class="type-pills"
+                                        id="contact-type-pills"
+                                    >
+                                        <div
+                                            class="type-pill active"
+                                            data-val="contact"
+                                            onclick="
+                                                selectContactTypePill(this)
+                                            "
+                                        >
+                                            👤 Contact
+                                        </div>
+                                        <div
+                                            class="type-pill"
+                                            data-val="resource"
+                                            onclick="
+                                                selectContactTypePill(this)
+                                            "
+                                        >
+                                            🔗 Resource
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <label
+                                        class="form-label"
+                                        id="contact-name-label"
+                                        >Name</label
+                                    >
+                                    <input
+                                        id="contact-name-input"
+                                        class="form-input"
+                                        placeholder="…"
+                                    />
+                                </div>
+                                <div class="form-row" id="contact-row-role">
+                                    <label class="form-label"
+                                        >Role / Title</label
+                                    >
+                                    <input
+                                        id="contact-role-input"
+                                        class="form-input"
+                                        placeholder="e.g. Procurement Director"
+                                    />
+                                </div>
+                                <div class="form-row" id="contact-row-org">
+                                    <label class="form-label"
+                                        >Organisation</label
+                                    >
+                                    <input
+                                        id="contact-org-input"
+                                        class="form-input"
+                                        placeholder="Vendor / dept / company…"
+                                    />
+                                </div>
+                                <div class="form-row" id="contact-row-email">
+                                    <label class="form-label">Email</label>
+                                    <input
+                                        id="contact-email-input"
+                                        class="form-input"
+                                        type="email"
+                                        placeholder="name@example.com"
+                                    />
+                                </div>
+                                <div class="form-row" id="contact-row-phone">
+                                    <label class="form-label">Phone</label>
+                                    <input
+                                        id="contact-phone-input"
+                                        class="form-input"
+                                        placeholder="+1 555 123 4567"
+                                    />
+                                </div>
+                                <div class="form-row" id="contact-row-url">
+                                    <label class="form-label">URL</label>
+                                    <input
+                                        id="contact-url-input"
+                                        class="form-input"
+                                        type="url"
+                                        placeholder="https://…"
+                                    />
+                                </div>
+                                <div class="form-row">
+                                    <label class="form-label"
+                                        >Tags (comma separated)</label
+                                    >
+                                    <input
+                                        id="contact-tags-input"
+                                        class="form-input"
+                                        placeholder="vendor, legal, key-stakeholder"
+                                    />
+                                </div>
+                                <div class="form-row">
+                                    <label class="form-label">Notes</label>
+                                    <textarea
+                                        id="contact-notes-input"
+                                        class="form-textarea"
+                                        rows="3"
+                                        placeholder="Optional notes…"
+                                        style="resize: vertical"
+                                    ></textarea>
+                                </div>
+                                <label
+                                    style="
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 8px;
+                                        cursor: pointer;
+                                        font-size: 13px;
+                                        color: var(--text-dim);
+                                    "
+                                >
+                                    <input
+                                        type="checkbox"
+                                        id="contact-ctx-toggle"
+                                        style="accent-color: var(--accent)"
+                                    />
+                                    <span>Include in chat context</span>
+                                </label>
+                                <div style="display: flex; gap: 8px">
+                                    <button
+                                        class="btn-primary"
+                                        onclick="saveCurrentContact()"
+                                    >
+                                        Save
+                                    </button>
+                                    <button
+                                        class="btn-ghost"
+                                        id="contact-delete-btn"
+                                        onclick="deleteCurrentContact()"
                                         style="display: none"
                                     >
                                         Delete

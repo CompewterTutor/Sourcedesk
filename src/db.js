@@ -1,6 +1,6 @@
 // ─── IndexedDB ────────────────────────────────────────────────────────────────
 const DB_NAME = "sourcedesk",
-    DB_VERSION = 7;
+    DB_VERSION = 8;
 let db;
 
 function openDB() {
@@ -77,6 +77,13 @@ function openDB() {
                     keyPath: "id",
                 });
                 emb.createIndex("docId", "docId", { unique: false });
+            }
+            // contacts store — per-project contacts and resource links (DB v8)
+            if (!d.objectStoreNames.contains("contacts")) {
+                const co = d.createObjectStore("contacts", {
+                    keyPath: "id",
+                });
+                co.createIndex("projectId", "projectId", { unique: false });
             }
         };
         req.onsuccess = (e) => {

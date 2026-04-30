@@ -122,6 +122,18 @@ async function deleteProject(id) {
     for (const n of notes) await dbDelete("notes", n.id);
     const sqs = await dbGetByIndex("supplierQuestions", "projectId", id);
     for (const sq of sqs) await dbDelete("supplierQuestions", sq.id);
+    try {
+        const tasks = await dbGetByIndex("tasks", "projectId", id);
+        for (const t of tasks) await dbDelete("tasks", t.id);
+    } catch (e) {}
+    try {
+        const contacts = await dbGetByIndex("contacts", "projectId", id);
+        for (const c of contacts) await dbDelete("contacts", c.id);
+    } catch (e) {}
+    try {
+        const versions = await dbGetByIndex("docVersions", "projectId", id);
+        for (const v of versions) await dbDelete("docVersions", v.id);
+    } catch (e) {}
     await dbDelete("projects", id);
     state.projects = state.projects.filter((p) => p.id !== id);
     if (state.activeProject?.id === id) {

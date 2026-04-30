@@ -79,6 +79,24 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
                     )
                     .join("\n");
         }
+
+        // Inject contacts/resources marked includeInContext
+        try {
+            const allContacts = await dbGetByIndex(
+                "contacts",
+                "projectId",
+                state.activeProject.id,
+            );
+            const ctxContacts = allContacts.filter((c) => c.includeInContext);
+            if (
+                ctxContacts.length &&
+                typeof _buildContactsContextBlock === "function"
+            ) {
+                systemPrompt += _buildContactsContextBlock(ctxContacts);
+            }
+        } catch (e) {
+            // contacts store may not exist on older DBs — ignore silently
+        }
     }
 
     if (context)

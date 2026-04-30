@@ -107,7 +107,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 
 ## Architecture
 
-### IndexedDB Stores (current schema: `DB_VERSION = 6`)
+### IndexedDB Stores (current schema: `DB_VERSION = 8`)
 
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
@@ -121,6 +121,8 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 | `promptLibrary` | `id` | — | `{id, title, content, favorite, createdAt, updatedAt}` |
 | `docVersions` | `id` | `projectId` | `{id, projectId, content, savedAt, label}` |
 | `tasks` | `id` | `projectId` | `{id, projectId, title, description, status, priority, dueDate, includeInContext, createdAt, updatedAt}` |
+| `embeddings` | `id` | `docId` | `{id, docId, chunkIndex, vector}` |
+| `contacts` | `id` | `projectId` | `{id, projectId, type: 'contact'\|'resource', name, role, org, email, phone, url, notes, tags[], includeInContext, createdAt, updatedAt}` |
 
 ### DB Helper Pattern
 All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)`, `dbDelete(store, key)`, `dbGetAll(store)`, `dbGetByIndex(store, index, val)`. All return Promises. Always await them.
@@ -381,7 +383,7 @@ When adding a new object store or index:
 #### Core infrastructure
 - Build pipeline: 21 `src/*.js` files + `src/index.html` → `npm run build` → single `SourceDesk.html`
 - `DEBUG`, `TEST`, `APP_VERSION` flags in `src/flags.js`; `log()` helper; `DOMContentLoaded` boot gated on `!TEST`
-- IndexedDB schema at `DB_VERSION = 6`; five CRUD helpers (`dbGet`, `dbPut`, `dbDelete`, `dbGetAll`, `dbGetByIndex`)
+- IndexedDB schema at `DB_VERSION = 8`; five CRUD helpers (`dbGet`, `dbPut`, `dbDelete`, `dbGetAll`, `dbGetByIndex`)
 - `uid()` for all record IDs; defensive field access everywhere (old records missing new fields just return `undefined`)
 
 #### Projects & Documents
@@ -501,6 +503,7 @@ When adding a new object store or index:
 #### Working Document Versioning (🗄️ DB_VERSION 6)
 - `saveDocVersion(content)` — called automatically by `saveWorkingDoc()` after every `dbPut`; writes `{id, projectId, content, savedAt, label}` to `docVersions` store
 - **History button** in Working Document view header → `openVersionHistory()` modal; lists all snapshots for active project newest-first; each row shows auto-label ("Version N"), timestamp, 100-char preview
+- **Custom version labels** — each row has a ✎ button next to the label; clicking opens an inline input (`_vhStartLabelEdit` / `_vhSaveLabel`); Enter saves to `docVersions.label`, Esc cancels; empty label falls back to auto "Version N". Custom labels render in solid colour, auto labels in muted italic.
 - `restoreDocVersion(versionId)` — confirms, snapshots current content first, applies selected version to `state.activeProject.workingContent`, writes to DB, updates `#working-doc-editor` if visible
 - `deleteDocVersion(versionId)` — confirms, deletes from DB, re-renders the modal in place
 - All in `src/versioning.js`
@@ -521,6 +524,16 @@ When adding a new object store or index:
 - Dropdown closes on outside click via a `document` click listener registered after a `setTimeout(0)` to avoid the opening click triggering it
 - All click handlers on dropdown entries use `addEventListener` (not `onclick` attributes) to avoid content-escaping issues
 
+#### Contacts & Resources (🗄️ DB_VERSION 8)
+- New per-project section: **Contacts & Resources** — sidebar nav `→` button revealed after `loadProject()`; full-screen two-panel view (`#contacts-view`)
+- `contacts` store: `{ id, projectId, type, name, role, org, email, phone, url, notes, tags[], includeInContext, createdAt, updatedAt }`; cascade-deleted with project (along with `tasks` and `docVersions` — cascade extended in this session)
+- **Two types** via type-pills: `contact` (person: name + role + org + email + phone + url) and `resource` (link: title + url). Form re-labels Name→Title and hides contact-only fields when type=resource (`_toggleContactFieldsByType`).
+- **Tags** — comma-separated input; rendered as pill chips on each list row
+- **Include in chat context** — checked entries injected into system prompt as `## Important Contacts & Resources` block by `_buildContactsContextBlock()` from `chat.js > sendMessage()`
+- **Filter** — real-time filter searches name/role/org/email/phone/url/notes/tags via `filterContactList(value)`
+- All in `src/contacts.js`; reserved names: `loadContacts`, `renderContactList`, `selectContact`, `openNewContact`, `saveCurrentContact`, `deleteCurrentContact`, `filterContactList`, `toggleContactInContext`, `selectContactTypePill`
+- Included in `exportDatabase` / `importDatabase` / `clearAllData` / `backupToDrive` store arrays
+
 #### UI / UX
 - Dark theme; CSS custom properties for all colours; font stack: Syne 700 / Inter / JetBrains Mono
 - Keyboard shortcuts: Ctrl+Enter (send), Escape (close modal), Ctrl+N (new note), Ctrl+Shift+F (focus notes filter), Ctrl+S (save note / working doc)
@@ -540,8 +553,8 @@ When adding a new object store or index:
 ## Next Steps (Ordered for Next Session)
 
 1. **`npm run build`** → verify output, open `SourceDesk.html`, open `tests/test.html` → all green
-2. **Version labels** *(small)* — allow users to give a snapshot a custom label from the History modal (inline edit on each row)
-3. **Important Contacts / Resources** *(medium)* — per-project contact info and links with tags; include-in-context toggle
+2. ~~**Version labels**~~ ✅ — inline-edit a snapshot's label from the History modal (✎ button per row, Enter saves, Esc cancels)
+3. ~~**Important Contacts / Resources**~~ ✅ — per-project contacts and resource links with tags + include-in-context (DB_VERSION 8, new `contacts` store, `src/contacts.js`)
 
 ---
 ### Upcoming Feature Sessions
@@ -589,6 +602,50 @@ When adding a new object store or index:
 10. **Google Keep notes sync** *(future)* — Keep API; currently restricted to Workspace enterprise; watch for public access
 11. **Vendor Contact sync via People API** *(future)* — `auth/contacts`; People API v1; sync per-project contacts to a Google Contacts group
 12. **In-browser semantic embeddings** *(low priority, after local LLM path is proven)* — `transformers.js` + WASM `all-MiniLM-L6-v2`; ~30 MB one-time download
+
+13. **Proper Help system** *(small/medium)* — replace ad-hoc tooltips with a proper Help modal: keyboard shortcut reference, glossary of project types, walkthrough/tour of each major view, links to README sections; accessible via `?` button in topbar and `F1` key.
+
+14. **Autosave everywhere** *(small)* — generalise the supplier-questions debounced-autosave pattern (1.5 s) to: Working Document, Notes (already on switch — add live), Tasks edit form, Project edit fields, Templates edit. Visual `● Saving…` / `✓ Saved` indicator near the title bar.
+
+15. **Rich-text editors with raw / rendered toggle** *(medium)* — Working Document, Notes, Templates, and Supplier Q answer field get a dual-mode editor: **Raw markdown** (current textarea) and **Rendered** (contenteditable with style toolbar). Toolbar buttons (initial set): H1 / H2 / H3, **Bold**, *Italic*, <u>Underline</u>, `inline code`, table, bullet list, numbered list, page break (`<div class="page-break">`), block quote. Toggle preserves content via markdown <-> HTML conversion. New module `src/editor.js` exporting `mountRichEditor(textarea, opts)`.
+
+16. **Feature suggestion box** *(small)* — sidebar/footer link "💡 Suggest a feature" → modal with title + description + optional category dropdown; saved to a new local `suggestions` IndexedDB store and optionally POSTed to a configurable webhook URL (Settings field) or appended to a Google Doc in the SourceDesk Drive folder.
+
+17. **Versioning a deliverable document with diffs** *(medium)* — extend Working Document Versioning: each row in History modal gets a "Diff" button → side-by-side or inline diff view (line-level, additions green / removals red). Use a small JS LCS diff implementation (no external deps). Apply to the upcoming `targetDocs` store as well.
+
+18. **Highlights & comments as document metadata** *(medium)* — in the rendered editor users can select text → "Highlight" (color picker) or "Add Comment" (popup); stored as a sidecar `{ docId, range, color, comment, author, createdAt }` in a new `annotations` store, NOT inline in the document text. Annotations rendered as overlay spans. **Export options**: "Export with annotations" (HTML/PDF with highlights baked in + comment footnotes) vs. "Export clean" (plain markdown).
+
+19. **Versioning with branching support** *(large)* — model versions as a DAG instead of a flat list. Each version gets `parentVersionId`. "Branch from this version" button creates a new branch with a name; branches selectable in History modal as a tree view. Merge support is *out of scope* for v1 — branches are independent forks with optional manual copy-paste.
+
+20. **Highlights as a notes section** *(small/medium)* — auto-aggregate all annotations of type `highlight` from a project's docs into a per-project "Highlights" panel (next to Notes). Each highlight is a row showing source doc, snippet, color, jump-to-source link. Each highlight has an "Include in context" checkbox — checked highlights injected into system prompt as `## Highlighted Excerpts`.
+
+21. **Proposal Evaluation project type** *(large)* — new project category `Evaluation`. Dedicated views:
+    - **Criteria editor** — list of weighted scoring criteria `{ name, weight, maxScore, description }`; sum of weights normalised to 100
+    - **Candidate list** — each candidate is a sub-project or document set (uploaded proposal). Per-candidate scorecard auto-computed from per-criterion scores
+    - **Annotation semantics** — highlights tagged as `value-add` (green), `deduction` (yellow w/ point delta), or `disqualifier` (red strikethrough); deductions and disqualifiers feed into auto-scoring math
+    - **Auto-evaluator** — "Evaluate with AI" button: runs the active LLM (or multiple LLMs in parallel — multi-agent panel) against each criterion + candidate; produces a draft score + justification; user can accept/override. Multi-agent mode shows scorecards side-by-side
+    - New stores: `evalCriteria` `{id, projectId, name, weight, maxScore, description}`, `evalCandidates` `{id, projectId, name, sourceDocIds[]}`, `evalScores` `{id, projectId, candidateId, criterionId, score, justification, evaluator}` — DB_VERSION bump
+
+22. **Collaborative evaluation (multi-user)** *(very long term — gated on v2 rewrite)* — real-time multi-user scoring with per-evaluator scorecards aggregated into a consensus view; comments threaded per criterion; requires a real backend, auth, and sync — punt to v2.
+
+---
+
+## V2 Roadmap (separate branch / target — TODO: have Opus draft a full plan)
+
+When the v1 single-file static-app phase is feature-complete (through item 21 above), start a **`v2`** branch targeting:
+
+- **TypeScript** end-to-end with strict mode
+- A modern framework (likely **SvelteKit** or **Next.js** — to be decided in the planning session)
+- A real database — **Postgres** (via Supabase or self-hosted) or **SQLite/Turso** for the small-team tier; replaces IndexedDB; offline-first sync layer (RxDB / electric-sql / loro)
+- **Better Auth** (`better-auth.com`) for auth — email/password, OAuth (Google, GitHub, Microsoft), passkeys, org/team scoping
+- Multi-user collaboration (item 22) — CRDT-based document sync, presence, comment threads
+- **Compliance**: SOC 2 readiness, GDPR data export/erasure endpoints, HIPAA-aligned options for healthcare procurement use cases, audit log of all evaluator actions, encryption at rest, configurable data residency
+- File storage: S3-compatible (R2 / B2 / MinIO)
+- Background jobs (BullMQ / Inngest) for crawl / embed / evaluate workflows
+- Migration tool: import a v1 IndexedDB JSON export → v2 DB
+- Plugin/MCP architecture as first-class — Word/LibreOffice MCPs, Brave, crawl4ai, Drive all become uniform plugin connectors
+
+**Action item before starting v2**: spin up a separate Opus session with this CLAUDE.md + the full feature list, ask it to produce a detailed migration plan, schema design, framework decision matrix, and a phased rollout (alpha → beta → GA) before any code is written.
 
 ---
 
