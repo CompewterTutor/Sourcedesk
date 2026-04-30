@@ -1084,6 +1084,33 @@
             }
 
             /* Settings */
+            .autosave-status {
+                display: inline-block;
+                font-size: 11px;
+                font-family: "JetBrains Mono", monospace;
+                color: var(--text-muted);
+                opacity: 0.85;
+                transition:
+                    color 200ms ease,
+                    opacity 200ms ease;
+                user-select: none;
+            }
+            .autosave-status.as-pending {
+                color: var(--text-muted);
+            }
+            .autosave-status.as-saving {
+                color: var(--accent);
+            }
+            .autosave-status.as-saved {
+                color: var(--success);
+            }
+            .autosave-status.as-error {
+                color: var(--danger);
+            }
+            .autosave-status.as-idle {
+                opacity: 0;
+            }
+
             .api-key-status {
                 display: flex;
                 align-items: center;
@@ -1624,6 +1651,15 @@
                     </svg>
                     Templates
                 </button>
+                <button
+                    class="btn-icon"
+                    onclick="openHelpModal()"
+                    title="Help (F1)"
+                    aria-label="Help"
+                    style="font-weight: 600"
+                >
+                    ?
+                </button>
                 <button class="btn-icon" onclick="openSettings()">
                     <svg
                         viewBox="0 0 16 16"
@@ -1924,10 +1960,15 @@
                         >
                             Save
                         </button>
+                        <span
+                            id="autosave-status-workingDoc"
+                            class="autosave-status"
+                        ></span>
                     </div>
                     <textarea
                         id="working-doc-editor"
                         placeholder="Your working document content… paste in a template, RFP draft, or any structured text you want the AI model to reference and help you refine."
+                        oninput="scheduleWorkingDocAutosave()"
                     ></textarea>
                 </div>
 
@@ -2015,11 +2056,13 @@
                                     id="note-title-input"
                                     class="form-input"
                                     placeholder="Note title"
+                                    oninput="scheduleNoteAutosave()"
                                 />
                                 <textarea
                                     id="note-editor"
                                     class="form-textarea"
                                     placeholder="Start typing…"
+                                    oninput="scheduleNoteAutosave()"
                                 ></textarea>
                                 <label class="note-context-toggle">
                                     <input
@@ -2036,6 +2079,10 @@
                                     >
                                         Save
                                     </button>
+                                    <span
+                                        id="autosave-status-note"
+                                        class="autosave-status"
+                                    ></span>
                                     <button
                                         class="btn-danger"
                                         onclick="deleteCurrentNote()"
@@ -2473,6 +2520,7 @@
                                         id="task-title-input"
                                         class="form-input"
                                         placeholder="Task title…"
+                                        oninput="scheduleTaskAutosave()"
                                     />
                                 </div>
                                 <div class="form-row">
@@ -2485,6 +2533,7 @@
                                         rows="3"
                                         placeholder="Optional details…"
                                         style="resize: vertical"
+                                        oninput="scheduleTaskAutosave()"
                                     ></textarea>
                                 </div>
                                 <div class="form-row">
@@ -2581,6 +2630,7 @@
                                         id="task-due-input"
                                         class="form-input"
                                         type="date"
+                                        onchange="scheduleTaskAutosave()"
                                     />
                                 </div>
                                 <label
@@ -2600,13 +2650,23 @@
                                     />
                                     <span>Include in chat context</span>
                                 </label>
-                                <div style="display: flex; gap: 8px">
+                                <div
+                                    style="
+                                        display: flex;
+                                        gap: 8px;
+                                        align-items: center;
+                                    "
+                                >
                                     <button
                                         class="btn-primary"
                                         onclick="saveCurrentTask()"
                                     >
                                         Save Task
                                     </button>
+                                    <span
+                                        id="autosave-status-task"
+                                        class="autosave-status"
+                                    ></span>
                                     <button
                                         class="btn-ghost"
                                         id="task-delete-btn"

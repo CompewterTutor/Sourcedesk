@@ -536,10 +536,13 @@ When adding a new object store or index:
 
 #### UI / UX
 - Dark theme; CSS custom properties for all colours; font stack: Syne 700 / Inter / JetBrains Mono
-- Keyboard shortcuts: Ctrl+Enter (send), Escape (close modal), Ctrl+N (new note), Ctrl+Shift+F (focus notes filter), Ctrl+S (save note / working doc)
-- Shortcut reference grid in Settings modal
+- Keyboard shortcuts: Ctrl+Enter (send), Escape (close modal), Ctrl+N (new note), Ctrl+Shift+F (focus notes filter), Ctrl+S (save note / working doc), **F1 (open Help modal)**, **? (open Help modal when not editing)**
+- Shortcut reference grid in Settings modal **and** in the new Help modal
 - Chat input placeholder: "Ask the AI model anything about this project…"
 - `#topbar-local-model` selector hidden for all non-local providers
+- **Help modal** (`src/help.js`) — tabbed: Shortcuts / Project Types / Views / Context System / About; opens via `?` topbar button or F1/`?` hotkey
+- **Generic autosave** (`src/autosave.js`) — `scheduleAutosave(key, fn)` debounces 1.5 s and updates a `● Saving… / ✓ Saved` status pill (`#autosave-status-<key>`); wired into Working Document, Notes (title + body), and Tasks (title/desc/due) edit forms
+- **Version diffs** (`src/diff.js` + extended `src/versioning.js`) — "Diff" button on every row in the Version History modal opens a unified inline diff (line-level LCS) between that snapshot and either the current working document or any other snapshot; +N/-N stats in header; comparator dropdown for switching the right-hand side
 
 ### Still outstanding
 - ❌ Google Drive connector requires manual token paste — proper OAuth popup not possible from `file://` origin
@@ -555,6 +558,9 @@ When adding a new object store or index:
 1. **`npm run build`** → verify output, open `SourceDesk.html`, open `tests/test.html` → all green
 2. ~~**Version labels**~~ ✅ — inline-edit a snapshot's label from the History modal (✎ button per row, Enter saves, Esc cancels)
 3. ~~**Important Contacts / Resources**~~ ✅ — per-project contacts and resource links with tags + include-in-context (DB_VERSION 8, new `contacts` store, `src/contacts.js`)
+4. ~~**Help modal**~~ ✅ — `src/help.js`, `?` topbar button, F1 / `?` hotkey, tabs for shortcuts / project types / views / context / about
+5. ~~**Generalised autosave**~~ ✅ — `src/autosave.js`; debounced (1.5 s) save with status pill; wired into Working Document, Notes, Tasks (Templates and Project edit forms remain TODO follow-up)
+6. ~~**Version diffs**~~ ✅ — `src/diff.js` LCS line diff + `openVersionDiff()` modal in `versioning.js`; Diff button per row in History modal
 
 ---
 ### Upcoming Feature Sessions

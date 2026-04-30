@@ -338,13 +338,16 @@ function openWorkingDoc() {
     showView("working-doc");
 }
 
-async function saveWorkingDoc() {
+async function saveWorkingDoc(opts) {
     if (!state.activeProject) return;
     const ta = document.getElementById("working-doc-editor");
     if (!ta) return;
+    const silent = !!(opts && opts.silent);
+    const skipSnapshot = !!(opts && opts.skipSnapshot);
     state.activeProject.workingContent = ta.value;
     await dbPut("projects", state.activeProject);
-    await saveDocVersion(ta.value);
+    if (!skipSnapshot) await saveDocVersion(ta.value);
+    if (silent) return;
     // brief visual feedback
     const btn = document.getElementById("working-doc-save-btn");
     if (btn) {
@@ -353,6 +356,15 @@ async function saveWorkingDoc() {
             btn.textContent = "Save";
         }, 1500);
     }
+}
+
+// Autosave for the Working Document. Snapshots are NOT created on every
+// keystroke — autosave only persists `workingContent`. Explicit Save (or
+// History modal entries) still produce snapshots via saveDocVersion().
+function scheduleWorkingDocAutosave() {
+    scheduleAutosave("workingDoc", async function () {
+        await saveWorkingDoc({ silent: true, skipSnapshot: true });
+    });
 }
 
 // ─── CLEAR CHAT ───────────────────────────────────────────────────────────────

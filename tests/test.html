@@ -299,6 +299,9 @@
         <script src="../src/flags.js"></script>
         <script src="../src/db.js"></script>
         <script src="../src/state.js"></script>
+        <script src="../src/autosave.js"></script>
+        <script src="../src/diff.js"></script>
+        <script src="../src/help.js"></script>
         <script src="../src/boot.js"></script>
         <script src="../src/messages.js"></script>
         <script src="../src/retrieval.js"></script>
@@ -316,8 +319,8 @@
 
         <script>
             /* ═══════════════════════════════════════════════════════════════════════════
-   TINY TEST FRAMEWORK
-   ═══════════════════════════════════════════════════════════════════════════ */
+            TINY TEST FRAMEWORK
+            ═══════════════════════════════════════════════════════════════════════════ */
 
             const results = [];
             let _suite = "";
@@ -382,14 +385,14 @@
             }
 
             /* ═══════════════════════════════════════════════════════════════════════════
-   Pure functions (uid, tokenize, buildIndex, bm25Score, chunkText,
-   formatMarkdown) are loaded from ../src/main.js above with TEST=true,
-   so boot() and DOMContentLoaded are suppressed.
-   ═══════════════════════════════════════════════════════════════════════════ */
+            Pure functions (uid, tokenize, buildIndex, bm25Score, chunkText,
+            formatMarkdown) are loaded from ../src/main.js above with TEST=true,
+            so boot() and DOMContentLoaded are suppressed.
+            ═══════════════════════════════════════════════════════════════════════════ */
 
             /* ═══════════════════════════════════════════════════════════════════════════
-   EXPORT SHAPE VALIDATOR  (test-local helper, not in SourceDesk.html)
-   ═══════════════════════════════════════════════════════════════════════════ */
+            EXPORT SHAPE VALIDATOR  (test-local helper, not in SourceDesk.html)
+            ═══════════════════════════════════════════════════════════════════════════ */
 
             function validateExportShape(obj) {
                 if (!obj || typeof obj !== "object") return false;
@@ -406,8 +409,8 @@
             }
 
             /* ═══════════════════════════════════════════════════════════════════════════
-   TESTS
-   ═══════════════════════════════════════════════════════════════════════════ */
+            TESTS
+            ═══════════════════════════════════════════════════════════════════════════ */
 
             /* ── tokenize ───────────────────────────────────────────────────────────── */
             describe("tokenize", () => {
@@ -1340,9 +1343,80 @@
                 });
             });
 
+            /* ── diffLines ─────────────────────────────────────────────────────────────────────── */
+            describe("diffLines", () => {
+                it("identical inputs → all eq ops", () => {
+                    const ops = diffLines("a\nb\nc", "a\nb\nc");
+                    if (!ops.every((o) => o.op === "eq"))
+                        throw new Error(
+                            "Expected only eq ops, got: " + JSON.stringify(ops),
+                        );
+                });
+
+                it("empty vs text → all add ops", () => {
+                    const ops = diffLines("", "x\ny");
+                    const adds = ops.filter((o) => o.op === "add");
+                    if (adds.length < 2)
+                        throw new Error(
+                            "Expected >=2 adds, got: " + JSON.stringify(ops),
+                        );
+                });
+
+                it("text vs empty → all del ops", () => {
+                    const ops = diffLines("x\ny", "");
+                    const dels = ops.filter((o) => o.op === "del");
+                    if (dels.length < 2)
+                        throw new Error(
+                            "Expected >=2 dels, got: " + JSON.stringify(ops),
+                        );
+                });
+
+                it("single line change → 1 del + 1 add", () => {
+                    const ops = diffLines("a\nb\nc", "a\nB\nc");
+                    const stats = diffStats(ops);
+                    if (stats.add !== 1 || stats.del !== 1 || stats.eq !== 2)
+                        throw new Error(
+                            "Expected add=1 del=1 eq=2, got: " +
+                                JSON.stringify(stats),
+                        );
+                });
+
+                it("insertion in middle → 1 add, no dels", () => {
+                    const ops = diffLines("a\nc", "a\nb\nc");
+                    const stats = diffStats(ops);
+                    if (stats.add !== 1 || stats.del !== 0)
+                        throw new Error(
+                            "Expected add=1 del=0, got: " +
+                                JSON.stringify(stats),
+                        );
+                });
+
+                it("renderInlineDiffHtml returns HTML containing add+del rows", () => {
+                    const ops = diffLines("a\nb", "a\nB");
+                    const html = renderInlineDiffHtml(ops);
+                    if (!html.includes("+ B") || !html.includes("- b"))
+                        throw new Error(
+                            "Expected '+ B' and '- b' in html, got: " + html,
+                        );
+                });
+
+                it("escapes HTML in lines", () => {
+                    const tag = "<" + "script>";
+                    const closeTag = "<" + "/script>";
+                    const ops = diffLines("", tag + "alert(1)" + closeTag);
+                    const html = renderInlineDiffHtml(ops);
+                    if (html.indexOf(tag) !== -1)
+                        throw new Error("Unescaped script tag in diff html");
+                    if (!html.includes("&lt;script&gt;"))
+                        throw new Error(
+                            "Expected escaped <script>, got: " + html,
+                        );
+                });
+            });
+
             /* ═══════════════════════════════════════════════════════════════════════════
-   RENDER RESULTS
-   ═══════════════════════════════════════════════════════════════════════════ */
+               RENDER RESULTS
+               ═══════════════════════════════════════════════════════════════════════════ */
 
             function renderResults() {
                 const passed = results.filter((r) => r.pass).length;

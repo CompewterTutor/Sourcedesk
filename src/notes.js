@@ -18,6 +18,22 @@ async function _autoSaveCurrentNote() {
     await dbPut("notes", state.currentNote);
 }
 
+// Debounced public hook — wired from oninput on the note title and editor.
+function scheduleNoteAutosave() {
+    if (!state.currentNote) return;
+    scheduleAutosave("note", async function () {
+        await _autoSaveCurrentNote();
+        // Refresh list (without re-selecting/clobbering the editor) so the
+        // sidebar title matches what the user just typed.
+        const notes = await dbGetByIndex(
+            "notes",
+            "projectId",
+            state.activeProject.id,
+        );
+        renderNotesList(notes);
+    });
+}
+
 async function loadNotes() {
     if (!state.activeProject) return;
 

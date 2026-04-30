@@ -237,6 +237,16 @@ async function saveCurrentTask() {
     }
 }
 
+// Debounced public hook — wired from oninput on task fields. Only saves an
+// existing task; new (unsaved) tasks must use the explicit Save Task button
+// because we need a title to be set before persisting.
+function scheduleTaskAutosave() {
+    if (!state.currentTask) return;
+    scheduleAutosave("task", async function () {
+        await saveCurrentTask();
+    });
+}
+
 async function deleteCurrentTask() {
     if (!state.currentTask) return;
     if (!confirm("Delete this task?")) return;

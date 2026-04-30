@@ -76,6 +76,7 @@ function _renderVersionHistoryModal(versions) {
   </div>
   <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
     <button onclick="restoreDocVersion('${v.id}')" class="btn-primary" style="font-size:11px;padding:3px 10px">Restore</button>
+    <button onclick="openVersionDiff('${v.id}')" class="btn-ghost" style="font-size:11px;padding:3px 10px" title="Diff this version against the current working document or another version">Diff</button>
     <button onclick="deleteDocVersion('${v.id}')" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text-muted);padding:2px 4px" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">✕ Delete</button>
   </div>
 </div>`;
@@ -165,6 +166,113 @@ async function restoreDocVersion(versionId) {
     const editor = document.getElementById("working-doc-editor");
     if (editor) editor.value = v.content;
     closeModal();
+}
+
+// ─── VERSION DIFF VIEWER ─────────────────────────────────────────────────────
+// Opens a modal that diffs the chosen version against either the current
+// working document or another saved version. Defaults to comparing against
+// current working document.
+async function openVersionDiff(versionId, compareToId) {
+    if (!state.activeProject) return;
+    const overlay = document.getElementById("modal-overlay");
+    if (!overlay) return;
+
+    const versions = await dbGetByIndex(
+        "docVersions",
+        "projectId",
+        state.activeProject.id,
+    );
+    versions.sort((a, b) => b.savedAt - a.savedAt);
+
+    const target = versions.find((x) => x.id === versionId);
+    if (!target) return;
+
+    let other,
+        otherLabel,
+        otherId = compareToId || "__current__";
+    if (otherId === "__current__") {
+        other = { content: state.activeProject.workingContent || "" };
+        otherLabel = "Current working document";
+    } else {
+        other = versions.find((x) => x.id === otherId);
+        if (!other) {
+            other = { content: state.activeProject.workingContent || "" };
+            otherId = "__current__";
+            otherLabel = "Current working document";
+        } else {
+            const idx = versions.findIndex((x) => x.id === other.id);
+            otherLabel =
+                (other.label && other.label.trim()) ||
+                "Version " + (versions.length - idx);
+        }
+    }
+
+    const targetIdx = versions.findIndex((x) => x.id === target.id);
+    const targetLabel =
+        (target.label && target.label.trim()) ||
+        "Version " + (versions.length - targetIdx);
+
+    // a = older/baseline (target snapshot), b = newer (compare-to). Since we
+    // can't be sure which is older, sort by savedAt to keep diff intuitive.
+    let aText, bText, aLabel, bLabel;
+    const targetTs = target.savedAt || 0;
+    const otherTs = otherId === "__current__" ? Date.now() : other.savedAt || 0;
+    if (targetTs <= otherTs) {
+        aText = target.content || "";
+        aLabel = targetLabel;
+        bText = other.content || "";
+        bLabel = otherLabel;
+    } else {
+        aText = other.content || "";
+        aLabel = otherLabel;
+        bText = target.content || "";
+        bLabel = targetLabel;
+    }
+
+    const ops = diffLines(aText, bText);
+    const stats = diffStats(ops);
+    const html = renderInlineDiffHtml(ops);
+
+    // Build compare-to selector options (exclude target itself)
+    const optsHtml = [
+        `<option value="__current__"${otherId === "__current__" ? " selected" : ""}>Current working document</option>`,
+    ]
+        .concat(
+            versions
+                .filter((v) => v.id !== target.id)
+                .map((v, _i) => {
+                    const idx = versions.findIndex((x) => x.id === v.id);
+                    const lbl =
+                        (v.label && v.label.trim()) ||
+                        "Version " + (versions.length - idx);
+                    const sel = v.id === otherId ? " selected" : "";
+                    return `<option value="${v.id}"${sel}>${_escapeHtml(lbl)}</option>`;
+                }),
+        )
+        .join("");
+
+    overlay.innerHTML = `<div class="modal" style="max-width:860px;width:97%">
+  <div class="modal-header">
+    <span class="modal-title">Diff — ${_escapeHtml(targetLabel)}</span>
+    <button class="modal-close" onclick="openVersionHistory()">✕</button>
+  </div>
+  <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--text-muted)">Compare</span>
+    <span style="font-size:12px;font-weight:500">${_escapeHtml(targetLabel)}</span>
+    <span style="font-size:12px;color:var(--text-muted)">↔</span>
+    <select onchange="openVersionDiff('${target.id}', this.value)" style="font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px">${optsHtml}</select>
+    <span style="flex:1"></span>
+    <span style="font-size:11px;color:#7adb96">+${stats.add}</span>
+    <span style="font-size:11px;color:#e88b8b">-${stats.del}</span>
+    <span style="font-size:11px;color:var(--text-muted)">${stats.eq} unchanged</span>
+  </div>
+  <div class="modal-body" style="padding:0;max-height:60vh;overflow:auto;background:var(--bg)">${html}</div>
+  <div class="modal-footer">
+    <button class="btn-ghost" onclick="openVersionHistory()">← Back to History</button>
+    <button class="btn-ghost" onclick="closeModal()">Close</button>
+  </div>
+</div>`;
+    overlay.classList.remove("hidden");
 }
 
 async function deleteDocVersion(versionId) {
