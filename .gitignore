@@ -136,4 +136,7 @@ dist
 
 # Vite logs files
 vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
+vite.config.ts.timestamI'd like you to scan the repository and write up an architecture document as well as update the readme based on your findings. It's a lot of files, so build a memory file to keep track of your findings and give yourself the ability to look back to see where you're at in the analysis.
+
+#private Documents
+.private-documents/

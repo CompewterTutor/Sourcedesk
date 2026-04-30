@@ -458,11 +458,21 @@ When adding a new object store or index:
 - `exportProject()` — active project + messages + doc metadata as JSON
 - `clearAllData()` — iterates each store, deletes all records one by one (intentional; avoids multi-store transaction conflicts)
 
-#### Google Drive Connector
+#### Google Drive / Sheets / Docs Connector
 - Token-based auth (OAuth Playground workaround for `file://` origin restriction)
 - `verifyDriveToken()`, `listDriveFiles()`, `importFromDrive()`, `backupToDrive()`, `disconnectDrive()`
-- Backup to Drive includes the `notes` store (unlike local `exportDatabase()` — actually both include it now)
-- Token persisted in `settings` store under key `driveToken`; `state.settings.driveToken` loaded at boot
+- Backup to Drive includes the `notes` store; token persisted in `settings` store under key `driveToken`
+- **App Folder (hidden)** — `appDataFolder` magic alias used directly; no folder creation needed. DB backups and `sourcedesk-config.json` (which stores visible folder IDs) live here. Requires `drive.appdata` scope.
+- **Visible folder structure (drive.file)** — `getOrCreateVisibleRootFolder(token)` creates/finds a `SourceDesk` root folder in the user's My Drive; `getOrCreateProjectFolder(token, projectId, projectName)` creates a per-project subfolder inside it (`SourceDesk/<projectName>/`). Both persist their IDs to `sourcedesk-config.json` in appDataFolder to avoid duplicate creation.
+- **Config persistence** — `_loadDriveConfig(token)` reads `sourcedesk-config.json` from `?spaces=appDataFolder`; `_saveDriveConfig(token, config)` PATCHes existing or POSTs new. Shape: `{ visibleRootFolderId, projectFolderIds: { [projectId]: folderId } }`
+- **Exports placed in project folder** — `exportQuestionsToSheets` and `exportToGoogleDoc` both call `getOrCreateProjectFolder` after file creation and use `PATCH ?addParents=folderId` to move the file in (non-fatal if it fails, file still exists)
+- **Suggested OAuth scopes** (for OAuth Playground or a real OAuth client):
+  - `drive.appdata` — read/write hidden app data folder (config + backups)
+  - `drive.file` — create/update files and folders *this app creates* (visible exports)
+  - `drive.metadata.readonly` — list file metadata without reading content
+  - `drive.readonly` — read any Drive file for import
+  - `https://www.googleapis.com/auth/spreadsheets` — create/read spreadsheets
+  - `https://www.googleapis.com/auth/documents` — create/write Google Docs
 
 #### Chat Session Titles & Search
 - `saveChat()` derives a title from the first 8 words of the first user message (title-cased); stored as `title` on the `chats` record; existing sessions fall back to the 60-char content preview
@@ -516,11 +526,15 @@ When adding a new object store or index:
 
 ## Next Steps (Ordered for Next Session)
 
-1. **`npm run build`** → verify 230.6 KB output, open `SourceDesk.html`, open `tests/test.html` → all 92 green
+1. **`npm run build`** → verify output, open `SourceDesk.html`, open `tests/test.html` → all green
 2. **Task export** *(small)* — export tasks for the active project as Markdown or CSV (similar to the supplier questions export)
 3. **Version labels** *(small)* — allow users to give a snapshot a custom label from the History modal (inline edit on each row)
 4. **Important Contacts / Resources** *(medium)* — per-project contact info and links with tags; include-in-context toggle
-5. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM running `all-MiniLM-L6-v2` in-browser (~30 MB one-time download, then browser-cached); or API-based embedding provider (OpenAI `text-embedding-3-small`) as an alternative; hybrid BM25 + semantic re-ranking once in place
+5. **Google Tasks sync** *(future)* — use `https://www.googleapis.com/auth/tasks` scope; sync per-project tasks to/from Google Tasks via Tasks API v1
+6. **Google Calendar sync** *(future)* — use `https://www.googleapis.com/auth/calendar` scope; push task due dates and project milestones to Calendar; pull events into context
+7. **Google Keep notes sync** *(future)* — use Keep API (currently restricted to Workspace enterprise; watch for public availability); sync project notes to/from Google Keep
+8. **Vendor Contact sync via People API** *(future)* — use `https://www.googleapis.com/auth/contacts` scope; People API v1 (supersedes Contacts v3); sync per-project contacts to a Google Contacts group
+9. **Client-side Semantic Embeddings** *(low priority)* — `transformers.js` + WASM `all-MiniLM-L6-v2` in-browser; or API-based (OpenAI `text-embedding-3-small`); hybrid BM25 + semantic re-ranking
 
 ---
 

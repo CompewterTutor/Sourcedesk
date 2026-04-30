@@ -259,6 +259,177 @@ async function importFromDrive(fileId, fileName, mimeType) {
     }
 }
 
+// ─── FOLDER HELPERS ──────────────────────────────────────────────────────────
+//
+// TWO separate folder strategies:
+//
+//  1. appDataFolder  (scope: drive.appdata)
+//     Hidden from the user's Drive UI. Used for config and DB backups.
+//     Parent alias = "appDataFolder" — no folder creation needed, Drive
+//     manages it automatically per-app.
+//
+//  2. Visible "SourceDesk" root + per-project subfolders  (scope: drive.file)
+//     Visible in the user's My Drive. Used for exports (Sheets, Docs, etc.).
+//     We can only see/create files *we* created (drive.file scope), so we
+//     store the folder IDs in appDataFolder config to avoid re-querying.
+//
+// Config file stored in appDataFolder: "sourcedesk-config.json"
+//   { visibleRootFolderId, projectFolderIds: { [projectId]: folderId } }
+
+async function _driveApiError(res) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(
+        (e.error && e.error.message) || "Drive API error " + res.status,
+    );
+}
+
+// ── appDataFolder config read/write ──────────────────────────────────────────
+
+async function _loadDriveConfig(token) {
+    // List files in appDataFolder named "sourcedesk-config.json"
+    const res = await fetch(
+        "https://www.googleapis.com/drive/v3/files" +
+            "?spaces=appDataFolder" +
+            "&q=name%3D'sourcedesk-config.json'" +
+            "&fields=files(id,name)&pageSize=1",
+        { headers: { Authorization: "Bearer " + token } },
+    );
+    if (!res.ok) await _driveApiError(res);
+    const data = await res.json();
+    if (!data.files || !data.files.length) return { projectFolderIds: {} };
+    const fileId = data.files[0].id;
+    const content = await fetch(
+        "https://www.googleapis.com/drive/v3/files/" + fileId + "?alt=media",
+        { headers: { Authorization: "Bearer " + token } },
+    );
+    if (!content.ok) return { projectFolderIds: {} };
+    try {
+        return await content.json();
+    } catch {
+        return { projectFolderIds: {} };
+    }
+}
+
+async function _saveDriveConfig(token, config) {
+    // Find existing config file id
+    const res = await fetch(
+        "https://www.googleapis.com/drive/v3/files" +
+            "?spaces=appDataFolder" +
+            "&q=name%3D'sourcedesk-config.json'" +
+            "&fields=files(id)&pageSize=1",
+        { headers: { Authorization: "Bearer " + token } },
+    );
+    const data = res.ok ? await res.json() : { files: [] };
+    const json = JSON.stringify(config);
+    const blob = new Blob([json], { type: "application/json" });
+
+    if (data.files && data.files.length) {
+        // PATCH (update) existing file
+        const fileId = data.files[0].id;
+        const form = new FormData();
+        form.append(
+            "metadata",
+            new Blob([JSON.stringify({})], { type: "application/json" }),
+        );
+        form.append("file", blob);
+        await fetch(
+            "https://www.googleapis.com/upload/drive/v3/files/" +
+                fileId +
+                "?uploadType=multipart",
+            {
+                method: "PATCH",
+                headers: { Authorization: "Bearer " + token },
+                body: form,
+            },
+        );
+    } else {
+        // Create new config file in appDataFolder
+        const meta = {
+            name: "sourcedesk-config.json",
+            parents: ["appDataFolder"],
+        };
+        const form = new FormData();
+        form.append(
+            "metadata",
+            new Blob([JSON.stringify(meta)], { type: "application/json" }),
+        );
+        form.append("file", blob);
+        await fetch(
+            "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+            {
+                method: "POST",
+                headers: { Authorization: "Bearer " + token },
+                body: form,
+            },
+        );
+    }
+}
+
+// ── Visible folder helpers (drive.file scope) ────────────────────────────────
+
+async function _createFolder(token, name, parentId) {
+    const body = { name, mimeType: "application/vnd.google-apps.folder" };
+    if (parentId) body.parents = [parentId];
+    const res = await fetch("https://www.googleapis.com/drive/v3/files", {
+        method: "POST",
+        headers: {
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) await _driveApiError(res);
+    const f = await res.json();
+    return f.id;
+}
+
+// Returns the visible SourceDesk root folder ID, creating it if needed.
+// Persists the ID to appDataFolder config so we don't create duplicates.
+async function getOrCreateVisibleRootFolder(token) {
+    const config = await _loadDriveConfig(token);
+    if (config.visibleRootFolderId) return config.visibleRootFolderId;
+    const folderId = await _createFolder(token, "SourceDesk", null);
+    config.visibleRootFolderId = folderId;
+    await _saveDriveConfig(token, config);
+    return folderId;
+}
+
+// Returns a per-project subfolder ID inside the visible SourceDesk root,
+// creating it (and the root) if needed.
+async function getOrCreateProjectFolder(token, projectId, projectName) {
+    const config = await _loadDriveConfig(token);
+    if (!config.projectFolderIds) config.projectFolderIds = {};
+    if (config.projectFolderIds[projectId])
+        return config.projectFolderIds[projectId];
+    // Ensure root exists
+    if (!config.visibleRootFolderId) {
+        config.visibleRootFolderId = await _createFolder(
+            token,
+            "SourceDesk",
+            null,
+        );
+    }
+    const safeName = (projectName || "Project")
+        .replace(/[\\/:\*\?"<>|]/g, "-")
+        .trim();
+    const folderId = await _createFolder(
+        token,
+        safeName,
+        config.visibleRootFolderId,
+    );
+    config.projectFolderIds[projectId] = folderId;
+    await _saveDriveConfig(token, config);
+    return folderId;
+}
+
+// Legacy alias — kept so backupToDrive can call a single helper.
+// Backups go to appDataFolder (hidden), NOT the visible folder.
+async function getOrCreateAppFolder(token) {
+    // appDataFolder is a magic alias — no real folder object to create.
+    // Return the string "appDataFolder" which the Drive API accepts as a parent.
+    return "appDataFolder";
+}
+
 async function backupToDrive() {
     const token = state.settings.driveToken;
     if (!token) return;
@@ -288,7 +459,14 @@ async function backupToDrive() {
             "sourcedesk-backup-" +
             new Date().toISOString().slice(0, 10) +
             ".json";
-        const metadata = { name: filename, mimeType: "application/json" };
+
+        // Backups go to the hidden appDataFolder — invisible to the user
+        // but protected from accidental deletion and inaccessible to other apps.
+        const metadata = {
+            name: filename,
+            mimeType: "application/json",
+            parents: ["appDataFolder"],
+        };
 
         const form = new FormData();
         form.append(
@@ -313,7 +491,12 @@ async function backupToDrive() {
             );
         }
         const file = await res.json();
-        alert("Backup saved to Google Drive: " + (file.name || filename));
+        alert(
+            "Backup saved to Google Drive (hidden app folder): " +
+                (file.name || filename) +
+                "\n\nThis file is stored in your Google Drive's hidden Application Data folder — " +
+                "only SourceDesk can see it. Use Settings → Import DB to restore.",
+        );
     } catch (err) {
         alert("Backup failed: " + err.message);
     } finally {
@@ -323,6 +506,469 @@ async function backupToDrive() {
         }
     }
 }
+
+// ─── SHEETS IMPORT / EXPORT ──────────────────────────────────────────────────
+
+function parseSpreadsheetId(input) {
+    if (!input) return input;
+    const m = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    return m ? m[1] : input.trim();
+}
+
+function importSheetsQuestionsFromInput() {
+    const el = document.getElementById("sheets-import-id");
+    const raw = el ? el.value.trim() : "";
+    if (!raw) {
+        alert("Paste a Spreadsheet ID or URL first.");
+        return;
+    }
+    const token = state.settings.driveToken;
+    if (!token) {
+        alert("Connect to Google Drive first.");
+        return;
+    }
+    const spreadsheetId = parseSpreadsheetId(raw);
+    importSheetsQuestions(spreadsheetId, token);
+}
+
+async function importSheetsQuestions(spreadsheetId, token) {
+    if (!state.activeProject) {
+        alert("Open a project first.");
+        return;
+    }
+    try {
+        const res = await fetch(
+            "https://sheets.googleapis.com/v4/spreadsheets/" +
+                encodeURIComponent(spreadsheetId) +
+                "/values/A:Z",
+            { headers: { Authorization: "Bearer " + token } },
+        );
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(
+                (e.error && e.error.message) ||
+                    "Sheets API error " + res.status,
+            );
+        }
+        const data = await res.json();
+        const rows = data.values || [];
+        if (rows.length < 2) {
+            alert("Sheet is empty or has no data rows.");
+            return;
+        }
+        const headers = rows[0].map((h) => String(h).toLowerCase().trim());
+        const qIdx = headers.indexOf("question");
+        if (qIdx === -1) {
+            alert('No "question" column found in the sheet header row.');
+            return;
+        }
+        const aIdx = headers.indexOf("answer");
+        let count = 0;
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            const question = (row[qIdx] || "").trim();
+            if (!question) continue;
+            const answer = aIdx >= 0 ? (row[aIdx] || "").trim() : "";
+            await dbPut("questions", {
+                id: uid(),
+                projectId: state.activeProject.id,
+                question,
+                answer,
+                updatedAt: Date.now(),
+            });
+            count++;
+        }
+        alert("Imported " + count + " questions from sheet.");
+    } catch (err) {
+        alert("Import failed: " + err.message);
+    }
+}
+
+async function exportQuestionsToSheets(token) {
+    if (!state.activeProject) {
+        alert("Open a project first.");
+        return;
+    }
+    if (!token) {
+        alert("Connect to Google Drive first.");
+        return;
+    }
+    try {
+        const questions = await dbGetByIndex(
+            "questions",
+            "projectId",
+            state.activeProject.id,
+        );
+        const date = new Date().toISOString().slice(0, 10);
+        const title =
+            "SourceDesk Questions \u2013 " +
+            state.activeProject.name +
+            " \u2013 " +
+            date;
+        // Create spreadsheet
+        const createRes = await fetch(
+            "https://sheets.googleapis.com/v4/spreadsheets",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer " + token,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    properties: { title },
+                    sheets: [{ properties: { title: "Questions" } }],
+                }),
+            },
+        );
+        if (!createRes.ok) {
+            const e = await createRes.json().catch(() => ({}));
+            throw new Error(
+                (e.error && e.error.message) ||
+                    "Sheets API error " + createRes.status,
+            );
+        }
+        const sheet = await createRes.json();
+        const ssId = sheet.spreadsheetId;
+        // Move the new spreadsheet into the project's visible Drive folder
+        try {
+            const projFolderId = await getOrCreateProjectFolder(
+                token,
+                state.activeProject.id,
+                state.activeProject.name,
+            );
+            // Add the project folder as a parent (Drive API: addParents)
+            await fetch(
+                "https://www.googleapis.com/drive/v3/files/" +
+                    ssId +
+                    "?addParents=" +
+                    encodeURIComponent(projFolderId) +
+                    "&fields=id,parents",
+                {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: "Bearer " + token,
+                        "Content-Type": "application/json",
+                    },
+                    body: "{}",
+                },
+            );
+        } catch (_) {
+            /* non-fatal: sheet is still created */
+        }
+        // Build values
+        const values = [["Question", "Answer"]].concat(
+            questions.map((q) => [q.question || "", q.answer || ""]),
+        );
+        const updateRes = await fetch(
+            "https://sheets.googleapis.com/v4/spreadsheets/" +
+                ssId +
+                "/values/Questions!A1:B" +
+                values.length +
+                "?valueInputOption=RAW",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: "Bearer " + token,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    range: "Questions!A1",
+                    majorDimension: "ROWS",
+                    values,
+                }),
+            },
+        );
+        if (!updateRes.ok) {
+            const e = await updateRes.json().catch(() => ({}));
+            throw new Error(
+                (e.error && e.error.message) ||
+                    "Sheets API error " + updateRes.status,
+            );
+        }
+        const url = "https://docs.google.com/spreadsheets/d/" + ssId + "/edit";
+        window.open(url, "_blank");
+        alert(
+            "Questions exported to Google Sheets in your SourceDesk/" +
+                state.activeProject.name +
+                " Drive folder.",
+        );
+    } catch (err) {
+        alert("Export failed: " + err.message);
+    }
+}
+
+// ─── CSV IMPORT / EXPORT ──────────────────────────────────────────────────────
+
+function csvQuote(val) {
+    const s = String(val == null ? "" : val);
+    return '"' + s.replace(/"/g, '""') + '"';
+}
+
+async function exportQuestionsToCSV() {
+    if (!state.activeProject) {
+        alert("Open a project first.");
+        return;
+    }
+    const questions = await dbGetByIndex(
+        "questions",
+        "projectId",
+        state.activeProject.id,
+    );
+    const date = new Date().toISOString().slice(0, 10);
+    const rows = ['"Question","Answer"'].concat(
+        questions.map((q) => csvQuote(q.question) + "," + csvQuote(q.answer)),
+    );
+    const csv = rows.join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url;
+    const safeName = state.activeProject.name
+        .replace(/[^a-z0-9]/gi, "-")
+        .toLowerCase();
+    a.download = "questions-" + safeName + "-" + date + ".csv";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function importQuestionsFromCSV(file) {
+    if (!file) return;
+    if (!state.activeProject) {
+        alert("Open a project first.");
+        return;
+    }
+    const text = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = (e) => res(e.target.result);
+        r.onerror = rej;
+        r.readAsText(file);
+    });
+    // Minimal CSV parser that handles quoted fields (including embedded commas/newlines)
+    function parseCSV(str) {
+        const rows = [];
+        let row = [],
+            field = "",
+            inQuote = false;
+        for (let i = 0; i < str.length; i++) {
+            const ch = str[i];
+            if (inQuote) {
+                if (ch === '"') {
+                    if (str[i + 1] === '"') {
+                        field += '"';
+                        i++;
+                    } else inQuote = false;
+                } else {
+                    field += ch;
+                }
+            } else {
+                if (ch === '"') {
+                    inQuote = true;
+                } else if (ch === ",") {
+                    row.push(field);
+                    field = "";
+                } else if (
+                    ch === "\n" ||
+                    (ch === "\r" && str[i + 1] === "\n")
+                ) {
+                    if (ch === "\r") i++;
+                    row.push(field);
+                    field = "";
+                    if (row.some((f) => f !== "")) rows.push(row);
+                    row = [];
+                } else {
+                    field += ch;
+                }
+            }
+        }
+        if (field !== "" || row.length > 0) {
+            row.push(field);
+            if (row.some((f) => f !== "")) rows.push(row);
+        }
+        return rows;
+    }
+    const rows = parseCSV(text);
+    if (rows.length < 2) {
+        alert("CSV has no data rows.");
+        return;
+    }
+    const headers = rows[0].map((h) => h.toLowerCase().trim());
+    const qIdx = headers.indexOf("question");
+    if (qIdx === -1) {
+        alert('No "question" column in CSV header.');
+        return;
+    }
+    const aIdx = headers.indexOf("answer");
+    let count = 0;
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const question = (row[qIdx] || "").trim();
+        if (!question) continue;
+        const answer = aIdx >= 0 ? (row[aIdx] || "").trim() : "";
+        await dbPut("questions", {
+            id: uid(),
+            projectId: state.activeProject.id,
+            question,
+            answer,
+            updatedAt: Date.now(),
+        });
+        count++;
+    }
+    alert("Imported " + count + " questions from CSV.");
+}
+
+// ─── GOOGLE DOCS EXPORT ───────────────────────────────────────────────────────
+
+async function exportToGoogleDoc(title, content, token) {
+    if (!token) {
+        alert("Connect to Google Drive first.");
+        return;
+    }
+    try {
+        // Create the document
+        const createRes = await fetch(
+            "https://docs.googleapis.com/v1/documents",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer " + token,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ title }),
+            },
+        );
+        if (!createRes.ok) {
+            const e = await createRes.json().catch(() => ({}));
+            throw new Error(
+                (e.error && e.error.message) ||
+                    "Docs API error " + createRes.status,
+            );
+        }
+        const doc = await createRes.json();
+        const docId = doc.documentId;
+        // If there's an active project, move this doc into the project's visible Drive folder
+        if (state.activeProject) {
+            try {
+                const projFolderId = await getOrCreateProjectFolder(
+                    token,
+                    state.activeProject.id,
+                    state.activeProject.name,
+                );
+                await fetch(
+                    "https://www.googleapis.com/drive/v3/files/" +
+                        docId +
+                        "?addParents=" +
+                        encodeURIComponent(projFolderId) +
+                        "&fields=id,parents",
+                    {
+                        method: "PATCH",
+                        headers: {
+                            Authorization: "Bearer " + token,
+                            "Content-Type": "application/json",
+                        },
+                        body: "{}",
+                    },
+                );
+            } catch (_) {
+                /* non-fatal */
+            }
+        }
+        const updateRes = await fetch(
+            "https://docs.googleapis.com/v1/documents/" +
+                docId +
+                ":batchUpdate",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer " + token,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    requests: [
+                        {
+                            insertText: {
+                                location: { index: 1 },
+                                text: content,
+                            },
+                        },
+                    ],
+                }),
+            },
+        );
+        if (!updateRes.ok) {
+            const e = await updateRes.json().catch(() => ({}));
+            throw new Error(
+                (e.error && e.error.message) ||
+                    "Docs API error " + updateRes.status,
+            );
+        }
+        const url = "https://docs.google.com/document/d/" + docId + "/edit";
+        window.open(url, "_blank");
+        return url;
+    } catch (err) {
+        alert("Export to Google Doc failed: " + err.message);
+    }
+}
+
+async function exportQuestionsToDoc() {
+    if (!state.activeProject) {
+        alert("Open a project first.");
+        return;
+    }
+    const token = state.settings.driveToken;
+    if (!token) {
+        alert("Connect to Google Drive first.");
+        return;
+    }
+    const questions = await dbGetByIndex(
+        "questions",
+        "projectId",
+        state.activeProject.id,
+    );
+    if (!questions.length) {
+        alert("No questions to export.");
+        return;
+    }
+    const date = new Date().toISOString().slice(0, 10);
+    const title =
+        "SourceDesk Questions \u2013 " +
+        state.activeProject.name +
+        " \u2013 " +
+        date;
+    const lines = questions.map((q, i) => {
+        const qLine = i + 1 + ". " + (q.question || "");
+        const aLine = q.answer
+            ? "Answer: " + q.answer
+            : "Answer: (not yet answered)";
+        return qLine + "\n" + aLine;
+    });
+    const content = lines.join("\n\n");
+    await exportToGoogleDoc(title, content, token);
+}
+
+async function exportWorkingDocToDoc() {
+    if (!state.activeProject) {
+        alert("Open a project first.");
+        return;
+    }
+    const token = state.settings.driveToken;
+    if (!token) {
+        alert("Connect to Google Drive first.");
+        return;
+    }
+    const content = state.activeProject.workingContent || "";
+    if (!content.trim()) {
+        alert("The working doc is empty.");
+        return;
+    }
+    const date = new Date().toISOString().slice(0, 10);
+    const title =
+        "SourceDesk Working Doc \u2013 " +
+        state.activeProject.name +
+        " \u2013 " +
+        date;
+    await exportToGoogleDoc(title, content, token);
+}
+
+// ─── DATABASE VALIDATION ──────────────────────────────────────────────────────
 
 function validateImportShape(obj) {
     if (!obj || typeof obj !== "object") return false;

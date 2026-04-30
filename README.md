@@ -120,6 +120,35 @@ A thin bar and token counter sit below the chat input, showing estimated context
 ### Working Document
 Every project has a working document — the editable draft that starts from the attached template's content. Open it with the **Working Doc** button in the topbar. Ctrl+S saves back to IndexedDB.
 
+### Google Drive / Sheets / Docs Connector
+Click the **Drive** button in Settings to connect via a Google OAuth access token (paste from [OAuth Playground](https://developers.google.com/oauthplayground)). Once connected:
+
+**Drive — Import & Backup**
+- Browse and import `.txt`, `.md`, `.csv`, `.json`, and Google Docs from your Drive into the active project
+- Back up the full SourceDesk database as a timestamped JSON file, automatically saved to a **SourceDesk** folder in your Drive (created on first backup)
+
+**Google Sheets v4 — Vendor Questions**
+- **Import Questions from Sheet** — paste a Spreadsheet ID or URL; the connector reads `A:Z`, maps `question`/`answer` columns (case-insensitive headers), and imports rows as supplier questions for the active project
+- **Export Questions to Sheets** — creates a new Google Spreadsheet titled `SourceDesk Questions – <project> – <date>`, writes header + Q&A rows, and opens the sheet in a new tab
+
+**CSV — Portable Question Exchange**
+- **Export Questions (CSV)** — downloads a properly quoted CSV file locally (no token required)
+- **Import Questions (CSV)** — upload a CSV; maps `question`/`answer` columns and imports into the active project
+
+**Google Docs v1 — Rich Export**
+- **Export Questions to Google Doc** — formats all Q&A as numbered text, creates a Google Doc, and opens it for formatting and `.docx` export
+- **Export Working Doc to Google Doc** — sends the active project's working document to a new Google Doc
+
+**Suggested OAuth scopes** (select all three in OAuth Playground, or add to your Google Cloud Console OAuth client):
+
+| Scope | Purpose |
+|---|---|
+| `https://www.googleapis.com/auth/drive` | Create the SourceDesk folder; upload backups; read your Drive files |
+| `https://www.googleapis.com/auth/spreadsheets` | Create & read spreadsheets for vendor questions |
+| `https://www.googleapis.com/auth/documents` | Create Google Docs for deliverables and Q&A exports |
+
+Use `drive.readonly`, `spreadsheets.readonly`, or `documents.readonly` instead if you only want read access to other people's files and don't need to create your own.
+
 ### Database Export / Import
 Settings → **Export DB** downloads all stores (templates, projects, docs, chats, settings, notes) as a single timestamped JSON backup. **Import DB** validates and restores from that file.
 
@@ -194,7 +223,7 @@ Example `.env` values:
 - [ ] **Client-side Semantic Embeddings** *(low priority)* — run `all-MiniLM-L6-v2` directly in the browser via `transformers.js` + WASM for true semantic search with no API cost; warn users about a ~30 MB one-time model download (cached by the browser after first use); alternative: use an API-based embedding provider (OpenAI `text-embedding-3-small`, etc.) so users who don't want the WASM download can still get semantic search
 - [x] **Local model quick-selector** — when the Local LLM provider is active, a compact model dropdown appears in the topbar so you can switch models without opening Settings; includes a ⟳ re-detect button that re-queries `/models` from the configured base URL
 - [ ] **Enhanced Retrieval** — hybrid BM25 + semantic similarity re-ranking once embeddings are available
-- [x] **Google Drive Connector** — import supported Drive files into projects, verify short-lived OAuth Playground tokens, and back up the database to Drive
+- [x] **Google Drive / Sheets / Docs Connector** — import Drive files, Google Sheets vendor questions, and Google Docs into projects; back up DB to a SourceDesk app folder in Drive; export questions to Sheets or Google Docs; CSV import/export for portable question exchange
 
 ### Project Data & Contacts
 - [x] **Task Management** — per-project tasks with title, description, status, priority, due date; include-in-context toggle injects active tasks into every chat message
@@ -203,10 +232,19 @@ Example `.env` values:
 - [ ] **Project Deliverables** — define expected outputs/artifacts with deadlines and milestones; export as a zip of generated files or structured JSON/CSV
 - [ ] **Project Type Templates** — predefined project configurations with instructions, doc structures, and settings for common use cases (meeting notes, research, writing, etc.)
 
+### Google Workspace Integration
+- [x] **Google Drive** — import files, export DB backup to SourceDesk app folder
+- [x] **Google Sheets v4** — import/export vendor questions; CSV fallback for offline use
+- [x] **Google Docs v1** — export Q&A and working documents as rich Google Docs for formatting and `.docx` download
+- [ ] **Google Tasks API** *(future)* — sync per-project tasks to/from Google Tasks; scope: `auth/tasks`
+- [ ] **Google Calendar API** *(future)* — push task due dates and project milestones to Calendar; pull events into context; scope: `auth/calendar`
+- [ ] **Google Keep API** *(future)* — sync project notes to/from Google Keep (currently Workspace enterprise only); scope: `auth/keep`
+- [ ] **People API v1 (Contacts)** *(future)* — sync per-project vendor contacts to a Google Contacts group; scope: `auth/contacts`
+
 ### Visualisation & Planning
 - [ ] **Org Charts** — lightweight org chart creator and viewer for team structures and project stakeholders; include in context
 - [ ] **Calendar Integration** — sync deadlines and milestones from an external calendar; surface dates in project context
-- [ ] **Task Management** — per-project tasks with due dates, priority, and status; track progress without leaving the app
+- [x] **Task Management** — per-project tasks with due dates, priority, and status; track progress without leaving the app
 - [x] **Versioning** — automatic snapshots on every working document save; History button to browse, restore, or delete any snapshot
 
 ### Platform

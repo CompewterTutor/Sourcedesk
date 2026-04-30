@@ -3280,8 +3280,8 @@
             >
                 <div class="modal-title">Google Drive Connector</div>
                 <div class="modal-subtitle">
-                    Import documents from Drive into your project, or back up
-                    your SourceDesk data.
+                    Import documents, vendor questions, and notes from
+                    Drive/Sheets/Docs, or back up your SourceDesk data.
                 </div>
                 <!-- Auth -->
                 <div class="form-row">
@@ -3290,14 +3290,19 @@
                         <span style="color: var(--text-muted); font-size: 10px">
                             —
                             <a
-                                href="https://developers.google.com/oauthplayground/?scope=https://www.googleapis.com/auth/drive"
+                                href="https://developers.google.com/oauthplayground/?scope=https://www.googleapis.com/auth/drive.appdata%20https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/drive.metadata.readonly%20https://www.googleapis.com/auth/drive.readonly%20https://www.googleapis.com/auth/spreadsheets%20https://www.googleapis.com/auth/documents"
                                 target="_blank"
                                 rel="noopener"
                                 style="color: var(--accent)"
                                 >Get token from OAuth Playground</a
                             >
-                            &nbsp;(select "Drive API v3", authorize APIs, then
-                            copy the Access Token)
+                            &nbsp;(select
+                            <strong
+                                >drive.appdata &middot; drive.file &middot;
+                                drive.metadata.readonly &middot; drive.readonly
+                                &middot; Sheets API v4 &middot; Docs API
+                                v1</strong
+                            >, authorize, then copy the Access Token)
                         </span>
                     </label>
                     <input
@@ -3375,6 +3380,82 @@
                             "
                         ></div>
                     </div>
+                    <!-- Sheets section -->
+                    <div
+                        style="
+                            border-top: 1px solid var(--surface2);
+                            margin-top: 12px;
+                            padding-top: 12px;
+                        "
+                    >
+                        <label class="form-label" style="margin-bottom: 8px"
+                            >Google Sheets &mdash; Questions</label
+                        >
+                        <div class="form-row">
+                            <label
+                                class="form-label"
+                                style="font-size: 11px; margin-bottom: 4px"
+                                >Import Questions from Google Sheet</label
+                            >
+                            <div style="display: flex; gap: 8px">
+                                <input
+                                    class="form-input"
+                                    id="sheets-import-id"
+                                    type="text"
+                                    placeholder="Spreadsheet ID or URL"
+                                    style="flex: 1"
+                                />
+                                <button
+                                    class="btn-secondary"
+                                    onclick="importSheetsQuestionsFromInput()"
+                                >
+                                    Import Questions
+                                </button>
+                            </div>
+                        </div>
+                        <div
+                            style="
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 8px;
+                                margin-top: 8px;
+                            "
+                        >
+                            <button
+                                class="btn-secondary"
+                                onclick="
+                                    exportQuestionsToSheets(
+                                        state.settings.driveToken,
+                                    )
+                                "
+                            >
+                                Export Questions to Sheets
+                            </button>
+                            <button
+                                class="btn-secondary"
+                                onclick="exportQuestionsToCSV()"
+                            >
+                                Export Questions (CSV)
+                            </button>
+                            <button
+                                class="btn-secondary"
+                                onclick="
+                                    document
+                                        .getElementById('csv-import-input')
+                                        .click()
+                                "
+                            >
+                                Import Questions (CSV)
+                            </button>
+                            <input
+                                id="csv-import-input"
+                                type="file"
+                                accept=".csv"
+                                style="display: none"
+                                onchange="importQuestionsFromCSV(this.files[0])"
+                            />
+                        </div>
+                    </div>
                 </div>
                 <!-- Backup -->
                 <div
@@ -3403,8 +3484,39 @@
                             margin-top: 5px;
                         "
                     >
-                        Uploads a full JSON backup of all projects, templates,
-                        docs, notes, and chats.
+                        Uploads a full JSON backup to the hidden
+                        <strong>Application Data</strong> folder in your Drive
+                        (requires <code>drive.appdata</code> scope). Only
+                        SourceDesk can see it — safe from accidental deletion.
+                        Exports (Sheets, Docs) go to a visible
+                        <strong>SourceDesk/&lt;Project&gt;</strong> folder
+                        (requires <code>drive.file</code> scope).
+                    </div>
+                    <!-- Docs Export section -->
+                    <div
+                        style="
+                            border-top: 1px solid var(--surface2);
+                            margin-top: 12px;
+                            padding-top: 12px;
+                        "
+                    >
+                        <label class="form-label" style="margin-bottom: 8px"
+                            >Google Docs Export</label
+                        >
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+                            <button
+                                class="btn-secondary"
+                                onclick="exportQuestionsToDoc()"
+                            >
+                                Export Questions to Google Doc
+                            </button>
+                            <button
+                                class="btn-secondary"
+                                onclick="exportWorkingDocToDoc()"
+                            >
+                                Export Working Doc to Google Doc
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-actions">
