@@ -542,11 +542,53 @@ When adding a new object store or index:
 1. **`npm run build`** → verify output, open `SourceDesk.html`, open `tests/test.html` → all green
 2. **Version labels** *(small)* — allow users to give a snapshot a custom label from the History modal (inline edit on each row)
 3. **Important Contacts / Resources** *(medium)* — per-project contact info and links with tags; include-in-context toggle
-4. **Google Tasks sync** *(future)* — use `https://www.googleapis.com/auth/tasks` scope; sync per-project tasks to/from Google Tasks via Tasks API v1
-5. **Google Calendar sync** *(future)* — use `https://www.googleapis.com/auth/calendar` scope; push task due dates and project milestones to Calendar; pull events into context
-6. **Google Keep notes sync** *(future)* — use Keep API (currently restricted to Workspace enterprise); sync project notes to/from Google Keep
-7. **Vendor Contact sync via People API** *(future)* — use `https://www.googleapis.com/auth/contacts` scope; People API v1; sync per-project contacts to a Google Contacts group
-8. **In-browser semantic embeddings** *(low priority, after local LLM path is proven)* — `transformers.js` + WASM `all-MiniLM-L6-v2`; ~30 MB one-time download
+
+---
+### Upcoming Feature Sessions
+
+4. **"Research" project type + AI-assisted research workflow** *(large)*
+   - Add `Research` to the project category enum (alongside RFP, RFI, Vendor Q, Contract, Other)
+   - Research project has a dedicated **Research Board** view: running list of research items each with source URL, summary, retrieved date, tags (e.g. "competitor", "regulation", "org chart", "vendor"), and include-in-context toggle
+   - **Brave Search integration** — new Settings field `Brave API Key`; calls `GET https://api.search.brave.com/res/v1/web/search?q=<query>&count=10` with header `X-Subscription-Token: <key>` and `Accept: application/json`; response `web.results[]` each has `title`, `url`, `description` (HTML snippet); strip `<strong>` tags from description before display; results shown in a "Search Results" panel where user can click → add to research board
+   - **crawl4ai integration** — new Settings field `crawl4ai Endpoint` (default `http://localhost:11235`); for any URL on the research board user can click "Crawl" to `POST {endpoint}/crawl` with body `{"urls":[url],"priority":10,"browser_config":{"type":"BrowserConfig","params":{"headless":true}},"crawler_config":{"type":"CrawlerRunConfig","params":{"cache_mode":"bypass"}}}`; use `results[0].fit_markdown` as the retrieved text; store in research item; inject into context via include toggle
+   - **AI research agent flow** — "Research Topic" button in the Research Board: user describes a topic (e.g. "RFPs for food services at US universities 2024-2025, who is bidding, major vendors"), the AI uses Brave Search to find relevant URLs, auto-queues them for crawling, summarises each, and writes a structured research report to the Working Document
+   - **Save research to Google Drive** — "Export Research to Drive" button: creates `SourceDesk/<project>/Research/` subfolder and uploads each research item as a Google Doc (title + URL + date + full crawled content); or exports the full board as one CSV/Markdown
+   - Research items stored in new `research` IndexedDB store: `{ id, projectId, url, title, summary, fullText, tags, retrievedAt, includeInContext }` — DB_VERSION 8 bump
+   - Suggested research query templates for procurement: "[vendor type] RFP university [year]", "[vendor] government contract history", "[state] procurement regulations [category]", "[university] org chart procurement department"
+
+5. **Brave Search + crawl4ai Settings fields** *(prerequisite for #4, small on its own)*
+   - `braveApiKey` — new Settings input; persisted to IndexedDB; used in Brave Search calls
+   - `crawl4aiUrl` — new Settings input (default `http://localhost:11235`); persisted to IndexedDB
+   - Both visible always (not gated behind a provider); add test buttons: Brave Test calls the API with `q=test&count=1`, crawl4ai Test calls `GET {url}/health` (crawl4ai exposes a health endpoint)
+   - Add both to `state.settings`, `openSettings()`, `saveSettings()`, boot load
+   - Add to `mangle.reserved`: `testBraveKey`, `testCrawl4aiEndpoint`
+
+6. **Position Guidelines & Responsibilities parser** *(medium)*
+   - New per-project section: **Position Guidelines** — accessible from sidebar when a project is loaded
+   - User uploads documents (job descriptions, org charts, SOPs, policy docs) via the existing doc upload flow but tagged as `type: "guideline"` to distinguish from context docs
+   - **Parse & analyse** button: sends guideline docs through the AI with a structured prompt that extracts:
+     - Key responsibilities and ownership areas
+     - Recommended task types and workflows for this role
+     - Suggested project template structures (maps to existing Template system)
+     - Recurring reminders / deadlines (maps to Task system with suggested due date offsets)
+     - Relevant procurement categories or vendor types
+   - AI output lands in a structured "Recommendations" panel with one-click actions: "Create Task", "Create Template", "Add to Context", "Set Reminder"
+   - Guideline docs stored with existing `docs` store but with `docType: "guideline"` field; excluded from default BM25 context but injectable on demand
+   - Useful for onboarding: new procurement officer uploads their position description and gets a pre-populated project + task scaffold
+
+7. **MS Word / LibreOffice MCP server integration** *(medium, requires user setup)*
+   - **Word MCP** — recommended: `word-mcp-live` by ykarapazar (`pip install word-mcp-live` / `uvx word-mcp-live`). 124 tools; cross-platform via python-docx (80 tools) + Windows COM live editing (44) + macOS JXA live (40). Supports track changes, comments, tables, TOC. Configure transport via `MCP_TRANSPORT=streamable-http` to expose as an HTTP endpoint SourceDesk can call.
+   - **LibreOffice MCP** — best available: `jwingnut/libreoffice-mcp-ubuntu` (FastMCP Python server + LibreOffice `.oxt` extension; 9 tools covering track changes, comments, search/replace, insert, save/export). Only Ubuntu, single commit, experimental. Alternative for `.docx` → PDF only: `chfle/word-to-pdf-mcp` (Docker, unoserver-based, production-quality for that one task).
+   - **SourceDesk integration approach**: new Settings section "MCP Endpoints"; user pastes `http://localhost:<port>` for each MCP server they have running; SourceDesk treats them as tool endpoints. On project load, if a Word/LibreOffice MCP is configured and the project has a Working Document, show "Open in Word" / "Open in LibreOffice" button that calls the MCP's `create` or `open` tool with the current working content. On close/save, pull the modified content back via the MCP's `content` tool and update the Working Document in IndexedDB.
+   - **Target document versioning for RFP/Research projects**: the Working Document already has version snapshots (DB_VERSION 6). Extend this with a "Target Document" concept — a secondary editable artifact (e.g. the actual RFP response being drafted) separate from the working notes document. Same versioning system applies. MCP round-trip would target this document. Store as `{ id, projectId, content, label, savedAt }` in a new `targetDocs` store — DB_VERSION 8 (alongside research store).
+   - Add to `mangle.reserved`: `openInWordMcp`, `openInLibreofficeMcp`, `pullFromWordMcp`, `syncMcpDoc`
+   - **Note on maturity**: no Word/LibreOffice MCP is from a major publisher or has >100 stars. Frame as "bring your own MCP server" — SourceDesk provides the connection UI and round-trip sync logic; users are responsible for installing/running the MCP server. Document setup steps in README.
+
+8. **Google Tasks sync** *(future)* — `auth/tasks` scope; Tasks API v1; sync per-project tasks bidirectionally
+9. **Google Calendar sync** *(future)* — `auth/calendar` scope; push task due dates and project milestones; pull events into context
+10. **Google Keep notes sync** *(future)* — Keep API; currently restricted to Workspace enterprise; watch for public access
+11. **Vendor Contact sync via People API** *(future)* — `auth/contacts`; People API v1; sync per-project contacts to a Google Contacts group
+12. **In-browser semantic embeddings** *(low priority, after local LLM path is proven)* — `transformers.js` + WASM `all-MiniLM-L6-v2`; ~30 MB one-time download
 
 ---
 

@@ -220,18 +220,31 @@ Example `.env` values:
 - [x] **Template variable preview** — inline "Preview resolved" panel in the template editor that shows the output against the current active project without saving
 
 ### Retrieval & Context
-- [ ] **docx / xlsx → Google Docs conversion on upload** *(next)* — when a `.docx` or `.xlsx` file is uploaded and a Drive token is present, offer to upload it to Drive for server-side conversion, export the plain text back, and use that for chunking/RAG instead of the client-side extractor; temp Drive file is deleted after export
-- [ ] **Local LLM embeddings** *(next)* — new Settings "Embedding Model" field (visible when provider = Local LLM); calls `POST {localLlmUrl}/embeddings` for doc chunks at index time and queries at retrieval time; cosine similarity re-ranking over BM25 candidates; vectors stored in IndexedDB (DB\_VERSION 7); falls back to BM25-only when not set
-- [ ] **In-browser semantic embeddings** *(low priority, after local LLM path)* — `transformers.js` + WASM `all-MiniLM-L6-v2`; ~30 MB one-time download
-- [x] **Local model quick-selector** — when the Local LLM provider is active, a compact model dropdown appears in the topbar; includes a ⟳ re-detect button
-- [ ] **Enhanced Retrieval** — hybrid BM25 + semantic similarity re-ranking (unlocked once embeddings are available)
+- [x] **docx / xlsx / pptx → Google Docs conversion on upload** — optional Drive-based server-side text extraction; falls back to client-side reader
+- [x] **Local LLM embeddings + hybrid retrieval** — Embedding Model field in Settings (Local LLM only); calls `/embeddings`; 40% BM25 + 60% cosine similarity re-ranking; DB\_VERSION 7
+- [ ] **In-browser semantic embeddings** *(low priority)* — `transformers.js` + WASM `all-MiniLM-L6-v2`; ~30 MB one-time download
+- [x] **Local model quick-selector** — topbar dropdown when provider = Local LLM; includes ⟳ re-detect button
+- [x] **Enhanced Retrieval** — hybrid BM25 + semantic re-ranking (active when Embedding Model is set)
+
+### Research & Web Intelligence
+- [ ] **"Research" project type** *(planned)* — new category alongside RFP, RFI, Vendor Q, Contract, Other; dedicated Research Board view with source URL, summary, tags (competitor/regulation/org-chart/vendor), retrieved date, and include-in-context toggle per item; DB\_VERSION 8
+- [ ] **Brave Search integration** *(planned)* — Settings: `Brave API Key`; `GET https://api.search.brave.com/res/v1/web/search?q=<query>&count=10` with `X-Subscription-Token` header; results shown in a Search panel; click to add to Research Board; free tier: $5/month credit
+- [ ] **crawl4ai integration** *(planned)* — Settings: `crawl4ai Endpoint` (default `http://localhost:11235`); self-hosted Docker service (`docker run -p 11235:11235 unclecode/crawl4ai`); `POST /crawl` with URL, returns `fit_markdown`; "Crawl" button on any Research Board item; full-page clean Markdown stored and injected into context
+- [ ] **AI research agent flow** *(planned)* — "Research Topic" button: user describes a topic, AI uses Brave Search to find URLs, auto-crawls them, summarises each, writes a structured report to the Working Document
+- [ ] **Export research to Google Drive** *(planned)* — `SourceDesk/<project>/Research/` subfolder; each item as a Google Doc, or full board as CSV/Markdown
+
+### Document Editing & Versioning
+- [x] **Working Document versioning** — automatic snapshots on every save; History modal to browse, restore, or delete
+- [ ] **Target Document** *(planned)* — secondary editable artifact per project (e.g. the actual RFP response being drafted), separate from working notes; same versioning system; DB\_VERSION 8
+- [ ] **MS Word MCP integration** *(planned, requires user setup)* — recommended server: `word-mcp-live` (`pip install word-mcp-live`; 124 tools; cross-platform python-docx + Windows COM + macOS JXA; track changes, comments, tables); configure endpoint in Settings; "Open in Word" button round-trips Working/Target Document through Word
+- [ ] **LibreOffice MCP integration** *(planned, experimental)* — best available: `jwingnut/libreoffice-mcp-ubuntu` (FastMCP + `.oxt` extension; track changes, comments, search/replace, save/export; Ubuntu only, single-commit proof-of-concept); `.docx`→PDF only: `chfle/word-to-pdf-mcp` (Docker, unoserver, production-quality for that one task)
 
 ### Project Data & Contacts
-- [x] **Task Management** — per-project tasks with title, description, status, priority, due date; include-in-context toggle injects active tasks into every chat message
+- [x] **Task Management** — per-project tasks with title, description, status, priority, due date; include-in-context toggle; export as Markdown or CSV
+- [ ] **Position Guidelines & Responsibilities parser** *(planned)* — upload job descriptions, SOPs, org charts; AI extracts responsibilities, suggests tasks, project templates, recurring reminders, and relevant vendor categories; one-click actions to scaffold the project
 - [ ] **Important Contacts / Resources** — per-project contact info and links with tags; include-in-context toggle
 - [ ] **Vendor Catalog** — directory of vendors and agencies categorised by expertise; include in context for relevant projects
 - [ ] **Project Deliverables** — define expected outputs/artifacts with deadlines and milestones; export as a zip of generated files or structured JSON/CSV
-- [ ] **Project Type Templates** — predefined project configurations with instructions, doc structures, and settings for common use cases (meeting notes, research, writing, etc.)
 
 ### Google Workspace Integration
 - [x] **Google Drive** — import files, export DB backup to SourceDesk app folder
