@@ -2976,6 +2976,20 @@
                         >
                             + Add URL
                         </button>
+                        <button
+                            class="btn-secondary"
+                            onclick="openResearchAgent()"
+                            title="Auto-research a topic: search → crawl → summarise → collate report into Working Doc"
+                        >
+                            🤖 Agent
+                        </button>
+                        <button
+                            class="btn-ghost"
+                            onclick="generateResearchReport()"
+                            title="Build a Markdown report from existing summarised items and append to Working Doc"
+                        >
+                            📝 Report
+                        </button>
                     </div>
                     <div
                         id="research-board"
@@ -3045,6 +3059,113 @@
                             onclick="runResearchSearch()"
                         >
                             Search
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Research: Agent modal -->
+                <div
+                    id="modal-research-agent"
+                    class="modal hidden"
+                    style="max-width: 680px; width: 97%"
+                >
+                    <div class="modal-title">🤖 Research Agent</div>
+                    <div
+                        style="
+                            font-size: 12px;
+                            color: var(--text-muted);
+                            margin: -4px 0 10px;
+                            line-height: 1.5;
+                        "
+                    >
+                        Expands a topic into sub-queries, runs Brave searches,
+                        crawls the top hits, summarises each page, and appends a
+                        Markdown briefing to the Working Document. Requires a
+                        Brave API key, an LLM provider key, and (for crawl) a
+                        running crawl4ai endpoint.
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Topic</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="research-agent-topic"
+                            placeholder="e.g. food services RFP best practices for US universities"
+                        />
+                    </div>
+                    <div
+                        class="form-row"
+                        style="display: flex; gap: 12px; align-items: flex-end"
+                    >
+                        <div style="flex: 1">
+                            <label class="form-label">Sub-queries (1–10)</label>
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="research-agent-num-queries"
+                                value="4"
+                                min="1"
+                                max="10"
+                            />
+                        </div>
+                        <div style="flex: 1">
+                            <label class="form-label"
+                                >Results per query (1–10)</label
+                            >
+                            <input
+                                type="number"
+                                class="form-input"
+                                id="research-agent-num-results"
+                                value="3"
+                                min="1"
+                                max="10"
+                            />
+                        </div>
+                        <label
+                            style="
+                                display: flex;
+                                align-items: center;
+                                gap: 6px;
+                                font-size: 12px;
+                                color: var(--text-dim);
+                                cursor: pointer;
+                                padding-bottom: 6px;
+                            "
+                        >
+                            <input
+                                type="checkbox"
+                                id="research-agent-auto-crawl"
+                                checked
+                                style="accent-color: var(--accent)"
+                            />
+                            Auto-crawl & summarise
+                        </label>
+                    </div>
+                    <div
+                        id="research-agent-log"
+                        style="
+                            margin-top: 10px;
+                            max-height: 340px;
+                            overflow-y: auto;
+                            background: var(--bg);
+                            border: 1px solid var(--border);
+                            border-radius: var(--radius);
+                            padding: 8px 10px;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 2px;
+                        "
+                    ></div>
+                    <div class="modal-footer">
+                        <button class="btn-ghost" onclick="closeModal()">
+                            Close
+                        </button>
+                        <button
+                            class="btn-primary"
+                            id="research-agent-run-btn"
+                            onclick="runResearchAgent()"
+                        >
+                            ▶ Run Agent
                         </button>
                     </div>
                 </div>

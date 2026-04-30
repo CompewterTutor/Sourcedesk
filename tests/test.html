@@ -1646,6 +1646,9 @@
                         "summariseResearchItem",
                         "deleteResearchItem",
                         "toggleResearchInContext",
+                        "openResearchAgent",
+                        "runResearchAgent",
+                        "generateResearchReport",
                     ];
                     fns.forEach((f) => {
                         if (typeof window[f] !== "function")
@@ -1665,6 +1668,46 @@
                     const out = _escResearch('a & <b> "c"');
                     if (out !== "a &amp; &lt;b&gt; &quot;c&quot;")
                         throw new Error("got: " + out);
+                });
+
+                it("_researchExtractJsonArray parses a bare JSON array", () => {
+                    const out = _researchExtractJsonArray(
+                        '["alpha", "beta", "gamma"]',
+                    );
+                    if (
+                        out.length !== 3 ||
+                        out[0] !== "alpha" ||
+                        out[2] !== "gamma"
+                    )
+                        throw new Error("got: " + JSON.stringify(out));
+                });
+
+                it("_researchExtractJsonArray strips ```json fences and prose", () => {
+                    const out = _researchExtractJsonArray(
+                        'Here you go:\n```json\n["a", "b"]\n```\nHope that helps.',
+                    );
+                    if (out.length !== 2 || out[0] !== "a" || out[1] !== "b")
+                        throw new Error("got: " + JSON.stringify(out));
+                });
+
+                it("_researchExtractJsonArray returns [] on garbage", () => {
+                    const out = _researchExtractJsonArray(
+                        "sorry, no array here",
+                    );
+                    if (!Array.isArray(out) || out.length !== 0)
+                        throw new Error("got: " + JSON.stringify(out));
+                });
+
+                it("_researchExtractJsonArray trims and drops empty strings", () => {
+                    const out = _researchExtractJsonArray(
+                        '[" alpha ", "", "beta"]',
+                    );
+                    if (
+                        out.length !== 2 ||
+                        out[0] !== "alpha" ||
+                        out[1] !== "beta"
+                    )
+                        throw new Error("got: " + JSON.stringify(out));
                 });
             });
 
