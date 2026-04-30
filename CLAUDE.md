@@ -540,17 +540,13 @@ When adding a new object store or index:
 ## Next Steps (Ordered for Next Session)
 
 1. **`npm run build`** → verify output, open `SourceDesk.html`, open `tests/test.html` → all green
-
-2. **Add `embeddings` store to export/import/backup/clear** *(small, important)* — `exportDatabase()`, `importDatabase()`, `clearAllData()` in `src/settings.js` and `backupToDrive()` in `src/drive.js` all need `"embeddings"` added to their stores arrays; `validateImportShape` should treat it as optional for backwards compat
-
-3. **Task export** *(small)* — export tasks for the active project as Markdown or CSV (similar to the supplier questions export)
-4. **Version labels** *(small)* — allow users to give a snapshot a custom label from the History modal (inline edit on each row)
-5. **Important Contacts / Resources** *(medium)* — per-project contact info and links with tags; include-in-context toggle
-6. **Google Tasks sync** *(future)* — use `https://www.googleapis.com/auth/tasks` scope; sync per-project tasks to/from Google Tasks via Tasks API v1
-7. **Google Calendar sync** *(future)* — use `https://www.googleapis.com/auth/calendar` scope; push task due dates and project milestones to Calendar; pull events into context
-8. **Google Keep notes sync** *(future)* — use Keep API (currently restricted to Workspace enterprise; watch for public availability); sync project notes to/from Google Keep
-9. **Vendor Contact sync via People API** *(future)* — use `https://www.googleapis.com/auth/contacts` scope; People API v1 (supersedes Contacts v3); sync per-project contacts to a Google Contacts group
-10. **In-browser semantic embeddings** *(low priority, after local LLM path is proven)* — `transformers.js` + WASM `all-MiniLM-L6-v2`; ~30 MB one-time download; hybrid BM25 + semantic re-ranking
+2. **Version labels** *(small)* — allow users to give a snapshot a custom label from the History modal (inline edit on each row)
+3. **Important Contacts / Resources** *(medium)* — per-project contact info and links with tags; include-in-context toggle
+4. **Google Tasks sync** *(future)* — use `https://www.googleapis.com/auth/tasks` scope; sync per-project tasks to/from Google Tasks via Tasks API v1
+5. **Google Calendar sync** *(future)* — use `https://www.googleapis.com/auth/calendar` scope; push task due dates and project milestones to Calendar; pull events into context
+6. **Google Keep notes sync** *(future)* — use Keep API (currently restricted to Workspace enterprise); sync project notes to/from Google Keep
+7. **Vendor Contact sync via People API** *(future)* — use `https://www.googleapis.com/auth/contacts` scope; People API v1; sync per-project contacts to a Google Contacts group
+8. **In-browser semantic embeddings** *(low priority, after local LLM path is proven)* — `transformers.js` + WASM `all-MiniLM-L6-v2`; ~30 MB one-time download
 
 ---
 

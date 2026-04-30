@@ -2374,13 +2374,41 @@
                                     gap: 6px;
                                 "
                             >
-                                <button
-                                    class="btn-primary"
-                                    style="width: 100%"
-                                    onclick="openNewTask()"
+                                <div
+                                    style="
+                                        display: flex;
+                                        gap: 4px;
+                                        align-items: center;
+                                    "
                                 >
-                                    + New Task
-                                </button>
+                                    <button
+                                        class="btn-primary"
+                                        style="flex: 1"
+                                        onclick="openNewTask()"
+                                    >
+                                        + New Task
+                                    </button>
+                                    <button
+                                        class="btn-secondary"
+                                        style="
+                                            font-size: 12px;
+                                            padding: 4px 10px;
+                                        "
+                                        onclick="exportTasksMarkdown()"
+                                    >
+                                        ⬇ MD
+                                    </button>
+                                    <button
+                                        class="btn-secondary"
+                                        style="
+                                            font-size: 12px;
+                                            padding: 4px 10px;
+                                        "
+                                        onclick="exportTasksCSV()"
+                                    >
+                                        ⬇ CSV
+                                    </button>
+                                </div>
                                 <input
                                     id="task-filter"
                                     class="form-input"

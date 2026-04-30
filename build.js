@@ -173,6 +173,8 @@ async function build() {
                     "copyAnswerToClipboard",
                     "exportSelectedQuestions",
                     "exportAllQuestions",
+                    "exportTasksMarkdown",
+                    "exportTasksCSV",
                     "filterSQList",
                     "toggleAllSQCheckboxes",
                     "scheduleSQAutoSave",

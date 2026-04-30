@@ -522,6 +522,7 @@ async function backupToDrive() {
             "chats",
             "notes",
             "settings",
+            "embeddings",
         ];
         const data = {
             version: DB_VERSION,
@@ -1057,7 +1058,7 @@ function validateImportShape(obj) {
         )
     )
         return false;
-    // notes store is optional — older backups won't have it
+    // notes, embeddings stores are optional — older backups won't have them
     return true;
 }
 
@@ -1097,6 +1098,7 @@ async function importDatabase(file) {
         "chats",
         "settings",
         "notes",
+        "embeddings",
     ];
     for (const s of stores) {
         const items = await dbGetAll(s);
@@ -1104,7 +1106,7 @@ async function importDatabase(file) {
             await dbDelete(s, item[s === "settings" ? "key" : "id"]);
     }
     for (const s of stores) {
-        // notes may be absent in older backups — skip gracefully
+        // some stores may be absent in older backups — skip gracefully
         if (!data.stores[s]) continue;
         for (const item of data.stores[s]) await dbPut(s, item);
     }
