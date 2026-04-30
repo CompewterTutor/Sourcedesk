@@ -316,6 +316,7 @@
         <script src="../src/notes.js"></script>
         <script src="../src/contacts.js"></script>
         <script src="../src/suggestions.js"></script>
+        <script src="../src/editor.js"></script>
         <script src="../src/ui.js"></script>
 
         <script>
@@ -1503,6 +1504,130 @@
                     state.editingTemplateId = null;
                     // Should not throw
                     scheduleTemplateAutosave();
+                });
+            });
+
+            /* ── rich-text editor ─────────────────────────────────────── */
+            describe("rich-text editor", () => {
+                it("public mountRichEditor / destroyRichEditor / setRichEditorMode are defined", () => {
+                    if (typeof mountRichEditor !== "function")
+                        throw new Error("mountRichEditor missing");
+                    if (typeof destroyRichEditor !== "function")
+                        throw new Error("destroyRichEditor missing");
+                    if (typeof setRichEditorMode !== "function")
+                        throw new Error("setRichEditorMode missing");
+                });
+
+                it("markdownToHtml: # Heading → <h1>Heading</h1>", () => {
+                    const html = _rteMarkdownToHtml("# Heading");
+                    if (!/<h1>Heading<\/h1>/.test(html))
+                        throw new Error(
+                            "expected <h1>Heading</h1>, got " + html,
+                        );
+                });
+
+                it("markdownToHtml: **bold** → <strong>bold</strong>", () => {
+                    const html = _rteMarkdownToHtml("hello **world**");
+                    if (!/<strong>world<\/strong>/.test(html))
+                        throw new Error("expected strong tag, got " + html);
+                });
+
+                it("markdownToHtml: bullet list groups into <ul>", () => {
+                    const html = _rteMarkdownToHtml("- a\n- b\n- c");
+                    if (
+                        !/<ul>.*<li>a<\/li>.*<li>b<\/li>.*<li>c<\/li>.*<\/ul>/s.test(
+                            html,
+                        )
+                    )
+                        throw new Error(
+                            "expected <ul><li>...</li></ul>, got " + html,
+                        );
+                });
+
+                it("markdownToHtml: --- → page-break <hr>", () => {
+                    const html = _rteMarkdownToHtml("line\n\n---\n\nline2");
+                    if (!/<hr class="page-break"/.test(html))
+                        throw new Error("expected page-break hr, got " + html);
+                });
+
+                it("htmlToMarkdown: <h2>X</h2> → ## X", () => {
+                    const md = _rteHtmlToMarkdown("<h2>Section</h2>");
+                    if (!/##\s+Section/.test(md))
+                        throw new Error(
+                            "expected ## Section, got " + JSON.stringify(md),
+                        );
+                });
+
+                it("htmlToMarkdown: <strong>x</strong> → **x**", () => {
+                    const md = _rteHtmlToMarkdown("<p><strong>x</strong></p>");
+                    if (!/\*\*x\*\*/.test(md))
+                        throw new Error(
+                            "expected **x**, got " + JSON.stringify(md),
+                        );
+                });
+
+                it("htmlToMarkdown: <ul><li>a</li><li>b</li></ul> → - a / - b", () => {
+                    const md = _rteHtmlToMarkdown(
+                        "<ul><li>a</li><li>b</li></ul>",
+                    );
+                    if (!/- a/.test(md) || !/- b/.test(md))
+                        throw new Error(
+                            "expected list items, got " + JSON.stringify(md),
+                        );
+                });
+
+                it("round-trip: md → html → md preserves headings + bold", () => {
+                    const original = "# Title\n\nSome **bold** text.\n";
+                    const html = _rteMarkdownToHtml(original);
+                    const back = _rteHtmlToMarkdown(html);
+                    if (!/# Title/.test(back))
+                        throw new Error(
+                            "lost heading: " + JSON.stringify(back),
+                        );
+                    if (!/\*\*bold\*\*/.test(back))
+                        throw new Error("lost bold: " + JSON.stringify(back));
+                });
+
+                it("mount/destroy: wraps and unwraps a textarea cleanly", () => {
+                    const ta = document.createElement("textarea");
+                    ta.value = "# hi";
+                    document.body.appendChild(ta);
+                    const originalParent = ta.parentNode;
+                    mountRichEditor(ta);
+                    if (!ta.parentNode.classList.contains("rte-wrapper"))
+                        throw new Error("textarea not wrapped");
+                    destroyRichEditor(ta);
+                    if (ta.parentNode !== originalParent)
+                        throw new Error(
+                            "textarea not restored to original parent",
+                        );
+                    ta.remove();
+                });
+
+                it("setRichEditorMode toggles to rendered and back", () => {
+                    const ta = document.createElement("textarea");
+                    ta.value = "**bold**";
+                    document.body.appendChild(ta);
+                    mountRichEditor(ta);
+                    setRichEditorMode(ta, "rendered");
+                    const rendered =
+                        ta.parentNode.querySelector(".rte-rendered");
+                    if (!rendered)
+                        throw new Error("rendered surface not created");
+                    if (rendered.style.display === "none")
+                        throw new Error("rendered surface not visible");
+                    if (!/<strong>bold<\/strong>/.test(rendered.innerHTML))
+                        throw new Error(
+                            "rendered HTML does not contain <strong>: " +
+                                rendered.innerHTML,
+                        );
+                    setRichEditorMode(ta, "raw");
+                    if (rendered.style.display !== "none")
+                        throw new Error(
+                            "rendered surface should be hidden in raw mode",
+                        );
+                    destroyRichEditor(ta);
+                    ta.remove();
                 });
             });
 

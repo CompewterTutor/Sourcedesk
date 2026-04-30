@@ -436,6 +436,7 @@ function _fillWorkingDocEditor() {
     const ta = document.getElementById("working-doc-editor");
     if (ta && state.activeProject)
         ta.value = state.activeProject.workingContent || "";
+    if (typeof refreshRichEditor === "function" && ta) refreshRichEditor(ta);
 }
 
 function openWorkingDoc() {

@@ -28,6 +28,11 @@ function openNewTemplate() {
         "New Template";
     document.getElementById("tmpl-name").value = "";
     document.getElementById("tmpl-content").value = "";
+    {
+        const _ta = document.getElementById("tmpl-content");
+        if (typeof refreshRichEditor === "function" && _ta)
+            refreshRichEditor(_ta);
+    }
     selectPillByVal("tmpl-category-pills", "RFP");
     selectPillByVal("tmpl-type-pills", "skeleton");
     const pp = document.getElementById("tmpl-preview-panel");
@@ -43,6 +48,11 @@ function openEditTemplate(id) {
         "Edit Template";
     document.getElementById("tmpl-name").value = t.name;
     document.getElementById("tmpl-content").value = t.content;
+    {
+        const _ta = document.getElementById("tmpl-content");
+        if (typeof refreshRichEditor === "function" && _ta)
+            refreshRichEditor(_ta);
+    }
     selectPillByVal("tmpl-category-pills", t.category);
     selectPillByVal("tmpl-type-pills", t.type);
     const pp = document.getElementById("tmpl-preview-panel");

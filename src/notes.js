@@ -143,6 +143,8 @@ async function selectNote(note) {
     const includeToggle = document.getElementById("note-include-toggle");
     if (titleEl) titleEl.value = note.title || "";
     if (editorEl) editorEl.value = note.content || "";
+    if (typeof refreshRichEditor === "function" && editorEl)
+        refreshRichEditor(editorEl);
     if (editorArea) editorArea.style.display = "flex";
     if (placeholder) placeholder.style.display = "none";
     if (includeToggle) includeToggle.checked = note.includeInContext || false;

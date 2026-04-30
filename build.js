@@ -41,6 +41,7 @@ const SRC_FILES = [
     "src/attachments.js",
     "src/promptLibrary.js",
     "src/suggestions.js",
+    "src/editor.js",
     "src/ui.js",
 ].map((f) => path.join(__dirname, f));
 const OUT_HTML = path.join(__dirname, "SourceDesk.html");
@@ -227,6 +228,12 @@ async function build() {
                     "scheduleTemplateAutosave",
                     "testBraveKey",
                     "testCrawl4aiEndpoint",
+                    "mountRichEditor",
+                    "destroyRichEditor",
+                    "setRichEditorMode",
+                    "refreshRichEditor",
+                    "_rteMarkdownToHtml",
+                    "_rteHtmlToMarkdown",
                     "loadTasks",
                     "renderTaskList",
                     "selectTask",

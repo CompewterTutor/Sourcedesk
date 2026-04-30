@@ -75,6 +75,7 @@ async function boot() {
 
         renderSidebar();
         checkApiKey();
+        _initRichEditors();
     } catch (err) {
         _bootError(
             "Boot failed: " +
@@ -83,6 +84,29 @@ async function boot() {
         );
         console.error("[SourceDesk boot error]", err);
     }
+}
+
+// Mount rich-text dual-mode editors on the main authoring surfaces.
+// Safe to call once at boot — `mountRichEditor` is a no-op for already-mounted
+// textareas.
+function _initRichEditors() {
+    if (typeof mountRichEditor !== "function") return;
+    const surfaces = [
+        "working-doc-editor",
+        "note-editor",
+        "tmpl-content",
+        "sq-answer-editor",
+    ];
+    surfaces.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) {
+            try {
+                mountRichEditor(el);
+            } catch (e) {
+                console.warn("[rte] mount failed for #" + id, e);
+            }
+        }
+    });
 }
 
 // ─── VIEWS ────────────────────────────────────────────────────────────────────

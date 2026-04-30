@@ -109,6 +109,11 @@ async function createTemplateFromDoc(docId) {
         "",
     );
     document.getElementById("tmpl-content").value = doc.content;
+    {
+        const _ta = document.getElementById("tmpl-content");
+        if (typeof refreshRichEditor === "function" && _ta)
+            refreshRichEditor(_ta);
+    }
     selectPillByVal(
         "tmpl-category-pills",
         state.activeProject ? state.activeProject.category : "Other",

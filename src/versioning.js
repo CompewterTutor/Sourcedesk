@@ -165,6 +165,8 @@ async function restoreDocVersion(versionId) {
     // Update editor if visible
     const editor = document.getElementById("working-doc-editor");
     if (editor) editor.value = v.content;
+    if (typeof refreshRichEditor === "function" && editor)
+        refreshRichEditor(editor);
     closeModal();
 }
 

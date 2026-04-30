@@ -56,7 +56,7 @@ function renderSQList(questions) {
             "</span>" +
             '<button class="sq-item-del" title="Delete" onclick="event.stopPropagation();deleteQuestion(\'' +
             q.id +
-            '\')">✕</button>';
+            "')\">✕</button>";
 
         el.onclick = function (e) {
             if (
@@ -88,6 +88,8 @@ function selectQuestion(q) {
     if (detailArea) detailArea.style.display = "flex";
     if (questionText) questionText.textContent = q.text;
     if (answerEditor) answerEditor.value = q.draftAnswer || "";
+    if (typeof refreshRichEditor === "function" && answerEditor)
+        refreshRichEditor(answerEditor);
     if (streamingDiv) streamingDiv.style.display = "none";
     if (answerEditor) answerEditor.style.display = "";
 }
@@ -158,7 +160,8 @@ async function saveAddedQuestions() {
 
 async function generateAnswerForQuestion(questionId) {
     if (!state.activeProject) return;
-    const id = questionId || (state.currentQuestion && state.currentQuestion.id);
+    const id =
+        questionId || (state.currentQuestion && state.currentQuestion.id);
     if (!id) return;
 
     const q = await dbGet("supplierQuestions", id);
@@ -265,6 +268,8 @@ async function generateAnswerForQuestion(questionId) {
         answerEditor.style.display = "";
         answerEditor.value = fullText;
     }
+    if (typeof refreshRichEditor === "function" && answerEditor)
+        refreshRichEditor(answerEditor);
     if (genBtn) genBtn.disabled = false;
 
     // Re-render list to update icons
@@ -383,7 +388,9 @@ function _downloadSQMarkdown(questions) {
     a.href = url;
     a.download =
         "supplier-questions-" +
-        (state.activeProject ? state.activeProject.name.replace(/\s+/g, "-") : "export") +
+        (state.activeProject
+            ? state.activeProject.name.replace(/\s+/g, "-")
+            : "export") +
         ".md";
     a.click();
     URL.revokeObjectURL(url);

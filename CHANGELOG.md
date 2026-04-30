@@ -9,6 +9,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] 🗄️
+
+### Added
+- **Rich-text editor scaffolding** (roadmap item 15) — new module `src/editor.js` exposes `mountRichEditor(textarea, opts)`, `destroyRichEditor`, `setRichEditorMode`, and `refreshRichEditor`. Each editor wraps an existing `<textarea>` with a toolbar (H1/H2/H3, **Bold**, *Italic*, <u>Underline</u>, `code`, bullet list, numbered list, blockquote, 2x2 table, page break) and a Raw ⇄ Rendered mode toggle. Round-trip safe markdown ⇄ HTML conversion preserves headings, inline marks, lists, blockquotes, code fences, links, and tables. Mounted at boot on the Working Document, Notes, Templates, and Supplier-Q answer textareas. Existing autosave wiring is preserved (the rendered surface dispatches an `input` event on the underlying textarea after every edit). Programmatic `textarea.value` assignments now call `refreshRichEditor()` to keep the rendered surface in sync (notes selection, working-doc fill, version restore, template open/edit, SQ select, SQ generation, createTemplateFromDoc).
+- **Feature suggestion box** (roadmap item 16) — 💡 button in the topbar opens a modal where you can submit feature ideas with a title, category, and details. Suggestions are persisted locally to the new `suggestions` IndexedDB store and, if a `Suggestion Webhook URL` is configured in Settings, also POSTed there as JSON. Includes a "View All" manager (delete + JSON export). New module `src/suggestions.js`.
+- **Brave Search + crawl4ai Settings fields** (roadmap item 5) — prerequisite for the Research project type. New settings inputs: **Brave Search API Key**, **crawl4ai Endpoint** (default `http://localhost:11235`), **Suggestion Webhook URL**. Each test button calls the appropriate health/test endpoint and reports status. Persisted via `saveSettings()` and loaded on boot. New helpers `testBraveKey()` and `testCrawl4aiEndpoint()` in `src/settings.js`.
+- **Templates autosave** (follow-up for roadmap item 14) — when editing an existing template, name and content fields are debounced-autosaved (1.5 s) to IndexedDB without closing the modal. New helper `scheduleTemplateAutosave()` in `src/templates.js`; status pill `#autosave-status-template` shown in the modal title row. New templates still require an explicit Save click before autosave activates.
+- **Help modal**: link to the Suggestion Box added to the Shortcuts and About panes.
+
+### Changed
+- DB schema bumped to **`DB_VERSION = 9`** — adds `suggestions` object store. Existing data migrates with no further changes.
+- `clearAllData()`, `exportDatabase()`, `importDatabase()`, and `backupToDrive()` now include the `suggestions` store in their store list.
+
+### Build
+- `build.js`: includes `src/suggestions.js` and `src/editor.js`; reserves `openSuggestionBox`, `submitSuggestion`, `openManageSuggestions`, `deleteSuggestion`, `exportSuggestions`, `scheduleTemplateAutosave`, `testBraveKey`, `testCrawl4aiEndpoint`, `mountRichEditor`, `destroyRichEditor`, `setRichEditorMode`, `refreshRichEditor`, `_rteMarkdownToHtml`, `_rteHtmlToMarkdown`.
+- Production build now ships at ~325 KB total / ~157 KB JS.
+
+### Tests
+- `tests/test.html`: includes `suggestions.js` and `editor.js`; new suites cover `SUGGESTION_CATEGORIES`, the local HTML escaper, public function presence, the new settings defaults (`braveApiKey`, `crawl4aiUrl`, `suggestionWebhook`), the Templates autosave hook, and the rich-text editor (10 tests — markdown→HTML, HTML→markdown, round-trip, mount/destroy lifecycle, raw ⇄ rendered mode toggle).
+
+---
+
 ## [0.8.0] - 2025-07-19 🗄️
 
 ### Added
