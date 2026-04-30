@@ -55,7 +55,9 @@ function _helpKbdRow(keys, desc) {
             (k) =>
                 `<kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text)">${k}</kbd>`,
         )
-        .join(' <span style="color:var(--text-muted);font-size:11px">+</span> ');
+        .join(
+            ' <span style="color:var(--text-muted);font-size:11px">+</span> ',
+        );
     return `<tr><td style="padding:4px 12px 4px 0;white-space:nowrap">${html}</td><td style="padding:4px 0;color:var(--text-muted)">${desc}</td></tr>`;
 }
 
@@ -72,7 +74,7 @@ function _helpShortcutsPane() {
           ${_helpKbdRow(["Ctrl/⌘", "S"], "Save current view (where applicable)")}
         </tbody>
       </table>
-      <p style="color:var(--text-muted);font-size:12px;margin-top:14px">More shortcuts will be added as the app grows. Feature requests welcome via the suggestion box (coming soon).</p>
+      <p style="color:var(--text-muted);font-size:12px;margin-top:14px">Have an idea? Open the <a href="#" onclick="event.preventDefault();closeModal();openSuggestionBox()" style="color:var(--accent)">💡 Suggestion Box</a> from the topbar to file a feature request.</p>
     </div>`;
 }
 
@@ -132,7 +134,7 @@ function _helpAboutPane() {
         <li><b>Backups:</b> Settings → Export Database (JSON), or Drive → Backup to Drive</li>
         <li><b>Source / docs:</b> see <code>CLAUDE.md</code> in the project repo</li>
       </ul>
-      <p style="color:var(--text-muted);font-size:12px;margin-top:12px">Have feedback? A Suggestion Box feature is on the roadmap (item 16). For now, file issues in the repo.</p>
+      <p style="color:var(--text-muted);font-size:12px;margin-top:12px">Have feedback? Open the <a href="#" onclick="event.preventDefault();closeModal();openSuggestionBox()" style="color:var(--accent)">💡 Suggestion Box</a> from the topbar (or here) to file a feature request — your suggestions are stored locally and optionally POSTed to a webhook you configure in Settings.</p>
     </div>`;
 }
 

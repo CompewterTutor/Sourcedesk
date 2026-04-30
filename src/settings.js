@@ -93,6 +93,13 @@ function openSettings() {
     if (_localUrlEl) _localUrlEl.value = state.settings.localLlmUrl || "";
     const _embEl = document.getElementById("embedding-model-input");
     if (_embEl) _embEl.value = state.settings.embeddingModel || "";
+    const _braveEl = document.getElementById("settings-brave-key");
+    if (_braveEl) _braveEl.value = state.settings.braveApiKey || "";
+    const _crawlEl = document.getElementById("settings-crawl4ai-url");
+    if (_crawlEl)
+        _crawlEl.value = state.settings.crawl4aiUrl || "http://localhost:11235";
+    const _webhookEl = document.getElementById("settings-suggestion-webhook");
+    if (_webhookEl) _webhookEl.value = state.settings.suggestionWebhook || "";
     updateApiKeyStatus(!!getCurrentProviderKey());
     showModal("modal-settings");
     // Sync topbar model selector in case it's stale
@@ -196,6 +203,25 @@ async function saveSettings() {
     state.settings.embeddingModel = embeddingModel;
     await dbPut("settings", { key: "embeddingModel", value: embeddingModel });
 
+    const braveApiKey =
+        document.getElementById("settings-brave-key")?.value.trim() || "";
+    state.settings.braveApiKey = braveApiKey;
+    await dbPut("settings", { key: "braveApiKey", value: braveApiKey });
+
+    const crawl4aiUrl =
+        document.getElementById("settings-crawl4ai-url")?.value.trim() || "";
+    state.settings.crawl4aiUrl = crawl4aiUrl;
+    await dbPut("settings", { key: "crawl4aiUrl", value: crawl4aiUrl });
+
+    const suggestionWebhook =
+        document.getElementById("settings-suggestion-webhook")?.value.trim() ||
+        "";
+    state.settings.suggestionWebhook = suggestionWebhook;
+    await dbPut("settings", {
+        key: "suggestionWebhook",
+        value: suggestionWebhook,
+    });
+
     closeModal();
     checkApiKey();
 }
@@ -257,6 +283,7 @@ async function clearAllData() {
         "notes",
         "embeddings",
         "contacts",
+        "suggestions",
     ];
     for (const s of stores) {
         const items = await dbGetAll(s);
@@ -326,7 +353,85 @@ async function testEmbeddingModel() {
     }
 }
 
-// ─── WORKING DOCUMENT ────────────────────────────────────────────────────────
+// ─── BRAVE / CRAWL4AI TESTS ──────────────────────────────────────────────────
+async function testBraveKey() {
+    const keyEl = document.getElementById("settings-brave-key");
+    const statusEl = document.getElementById("brave-test-status");
+    const key = keyEl ? keyEl.value.trim() : "";
+    if (!key) {
+        if (statusEl) {
+            statusEl.textContent = "Enter a Brave API key first.";
+            statusEl.style.color = "var(--danger)";
+        }
+        return;
+    }
+    if (statusEl) {
+        statusEl.textContent = "Testing…";
+        statusEl.style.color = "var(--text-muted)";
+    }
+    try {
+        const res = await fetch(
+            "https://api.search.brave.com/res/v1/web/search?q=test&count=1",
+            {
+                headers: {
+                    Accept: "application/json",
+                    "X-Subscription-Token": key,
+                },
+            },
+        );
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const n =
+            data && data.web && data.web.results ? data.web.results.length : 0;
+        if (statusEl) {
+            statusEl.textContent = `✓ OK — received ${n} result${n === 1 ? "" : "s"}`;
+            statusEl.style.color = "var(--success)";
+        }
+    } catch (err) {
+        if (statusEl) {
+            statusEl.textContent = "✗ " + err.message;
+            statusEl.style.color = "var(--danger)";
+        }
+    }
+}
+
+async function testCrawl4aiEndpoint() {
+    const urlEl = document.getElementById("settings-crawl4ai-url");
+    const statusEl = document.getElementById("crawl4ai-test-status");
+    const base = urlEl ? urlEl.value.trim().replace(/\/$/, "") : "";
+    if (!base) {
+        if (statusEl) {
+            statusEl.textContent = "Enter a crawl4ai endpoint first.";
+            statusEl.style.color = "var(--danger)";
+        }
+        return;
+    }
+    if (statusEl) {
+        statusEl.textContent = "Testing…";
+        statusEl.style.color = "var(--text-muted)";
+    }
+    try {
+        const res = await fetch(base + "/health");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json().catch(() => ({}));
+        const status =
+            data && (data.status || data.state)
+                ? " — " + (data.status || data.state)
+                : "";
+        if (statusEl) {
+            statusEl.textContent = "✓ Reachable" + status;
+            statusEl.style.color = "var(--success)";
+        }
+    } catch (err) {
+        if (statusEl) {
+            statusEl.textContent =
+                "✗ " + err.message + " (CORS / endpoint not running?)";
+            statusEl.style.color = "var(--danger)";
+        }
+    }
+}
+
+// ─── WORKING DOCUMENT ────────────────────────────────────────────
 function _fillWorkingDocEditor() {
     const ta = document.getElementById("working-doc-editor");
     if (ta && state.activeProject)
@@ -394,6 +499,7 @@ async function exportDatabase() {
         "notes",
         "embeddings",
         "contacts",
+        "suggestions",
     ];
     const data = {
         version: DB_VERSION,

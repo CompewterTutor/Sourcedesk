@@ -40,6 +40,7 @@ const SRC_FILES = [
     "src/supplierQuestions.js",
     "src/attachments.js",
     "src/promptLibrary.js",
+    "src/suggestions.js",
     "src/ui.js",
 ].map((f) => path.join(__dirname, f));
 const OUT_HTML = path.join(__dirname, "SourceDesk.html");
@@ -218,6 +219,14 @@ async function build() {
                     "scheduleTaskAutosave",
                     "openHelpModal",
                     "helpSwitchTab",
+                    "openSuggestionBox",
+                    "submitSuggestion",
+                    "openManageSuggestions",
+                    "deleteSuggestion",
+                    "exportSuggestions",
+                    "scheduleTemplateAutosave",
+                    "testBraveKey",
+                    "testCrawl4aiEndpoint",
                     "loadTasks",
                     "renderTaskList",
                     "selectTask",

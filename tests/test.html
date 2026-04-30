@@ -315,6 +315,7 @@
         <script src="../src/drive.js"></script>
         <script src="../src/notes.js"></script>
         <script src="../src/contacts.js"></script>
+        <script src="../src/suggestions.js"></script>
         <script src="../src/ui.js"></script>
 
         <script>
@@ -1411,6 +1412,97 @@
                         throw new Error(
                             "Expected escaped <script>, got: " + html,
                         );
+                });
+            });
+
+            /* ── suggestions module ───────────────────────────────────────────────── */
+            describe("suggestions", () => {
+                it("SUGGESTION_CATEGORIES is a non-empty list", () => {
+                    if (!Array.isArray(SUGGESTION_CATEGORIES))
+                        throw new Error(
+                            "SUGGESTION_CATEGORIES is not an array",
+                        );
+                    if (SUGGESTION_CATEGORIES.length < 3)
+                        throw new Error(
+                            "Expected at least 3 categories, got: " +
+                                SUGGESTION_CATEGORIES.length,
+                        );
+                });
+
+                it("_escSugg escapes HTML special chars", () => {
+                    const out = _escSugg('<b>hi & "there"</b>');
+                    if (out.indexOf("<") !== -1)
+                        throw new Error("raw < leaked: " + out);
+                    if (!out.includes("&lt;b&gt;"))
+                        throw new Error("missing &lt;b&gt;: " + out);
+                    if (!out.includes("&amp;"))
+                        throw new Error("missing &amp;: " + out);
+                    if (!out.includes("&quot;"))
+                        throw new Error("missing &quot;: " + out);
+                });
+
+                it("public functions are defined", () => {
+                    [
+                        "openSuggestionBox",
+                        "submitSuggestion",
+                        "openManageSuggestions",
+                        "deleteSuggestion",
+                        "exportSuggestions",
+                    ].forEach((fn) => {
+                        if (typeof window[fn] !== "function")
+                            throw new Error(fn + " is not a function");
+                    });
+                });
+            });
+
+            /* ── settings: brave/crawl4ai/webhook defaults ──────────────────────── */
+            describe("settings defaults", () => {
+                it("state.settings has braveApiKey, crawl4aiUrl, suggestionWebhook keys", () => {
+                    if (!("braveApiKey" in state.settings))
+                        throw new Error(
+                            "braveApiKey missing from state.settings",
+                        );
+                    if (!("crawl4aiUrl" in state.settings))
+                        throw new Error(
+                            "crawl4aiUrl missing from state.settings",
+                        );
+                    if (!("suggestionWebhook" in state.settings))
+                        throw new Error(
+                            "suggestionWebhook missing from state.settings",
+                        );
+                });
+
+                it("crawl4aiUrl default points at localhost:11235", () => {
+                    if (!(state.settings.crawl4aiUrl || "").includes(":11235"))
+                        throw new Error(
+                            "Expected default crawl4aiUrl to contain :11235, got: " +
+                                state.settings.crawl4aiUrl,
+                        );
+                });
+
+                it("testBraveKey and testCrawl4aiEndpoint are functions", () => {
+                    if (typeof testBraveKey !== "function")
+                        throw new Error("testBraveKey is not a function");
+                    if (typeof testCrawl4aiEndpoint !== "function")
+                        throw new Error(
+                            "testCrawl4aiEndpoint is not a function",
+                        );
+                });
+            });
+
+            /* ── templates autosave ─────────────────────────────────────────── */
+            describe("templates autosave hook", () => {
+                it("scheduleTemplateAutosave is defined", () => {
+                    if (typeof scheduleTemplateAutosave !== "function")
+                        throw new Error(
+                            "scheduleTemplateAutosave is not a function",
+                        );
+                });
+
+                it("is a no-op when state.editingTemplateId is null", () => {
+                    state.editingTemplateId = null;
+                    // Should not throw
+                    scheduleTemplateAutosave();
                 });
             });
 

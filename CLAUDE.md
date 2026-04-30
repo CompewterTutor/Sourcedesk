@@ -107,7 +107,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 
 ## Architecture
 
-### IndexedDB Stores (current schema: `DB_VERSION = 8`)
+### IndexedDB Stores (current schema: `DB_VERSION = 9`)
 
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
@@ -123,6 +123,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 | `tasks` | `id` | `projectId` | `{id, projectId, title, description, status, priority, dueDate, includeInContext, createdAt, updatedAt}` |
 | `embeddings` | `id` | `docId` | `{id, docId, chunkIndex, vector}` |
 | `contacts` | `id` | `projectId` | `{id, projectId, type: 'contact'\|'resource', name, role, org, email, phone, url, notes, tags[], includeInContext, createdAt, updatedAt}` |
+| `suggestions` | `id` | — | `{id, title, category, details, createdAt, appVersion, projectId, projectName, posted, postedAt}` |
 
 ### DB Helper Pattern
 All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)`, `dbDelete(store, key)`, `dbGetAll(store)`, `dbGetByIndex(store, index, val)`. All return Promises. Always await them.
@@ -383,7 +384,7 @@ When adding a new object store or index:
 #### Core infrastructure
 - Build pipeline: 21 `src/*.js` files + `src/index.html` → `npm run build` → single `SourceDesk.html`
 - `DEBUG`, `TEST`, `APP_VERSION` flags in `src/flags.js`; `log()` helper; `DOMContentLoaded` boot gated on `!TEST`
-- IndexedDB schema at `DB_VERSION = 8`; five CRUD helpers (`dbGet`, `dbPut`, `dbDelete`, `dbGetAll`, `dbGetByIndex`)
+- IndexedDB schema at `DB_VERSION = 9`; five CRUD helpers (`dbGet`, `dbPut`, `dbDelete`, `dbGetAll`, `dbGetByIndex`)
 - `uid()` for all record IDs; defensive field access everywhere (old records missing new fields just return `undefined`)
 
 #### Projects & Documents
@@ -559,8 +560,10 @@ When adding a new object store or index:
 2. ~~**Version labels**~~ ✅ — inline-edit a snapshot's label from the History modal (✎ button per row, Enter saves, Esc cancels)
 3. ~~**Important Contacts / Resources**~~ ✅ — per-project contacts and resource links with tags + include-in-context (DB_VERSION 8, new `contacts` store, `src/contacts.js`)
 4. ~~**Help modal**~~ ✅ — `src/help.js`, `?` topbar button, F1 / `?` hotkey, tabs for shortcuts / project types / views / context / about
-5. ~~**Generalised autosave**~~ ✅ — `src/autosave.js`; debounced (1.5 s) save with status pill; wired into Working Document, Notes, Tasks (Templates and Project edit forms remain TODO follow-up)
+5. ~~**Generalised autosave**~~ ✅ — `src/autosave.js`; debounced (1.5 s) save with status pill; wired into Working Document, Notes, Tasks, **Templates** (`scheduleTemplateAutosave()` for in-modal edits of existing templates). Project edit form remains TODO.
 6. ~~**Version diffs**~~ ✅ — `src/diff.js` LCS line diff + `openVersionDiff()` modal in `versioning.js`; Diff button per row in History modal
+7. ~~**Feature suggestion box (item 16)**~~ ✅ 🗜️ DB_VERSION 9 — `src/suggestions.js`; “💡 Suggest a feature” link in the sidebar footer; new `suggestions` IndexedDB store. Modal lets users submit title + category + details; entries stored locally and optionally POSTed to a configurable webhook (`Settings → Suggestion Webhook URL`). "View All" lists past suggestions with delete + JSON export.
+8. ~~**Brave Search + crawl4ai Settings fields (item 5)**~~ ✅ — `state.settings.braveApiKey`, `state.settings.crawl4aiUrl` (default `http://localhost:11235`); persisted via `saveSettings`; loaded on boot. Test buttons: `testBraveKey()` calls `https://api.search.brave.com/res/v1/web/search?q=test&count=1`, `testCrawl4aiEndpoint()` calls `<url>/health`. Wires into the upcoming Research project workflow (item 4).
 
 ---
 ### Upcoming Feature Sessions

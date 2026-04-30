@@ -87,6 +87,34 @@ async function duplicateTemplate(id) {
     renderTemplatesGrid();
 }
 
+// Templates autosave: when editing an existing template, persist field
+// changes 1.5s after the user stops typing without closing the modal.
+// New (un-saved) templates are NOT autosaved — user must click Save first.
+function scheduleTemplateAutosave() {
+    if (!state.editingTemplateId) return;
+    scheduleAutosave("template", async function () {
+        const id = state.editingTemplateId;
+        if (!id) return;
+        const name = document.getElementById("tmpl-name").value.trim();
+        const content = document.getElementById("tmpl-content").value;
+        const category = getActivePill("tmpl-category-pills");
+        const type = getActivePill("tmpl-type-pills");
+        if (!name || !content) return; // skip incomplete autosave
+        const tmpl = {
+            id,
+            name,
+            category,
+            type,
+            content,
+            updatedAt: Date.now(),
+        };
+        await dbPut("templates", tmpl);
+        state.templates = state.templates.map(function (t) {
+            return t.id === id ? tmpl : t;
+        });
+    });
+}
+
 async function deleteTemplate(id) {
     if (!confirm("Delete this template?")) return;
     await dbDelete("templates", id);

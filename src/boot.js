@@ -49,6 +49,13 @@ async function boot() {
         const embeddingModel = await dbGet("settings", "embeddingModel");
         if (embeddingModel)
             state.settings.embeddingModel = embeddingModel.value;
+        const braveApiKey = await dbGet("settings", "braveApiKey");
+        if (braveApiKey) state.settings.braveApiKey = braveApiKey.value;
+        const crawl4aiUrl = await dbGet("settings", "crawl4aiUrl");
+        if (crawl4aiUrl) state.settings.crawl4aiUrl = crawl4aiUrl.value;
+        const suggestionWebhook = await dbGet("settings", "suggestionWebhook");
+        if (suggestionWebhook)
+            state.settings.suggestionWebhook = suggestionWebhook.value;
         // Apply .env defaults injected by server.js (only if DB has no saved value)
         const _senv = window.__SOURCEDESK_ENV__ || {};
         if (!state.settings.localLlmUrl && _senv.localLlmUrl) {

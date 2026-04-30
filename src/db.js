@@ -1,6 +1,6 @@
 // ─── IndexedDB ────────────────────────────────────────────────────────────────
 const DB_NAME = "sourcedesk",
-    DB_VERSION = 8;
+    DB_VERSION = 9;
 let db;
 
 function openDB() {
@@ -84,6 +84,10 @@ function openDB() {
                     keyPath: "id",
                 });
                 co.createIndex("projectId", "projectId", { unique: false });
+            }
+            // suggestions store — user feature suggestions (DB v9)
+            if (!d.objectStoreNames.contains("suggestions")) {
+                d.createObjectStore("suggestions", { keyPath: "id" });
             }
         };
         req.onsuccess = (e) => {
