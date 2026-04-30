@@ -107,7 +107,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 
 ## Architecture
 
-### IndexedDB Stores (current schema: `DB_VERSION = 9`)
+### IndexedDB Stores (current schema: `DB_VERSION = 10`)
 
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
@@ -124,6 +124,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 | `embeddings` | `id` | `docId` | `{id, docId, chunkIndex, vector}` |
 | `contacts` | `id` | `projectId` | `{id, projectId, type: 'contact'\|'resource', name, role, org, email, phone, url, notes, tags[], includeInContext, createdAt, updatedAt}` |
 | `suggestions` | `id` | — | `{id, title, category, details, createdAt, appVersion, projectId, projectName, posted, postedAt}` |
+| `research` | `id` | `projectId` | `{id, projectId, url, title, summary, fullText, tags[], retrievedAt, includeInContext, source: 'brave'\|'manual'}` |
 
 ### DB Helper Pattern
 All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)`, `dbDelete(store, key)`, `dbGetAll(store)`, `dbGetByIndex(store, index, val)`. All return Promises. Always await them.
@@ -565,6 +566,9 @@ When adding a new object store or index:
 7. ~~**Feature suggestion box (item 16)**~~ ✅ 🗜️ DB_VERSION 9 — `src/suggestions.js`; “💡 Suggest a feature” link in the sidebar footer; new `suggestions` IndexedDB store. Modal lets users submit title + category + details; entries stored locally and optionally POSTed to a configurable webhook (`Settings → Suggestion Webhook URL`). "View All" lists past suggestions with delete + JSON export.
 8. ~~**Brave Search + crawl4ai Settings fields (item 5)**~~ ✅ — `state.settings.braveApiKey`, `state.settings.crawl4aiUrl` (default `http://localhost:11235`); persisted via `saveSettings`; loaded on boot. Test buttons: `testBraveKey()` calls `https://api.search.brave.com/res/v1/web/search?q=test&count=1`, `testCrawl4aiEndpoint()` calls `<url>/health`. Wires into the upcoming Research project workflow (item 4).
 9. ~~**Rich-text editor scaffolding (item 15)**~~ ✅ — `src/editor.js` exports `mountRichEditor(textarea, opts)` / `destroyRichEditor` / `setRichEditorMode`. Dual-mode toolbar (Raw markdown ⇄ Rendered contenteditable). Toolbar: H1/H2/H3, **B** / *I* / <u>U</u> / `code`, • list, 1. list, blockquote, 2x2 table, page break, mode toggle. Mounted at boot on `#working-doc-editor`, `#note-editor`, `#tmpl-content`, `#sq-answer-editor`. Round-trip safe markdown ⇄ HTML conversion; existing autosave wiring (input event) preserved. 10 tests added (`tests/test.html` → `describe("rich-text editor")`).
+10. ~~**Research project type — first cut (item 4)**~~ ✅ 🗄️ DB_VERSION 10 — new `Research` project category (🔍 icon), new `research` IndexedDB store, new `src/research.js` module, dedicated **Research Board** view accessible from the sidebar (visible whenever a project is loaded; not gated to Research-category projects so RFP/RFI workflows can still pull research). Brave Search integration (10 results / call, `<strong>` highlight tags stripped). "+ Add" per result writes to the board. "+ Add URL" manual entry with optional title and tags. Per-card actions: **⤓ Crawl** (POST `<crawl4aiUrl>/crawl` with the documented body, prefer `fit_markdown` → `markdown` → `html`), **✨ Summarise** (sends crawled text through the active LLM provider with a procurement-tuned system prompt), **delete**, **Include in context** toggle. Research items with `includeInContext: true` are injected into the chat system prompt under `## Research`. Research store is included in `clearAllData()` / `exportDatabase()` / `backupToDrive()` / `importDatabase()`. 3 tests added.
+
+**Still TODO** for full item 4: AI "Research Topic" agent (auto-Brave → auto-crawl → auto-summarise → write to Working Document); "Export Research to Drive" (per-item Google Doc + per-board CSV/Markdown); per-card edit modal for tags & summary; suggested research-query templates.
 
 ---
 ### Upcoming Feature Sessions

@@ -284,6 +284,7 @@ async function clearAllData() {
         "embeddings",
         "contacts",
         "suggestions",
+        "research",
     ];
     for (const s of stores) {
         const items = await dbGetAll(s);
@@ -501,6 +502,7 @@ async function exportDatabase() {
         "embeddings",
         "contacts",
         "suggestions",
+        "research",
     ];
     const data = {
         version: DB_VERSION,

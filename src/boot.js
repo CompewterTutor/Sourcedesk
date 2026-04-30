@@ -126,12 +126,18 @@ function showView(v) {
         v === "tasks" ? "flex" : "none";
     document.getElementById("contacts-view").style.display =
         v === "contacts" ? "flex" : "none";
+    {
+        const rv = document.getElementById("research-view");
+        if (rv) rv.style.display = v === "research" ? "flex" : "none";
+    }
     if (v === "templates") renderTemplatesGrid();
     if (v === "notes") loadNotes();
     if (v === "working-doc") _fillWorkingDocEditor();
     if (v === "sq") loadSupplierQuestions();
     if (v === "tasks") loadTasks();
     if (v === "contacts") loadContacts();
+    if (v === "research" && typeof loadResearchBoard === "function")
+        loadResearchBoard();
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
@@ -143,6 +149,7 @@ function renderSidebar() {
         RFI: "📄",
         "Vendor Q": "🏢",
         Contract: "📑",
+        Research: "🔍",
         Other: "📁",
     };
     state.projects
@@ -211,6 +218,9 @@ async function loadProject(id) {
 
     const contactsBtn = document.getElementById("contacts-nav-btn");
     if (contactsBtn) contactsBtn.style.display = "";
+
+    const researchBtn = document.getElementById("research-nav-btn");
+    if (researchBtn) researchBtn.style.display = "";
 
     renderSidebar();
     renderMessages();

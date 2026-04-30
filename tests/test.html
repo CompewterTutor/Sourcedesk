@@ -316,6 +316,7 @@
         <script src="../src/notes.js"></script>
         <script src="../src/contacts.js"></script>
         <script src="../src/suggestions.js"></script>
+        <script src="../src/research.js"></script>
         <script src="../src/editor.js"></script>
         <script src="../src/ui.js"></script>
 
@@ -1628,6 +1629,42 @@
                         );
                     destroyRichEditor(ta);
                     ta.remove();
+                });
+            });
+
+            /* ── research module ───────────────────────────────────────── */
+            describe("research module", () => {
+                it("public functions are defined", () => {
+                    const fns = [
+                        "openResearchSearch",
+                        "runResearchSearch",
+                        "addResearchFromBrave",
+                        "openAddResearchManual",
+                        "submitResearchManual",
+                        "loadResearchBoard",
+                        "crawlResearchItem",
+                        "summariseResearchItem",
+                        "deleteResearchItem",
+                        "toggleResearchInContext",
+                    ];
+                    fns.forEach((f) => {
+                        if (typeof window[f] !== "function")
+                            throw new Error(f + " is not a function");
+                    });
+                });
+
+                it("_stripBraveTags removes <strong> wrappers", () => {
+                    const out = _stripBraveTags(
+                        "hello <strong>world</strong> bye",
+                    );
+                    if (out !== "hello world bye")
+                        throw new Error("got: " + out);
+                });
+
+                it("_escResearch escapes html special chars", () => {
+                    const out = _escResearch('a & <b> "c"');
+                    if (out !== "a &amp; &lt;b&gt; &quot;c&quot;")
+                        throw new Error("got: " + out);
                 });
             });
 

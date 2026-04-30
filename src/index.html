@@ -1801,6 +1801,19 @@
                     </button>
                 </div>
                 <div class="sidebar-divider"></div>
+                <div class="sidebar-section" style="flex-shrink: 0">
+                    Research
+                    <button
+                        class="sidebar-add"
+                        id="research-nav-btn"
+                        onclick="if (state.activeProject) showView('research');"
+                        title="Research Board"
+                        style="font-size: 14px; display: none"
+                    >
+                        →
+                    </button>
+                </div>
+                <div class="sidebar-divider"></div>
                 <div
                     style="
                         padding: 8px 12px;
@@ -2934,6 +2947,151 @@
                     </div>
                 </div>
 
+                <!-- Research Board View -->
+                <div
+                    id="research-view"
+                    style="
+                        display: none;
+                        flex: 1;
+                        flex-direction: column;
+                        overflow: hidden;
+                    "
+                >
+                    <div class="view-header">
+                        <div class="view-title">Research Board</div>
+                        <button class="btn-icon" onclick="showView('chat')">
+                            ← Back
+                        </button>
+                        <button
+                            class="btn-primary"
+                            onclick="openResearchSearch()"
+                            title="Search the web with Brave"
+                        >
+                            🔍 Search
+                        </button>
+                        <button
+                            class="btn-secondary"
+                            onclick="openAddResearchManual()"
+                            title="Add a research item by URL"
+                        >
+                            + Add URL
+                        </button>
+                    </div>
+                    <div
+                        id="research-board"
+                        style="
+                            flex: 1;
+                            overflow-y: auto;
+                            padding: 16px;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 10px;
+                        "
+                    >
+                        <div
+                            id="research-empty"
+                            style="
+                                color: var(--text-muted);
+                                text-align: center;
+                                padding: 40px;
+                                font-size: 13px;
+                            "
+                        >
+                            No research items yet. Click <b>Search</b> to query
+                            Brave Search or <b>+ Add URL</b> to add one
+                            manually.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Research: Brave Search modal -->
+                <div id="modal-research-search" class="modal hidden">
+                    <div class="modal-title">🔍 Brave Search</div>
+                    <div class="form-row">
+                        <label class="form-label">Query</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="research-search-query"
+                            placeholder="e.g. food services RFP US universities 2024"
+                            onkeydown="
+                                if (event.key === 'Enter') {
+                                    runResearchSearch();
+                                }
+                            "
+                        />
+                    </div>
+                    <div
+                        id="research-search-status"
+                        style="font-size: 12px; color: var(--text-muted)"
+                    ></div>
+                    <div
+                        id="research-search-results"
+                        style="
+                            margin-top: 12px;
+                            max-height: 400px;
+                            overflow-y: auto;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 8px;
+                        "
+                    ></div>
+                    <div class="modal-footer">
+                        <button class="btn-ghost" onclick="closeModal()">
+                            Close
+                        </button>
+                        <button
+                            class="btn-primary"
+                            onclick="runResearchSearch()"
+                        >
+                            Search
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Research: Add by URL modal -->
+                <div id="modal-research-add" class="modal hidden">
+                    <div class="modal-title">Add Research Item</div>
+                    <div class="form-row">
+                        <label class="form-label">URL</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="research-add-url"
+                            placeholder="https://…"
+                        />
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Title (optional)</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="research-add-title"
+                            placeholder="— same as page title —"
+                        />
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Tags (comma-separated)</label>
+                        <input
+                            type="text"
+                            class="form-input"
+                            id="research-add-tags"
+                            placeholder="competitor, regulation, vendor"
+                        />
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-ghost" onclick="closeModal()">
+                            Cancel
+                        </button>
+                        <button
+                            class="btn-primary"
+                            onclick="submitResearchManual()"
+                        >
+                            Add
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Right Panel -->
                 <div id="panel-right">
                     <div class="rpanel-header">
@@ -3062,6 +3220,13 @@
                             onclick="selectPill(this, 'tmpl-category-pills')"
                         >
                             Contract
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="Research"
+                            onclick="selectPill(this, 'tmpl-category-pills')"
+                        >
+                            Research
                         </div>
                         <div
                             class="type-pill"
@@ -3207,6 +3372,13 @@
                             onclick="selectPill(this, 'proj-category-pills')"
                         >
                             Contract
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="Research"
+                            onclick="selectPill(this, 'proj-category-pills')"
+                        >
+                            Research
                         </div>
                         <div
                             class="type-pill"
