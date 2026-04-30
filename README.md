@@ -220,10 +220,11 @@ Example `.env` values:
 - [x] **Template variable preview** — inline "Preview resolved" panel in the template editor that shows the output against the current active project without saving
 
 ### Retrieval & Context
-- [ ] **Client-side Semantic Embeddings** *(low priority)* — run `all-MiniLM-L6-v2` directly in the browser via `transformers.js` + WASM for true semantic search with no API cost; warn users about a ~30 MB one-time model download (cached by the browser after first use); alternative: use an API-based embedding provider (OpenAI `text-embedding-3-small`, etc.) so users who don't want the WASM download can still get semantic search
-- [x] **Local model quick-selector** — when the Local LLM provider is active, a compact model dropdown appears in the topbar so you can switch models without opening Settings; includes a ⟳ re-detect button that re-queries `/models` from the configured base URL
-- [ ] **Enhanced Retrieval** — hybrid BM25 + semantic similarity re-ranking once embeddings are available
-- [x] **Google Drive / Sheets / Docs Connector** — import Drive files, Google Sheets vendor questions, and Google Docs into projects; back up DB to a SourceDesk app folder in Drive; export questions to Sheets or Google Docs; CSV import/export for portable question exchange
+- [ ] **docx / xlsx → Google Docs conversion on upload** *(next)* — when a `.docx` or `.xlsx` file is uploaded and a Drive token is present, offer to upload it to Drive for server-side conversion, export the plain text back, and use that for chunking/RAG instead of the client-side extractor; temp Drive file is deleted after export
+- [ ] **Local LLM embeddings** *(next)* — new Settings "Embedding Model" field (visible when provider = Local LLM); calls `POST {localLlmUrl}/embeddings` for doc chunks at index time and queries at retrieval time; cosine similarity re-ranking over BM25 candidates; vectors stored in IndexedDB (DB\_VERSION 7); falls back to BM25-only when not set
+- [ ] **In-browser semantic embeddings** *(low priority, after local LLM path)* — `transformers.js` + WASM `all-MiniLM-L6-v2`; ~30 MB one-time download
+- [x] **Local model quick-selector** — when the Local LLM provider is active, a compact model dropdown appears in the topbar; includes a ⟳ re-detect button
+- [ ] **Enhanced Retrieval** — hybrid BM25 + semantic similarity re-ranking (unlocked once embeddings are available)
 
 ### Project Data & Contacts
 - [x] **Task Management** — per-project tasks with title, description, status, priority, due date; include-in-context toggle injects active tasks into every chat message

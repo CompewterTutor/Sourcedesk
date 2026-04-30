@@ -101,7 +101,35 @@ async function handleDocUpload(event) {
     if (!state.activeProject) return;
     const files = Array.from(event.target.files);
     for (const file of files) {
-        const text = await readFileAsText(file);
+        const ext = file.name.split(".").pop().toLowerCase();
+        const driveTypes = ["docx", "xlsx", "pptx"];
+        let text;
+        if (driveTypes.includes(ext) && state.settings.driveToken) {
+            const useDrive = confirm(
+                'Convert "' +
+                    file.name +
+                    '" via Google Docs for better text extraction? (Requires Drive connection)\n\nClick OK to convert via Google, Cancel to use basic text extraction.',
+            );
+            if (useDrive) {
+                try {
+                    text = await convertFileToDriveText(
+                        file,
+                        state.settings.driveToken,
+                    );
+                } catch (err) {
+                    alert(
+                        "Drive conversion failed: " +
+                            err.message +
+                            "\n\nFalling back to basic extraction.",
+                    );
+                    text = await readFileAsText(file);
+                }
+            } else {
+                text = await readFileAsText(file);
+            }
+        } else {
+            text = await readFileAsText(file);
+        }
         const doc = {
             id: uid(),
             projectId: state.activeProject.id,

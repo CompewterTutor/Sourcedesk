@@ -3056,6 +3056,60 @@
                         for full local LLM support.
                     </div>
                 </div>
+                <div class="form-row hidden" id="embedding-model-row">
+                    <label class="form-label"
+                        >Embedding Model
+                        <span style="color: var(--text-muted); font-size: 10px">
+                            — optional; enables semantic re-ranking on top of
+                            BM25. Must be an embedding model served by your
+                            local LLM (e.g.
+                            <code
+                                style="
+                                    font-family:
+                                        &quot;JetBrains Mono&quot;, monospace;
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                    border-radius: 3px;
+                                "
+                                >nomic-embed-text</code
+                            >,
+                            <code
+                                style="
+                                    font-family:
+                                        &quot;JetBrains Mono&quot;, monospace;
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                    border-radius: 3px;
+                                "
+                                >mxbai-embed-large</code
+                            >). Leave blank for BM25-only retrieval.</span
+                        >
+                    </label>
+                    <div style="display: flex; gap: 8px; align-items: center">
+                        <input
+                            class="form-input"
+                            id="embedding-model-input"
+                            type="text"
+                            placeholder="e.g. nomic-embed-text"
+                            style="flex: 1"
+                        />
+                        <button
+                            class="btn-secondary"
+                            id="embedding-test-btn"
+                            onclick="testEmbeddingModel()"
+                        >
+                            Test
+                        </button>
+                    </div>
+                    <div
+                        id="embedding-test-status"
+                        style="
+                            font-size: 11px;
+                            color: var(--text-muted);
+                            margin-top: 4px;
+                        "
+                    ></div>
+                </div>
                 <div class="form-row">
                     <label class="form-label">Model</label>
                     <select class="form-select" id="settings-model"></select>

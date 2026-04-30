@@ -1,6 +1,6 @@
 // ─── IndexedDB ────────────────────────────────────────────────────────────────
 const DB_NAME = "sourcedesk",
-    DB_VERSION = 6;
+    DB_VERSION = 7;
 let db;
 
 function openDB() {
@@ -68,6 +68,15 @@ function openDB() {
             if (!d.objectStoreNames.contains("tasks")) {
                 const ts = d.createObjectStore("tasks", { keyPath: "id" });
                 ts.createIndex("projectId", "projectId", { unique: false });
+            }
+            // embeddings store for semantic retrieval vectors
+            // NOTE: export/import/clearAllData stores arrays should also include
+            // "embeddings" in a future session to fully persist vectors.
+            if (!d.objectStoreNames.contains("embeddings")) {
+                const emb = d.createObjectStore("embeddings", {
+                    keyPath: "id",
+                });
+                emb.createIndex("docId", "docId", { unique: false });
             }
         };
         req.onsuccess = (e) => {

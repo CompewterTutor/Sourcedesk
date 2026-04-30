@@ -13,6 +13,7 @@ let state = {
         constants: "",
         driveToken: "",
         localLlmUrl: "",
+        embeddingModel: "",
     },
     activeProject: null,
     activeDocs: new Set(),

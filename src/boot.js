@@ -46,6 +46,9 @@ async function boot() {
         if (driveToken) state.settings.driveToken = driveToken.value;
         const localLlmUrl = await dbGet("settings", "localLlmUrl");
         if (localLlmUrl) state.settings.localLlmUrl = localLlmUrl.value;
+        const embeddingModel = await dbGet("settings", "embeddingModel");
+        if (embeddingModel)
+            state.settings.embeddingModel = embeddingModel.value;
         // Apply .env defaults injected by server.js (only if DB has no saved value)
         const _senv = window.__SOURCEDESK_ENV__ || {};
         if (!state.settings.localLlmUrl && _senv.localLlmUrl) {

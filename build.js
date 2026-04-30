@@ -228,6 +228,12 @@ async function build() {
                     "exportQuestionsToDoc",
                     "exportWorkingDocToDoc",
                     "parseSpreadsheetId",
+                    "convertFileToDriveText",
+                    "testEmbeddingModel",
+                    "getEmbedding",
+                    "cosineSimilarity",
+                    "indexDocEmbeddings",
+                    "getDocEmbeddings",
                 ],
             },
             format: {

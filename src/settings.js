@@ -91,6 +91,8 @@ function openSettings() {
         state.settings.constants || "";
     const _localUrlEl = document.getElementById("local-llm-url");
     if (_localUrlEl) _localUrlEl.value = state.settings.localLlmUrl || "";
+    const _embEl = document.getElementById("embedding-model-input");
+    if (_embEl) _embEl.value = state.settings.embeddingModel || "";
     updateApiKeyStatus(!!getCurrentProviderKey());
     showModal("modal-settings");
     // Sync topbar model selector in case it's stale
@@ -122,6 +124,8 @@ function updateProviderUI(provider) {
     // Show/hide local LLM URL row
     const urlRow = document.getElementById("local-llm-url-row");
     if (urlRow) urlRow.classList.toggle("hidden", provider !== "local");
+    const embRow = document.getElementById("embedding-model-row");
+    if (embRow) embRow.classList.toggle("hidden", provider !== "local");
     if (provider === "local") {
         const urlEl = document.getElementById("local-llm-url");
         if (urlEl && !urlEl.value)
@@ -186,6 +190,11 @@ async function saveSettings() {
     await dbPut("settings", { key: "globalContext", value: ctx });
     await dbPut("settings", { key: "constants", value: constants });
     await dbPut("settings", { key: "localLlmUrl", value: localLlmUrl });
+
+    const embeddingModel =
+        document.getElementById("embedding-model-input")?.value.trim() || "";
+    state.settings.embeddingModel = embeddingModel;
+    await dbPut("settings", { key: "embeddingModel", value: embeddingModel });
 
     closeModal();
     checkApiKey();
@@ -253,6 +262,66 @@ async function clearAllData() {
             await dbDelete(s, item[s === "settings" ? "key" : "id"]);
     }
     location.reload();
+}
+
+async function testEmbeddingModel() {
+    const modelEl = document.getElementById("embedding-model-input");
+    const statusEl = document.getElementById("embedding-test-status");
+    const model = modelEl ? modelEl.value.trim() : "";
+    if (!model) {
+        if (statusEl) {
+            statusEl.textContent = "Enter a model name first.";
+            statusEl.style.color = "var(--danger)";
+        }
+        return;
+    }
+    const base = (state.settings.localLlmUrl || "").replace(/\/$/, "");
+    if (!base) {
+        if (statusEl) {
+            statusEl.textContent = "Set a Base URL first.";
+            statusEl.style.color = "var(--danger)";
+        }
+        return;
+    }
+    if (statusEl) {
+        statusEl.textContent = "Testing…";
+        statusEl.style.color = "var(--text-muted)";
+    }
+    const btn = document.getElementById("embedding-test-btn");
+    if (btn) btn.disabled = true;
+    try {
+        const t0 = Date.now();
+        const headers = { "Content-Type": "application/json" };
+        const localKey = state.settings.localKey || "";
+        if (localKey) headers["Authorization"] = "Bearer " + localKey;
+        const res = await fetch(base + "/embeddings", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ model, input: "test" }),
+        });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(
+                (e.error && e.error.message) || "HTTP " + res.status,
+            );
+        }
+        const data = await res.json();
+        const vec = data.data && data.data[0] && data.data[0].embedding;
+        if (!vec || !vec.length)
+            throw new Error("No embedding vector in response");
+        const ms = Date.now() - t0;
+        if (statusEl) {
+            statusEl.textContent = `✓ Works — ${vec.length}-dim vector in ${ms} ms`;
+            statusEl.style.color = "var(--success)";
+        }
+    } catch (err) {
+        if (statusEl) {
+            statusEl.textContent = "✗ " + err.message;
+            statusEl.style.color = "var(--danger)";
+        }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 // ─── WORKING DOCUMENT ────────────────────────────────────────────────────────

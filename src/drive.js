@@ -276,6 +276,82 @@ async function importFromDrive(fileId, fileName, mimeType) {
 // Config file stored in appDataFolder: "sourcedesk-config.json"
 //   { visibleRootFolderId, projectFolderIds: { [projectId]: folderId } }
 
+async function convertFileToDriveText(file, token) {
+    const ext = file.name.split(".").pop().toLowerCase();
+    let sourceMime, googleMime, exportMime;
+    if (ext === "docx") {
+        sourceMime =
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        googleMime = "application/vnd.google-apps.document";
+        exportMime = "text/plain";
+    } else if (ext === "xlsx") {
+        sourceMime =
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        googleMime = "application/vnd.google-apps.spreadsheet";
+        exportMime = "text/csv";
+    } else if (ext === "pptx") {
+        sourceMime =
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+        googleMime = "application/vnd.google-apps.presentation";
+        exportMime = "text/plain";
+    } else {
+        throw new Error("Unsupported type for Drive conversion: " + file.name);
+    }
+
+    // Upload with multipart, setting mimeType to Google Apps type triggers auto-conversion
+    const metadata = {
+        name: file.name,
+        mimeType: googleMime,
+        parents: ["appDataFolder"],
+    };
+    const form = new FormData();
+    form.append(
+        "metadata",
+        new Blob([JSON.stringify(metadata)], { type: "application/json" }),
+    );
+    form.append(
+        "file",
+        new Blob([await file.arrayBuffer()], { type: sourceMime }),
+    );
+
+    const uploadRes = await fetch(
+        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+        {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token },
+            body: form,
+        },
+    );
+    if (!uploadRes.ok) await _driveApiError(uploadRes);
+    const { id } = await uploadRes.json();
+
+    // Export as plain text / CSV
+    const exportRes = await fetch(
+        "https://www.googleapis.com/drive/v3/files/" +
+            id +
+            "/export?mimeType=" +
+            encodeURIComponent(exportMime),
+        { headers: { Authorization: "Bearer " + token } },
+    );
+    if (!exportRes.ok) {
+        // Best-effort delete before throwing
+        fetch("https://www.googleapis.com/drive/v3/files/" + id, {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + token },
+        }).catch(() => {});
+        await _driveApiError(exportRes);
+    }
+    const text = await exportRes.text();
+
+    // Clean up temp file (non-fatal)
+    fetch("https://www.googleapis.com/drive/v3/files/" + id, {
+        method: "DELETE",
+        headers: { Authorization: "Bearer " + token },
+    }).catch(() => {});
+
+    return text;
+}
+
 async function _driveApiError(res) {
     const e = await res.json().catch(() => ({}));
     throw new Error(
