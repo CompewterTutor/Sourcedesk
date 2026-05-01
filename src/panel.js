@@ -34,7 +34,8 @@ async function renderRightPanel() {
         const active = state.activeDocs.has(doc.id);
         const el = document.createElement("div");
         el.className = `context-doc${active ? " active" : ""}`;
-        el.innerHTML = `<div class="doc-toggle">${active ? "✓" : ""}</div><div class="doc-name">${doc.name}</div><span class="tcard-btn" onclick="openExtractVars('${doc.id}')" title="Extract date variables from this document" style="opacity:0.5;margin-left:4px;font-size:10px">Extract</span><span class="tcard-btn" onclick="createTemplateFromDoc('${doc.id}')" title="Create template from this document" style="opacity:0.5;margin-left:2px;font-size:10px">→Tmpl</span><span class="tcard-btn del" onclick="deleteDoc('${doc.id}',event)" style="opacity:0.5;margin-left:2px">✕</span>`;
+        el.title = doc.name;
+        el.innerHTML = `<div class="context-doc-row1"><div class="doc-toggle">${active ? "\u2713" : ""}</div><div class="doc-name">${doc.name}</div></div><div class="context-doc-row2"><span class="tcard-btn" onclick="openExtractVars('${doc.id}')" title="Extract date variables from this document" style="opacity:0.6;font-size:10px">Extract</span><span class="tcard-btn" onclick="createTemplateFromDoc('${doc.id}')" title="Create template from this document" style="opacity:0.6;font-size:10px">→Tmpl</span><span class="tcard-btn del" onclick="deleteDoc('${doc.id}',event)" style="opacity:0.6">✕</span></div>`;
         el.onclick = (e) => {
             if (e.target.classList.contains("tcard-btn")) return;
             toggleDoc(doc.id, el);

@@ -1,3 +1,21 @@
+// ─── STOP STREAMING ─────────────────────────────────────────────────────────
+let _streamAbortController = null;
+
+function stopStreaming() {
+    if (_streamAbortController) {
+        _streamAbortController.abort();
+        _streamAbortController = null;
+    }
+}
+
+function _setStreamingUI(streaming) {
+    const sendBtn = document.getElementById("send-btn");
+    const stopBtn = document.getElementById("stop-btn");
+    if (sendBtn) sendBtn.classList.toggle("hidden", streaming);
+    if (stopBtn) stopBtn.classList.toggle("hidden", !streaming);
+    if (sendBtn) sendBtn.disabled = streaming;
+}
+
 // ─── SEND MESSAGE ─────────────────────────────────────────────────────────────
 async function sendMessage() {
     if (state.streaming || !state.activeProject) return;
@@ -189,13 +207,22 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
     typingDiv.innerHTML = `<div class="msg-avatar">SD</div><div class="msg-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
     document.getElementById("chat-messages").appendChild(typingDiv);
     document.getElementById("chat-messages").scrollTop = 99999;
-    document.getElementById("send-btn").disabled = true;
+    _setStreamingUI(true);
     if (typeof showStreamingIndicator === "function") showStreamingIndicator();
     state.streaming = true;
 
+    _streamAbortController = new AbortController();
+    let fullText = "";
+    let _activeBubble = null;
+
     try {
         const { url, headers, body } = buildApiCall(systemPrompt, apiMessages);
-        const resp = await fetch(url, { method: "POST", headers, body });
+        const resp = await fetch(url, {
+            method: "POST",
+            headers,
+            body,
+            signal: _streamAbortController.signal,
+        });
 
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
@@ -209,13 +236,13 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
         msgDiv.className = "msg assistant";
         const bubble = document.createElement("div");
         bubble.className = "msg-bubble";
+        _activeBubble = bubble;
         msgDiv.innerHTML = `<div class="msg-avatar">SD</div>`;
         msgDiv.appendChild(bubble);
         document.getElementById("chat-messages").appendChild(msgDiv);
 
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
-        let fullText = "";
 
         while (true) {
             const { done, value } = await reader.read();
@@ -273,12 +300,29 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
         });
         await saveChat();
     } catch (e) {
-        typingDiv.remove();
-        appendMessageEl("assistant", `⚠ Error: ${e.message}`);
+        if (typingDiv.parentNode) typingDiv.remove();
+        if (e.name === "AbortError") {
+            // User stopped — render what we got and append a stopped marker
+            if (fullText) {
+                if (_activeBubble) {
+                    _activeBubble.innerHTML =
+                        formatMarkdown(fullText) +
+                        '<em class="stopped-marker"> [stopped]</em>';
+                }
+                state.messages.push({
+                    role: "assistant",
+                    content: fullText + " _(stopped)_",
+                });
+                await saveChat();
+            }
+        } else {
+            appendMessageEl("assistant", `⚠ Error: ${e.message}`);
+        }
     }
 
+    _streamAbortController = null;
     state.streaming = false;
-    document.getElementById("send-btn").disabled = false;
+    _setStreamingUI(false);
     if (typeof hideStreamingIndicator === "function") hideStreamingIndicator();
     if (typeof updateContextMeter === "function") updateContextMeter();
 }

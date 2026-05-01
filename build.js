@@ -111,6 +111,7 @@ async function build() {
                     "clearAllData",
                     "loadProject",
                     "sendMessage",
+                    "stopStreaming",
                     "toggleRightPanel",
                     "toggleDoc",
                     "toggleOtherProject",

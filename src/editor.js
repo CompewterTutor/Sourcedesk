@@ -227,8 +227,14 @@
             '[data-rte-btn="toggleMode"]',
         );
         if (toggleBtn) {
+            // Show current mode so the user knows where they are;
+            // clicking switches to the other mode.
             toggleBtn.textContent =
-                mode === "rendered" ? "📝 Raw" : "👁 Rendered";
+                mode === "rendered" ? "✏ Raw" : "👁 Preview";
+            toggleBtn.title =
+                mode === "rendered"
+                    ? "Switch to Raw (markdown) mode"
+                    : "Switch to Preview (rendered) mode";
         }
     }
 
@@ -252,8 +258,8 @@
             }
             if (id === "toggleMode") {
                 const btn = makeBtn(
-                    "👁 Rendered",
-                    "Toggle Raw / Rendered view",
+                    "👁 Preview",
+                    "Switch to Preview (rendered) mode",
                 );
                 btn.dataset.rteBtn = "toggleMode";
                 btn.style.marginLeft = "auto";

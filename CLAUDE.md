@@ -380,6 +380,35 @@ When adding a new object store or index:
 
 **Current version: v0.8.0** — build output: `SourceDesk.html` (230.6 KB, 95.1 KB JS)
 
+> **Session note (manual-testing-notes pass, session ending without build):**
+> The following fixes are complete in `src/` but `SourceDesk.html` has NOT been rebuilt yet.
+> Run `npm run build` (or `npm run dev`) before testing.
+>
+> 1. **Stop streaming button** (`src/chat.js`, `src/index.html`, `build.js`)
+>    - `AbortController` wired into the `fetch()` call via `signal`
+>    - Red **■ Stop** button replaces Send during generation (`_setStreamingUI(streaming)`)
+>    - On abort: partial text already received is saved to session with `_(stopped)_` marker
+>    - `stopStreaming` added to Terser `mangle.reserved` list in `build.js`
+>
+> 2. **Context sidebar doc card layout** (`src/panel.js`, `src/index.html`)
+>    - `.context-doc` changed from single flex row to two-row column layout
+>    - Row 1: checkbox + doc name (truncated with ellipsis, `min-width:0`)
+>    - Row 2: Extract / →Tmpl / ✕ buttons (indented, more breathing room)
+>    - `title` attribute on card element shows full filename as tooltip
+>
+> 3. **Sheets/CSV import+export store name bug** (`src/drive.js`)
+>    - All 4 functions were using wrong store `"questions"` — fixed to `"supplierQuestions"`
+>    - Field names fixed: `question` → `text`, `answer` → `draftAnswer` (matching actual schema)
+>    - Import functions now also add `createdAt` field
+>    - Sheets import now scans first 5 rows for the header row (handles title rows above header)
+>    - Accepts both `"question"` and `"questions"` as column name
+>
+> 4. **RTE toggle button label** (`src/editor.js`)
+>    - Button now shows the **current mode** (so user knows where they are)
+>    - Raw mode → `"👁 Preview"` (click to preview); Rendered mode → `"✏ Raw"` (click to go back)
+>    - Added descriptive `title` tooltip on each state
+
+
 ### Committed & working ✅
 
 #### Core infrastructure
@@ -558,6 +587,12 @@ When adding a new object store or index:
 ## Next Steps (Ordered for Next Session)
 
 1. **`npm run build`** → verify output, open `SourceDesk.html`, open `tests/test.html` → all green
+   - **IMPORTANT: build was NOT run at end of last session** — src/ edits are complete but `SourceDesk.html` is stale. Run build first.
+2. ~~**Stop streaming button**~~ ✅ (src edits done, needs build) — see below
+3. ~~**Context sidebar doc card layout**~~ ✅ (src edits done, needs build) — see below
+4. ~~**Sheets/CSV import/export store name bug**~~ ✅ (src edits done, needs build) — see below
+5. ~~**RTE toggle button label**~~ ✅ (src edits done, needs build) — see below
+6. Continue working through `docs/manual_testing_notes.md` items (items 5+ not yet tackled)
 2. ~~**Version labels**~~ ✅ — inline-edit a snapshot's label from the History modal (✎ button per row, Enter saves, Esc cancels)
 3. ~~**Important Contacts / Resources**~~ ✅ — per-project contacts and resource links with tags + include-in-context (DB_VERSION 8, new `contacts` store, `src/contacts.js`)
 4. ~~**Help modal**~~ ✅ — `src/help.js`, `?` topbar button, F1 / `?` hotkey, tabs for shortcuts / project types / views / context / about

@@ -636,24 +636,45 @@ async function importSheetsQuestions(spreadsheetId, token) {
             alert("Sheet is empty or has no data rows.");
             return;
         }
-        const headers = rows[0].map((h) => String(h).toLowerCase().trim());
-        const qIdx = headers.indexOf("question");
-        if (qIdx === -1) {
-            alert('No "question" column found in the sheet header row.');
+        // Scan up to the first 5 rows for a header row that contains a 'question' column
+        // (handles sheets with title rows above the header)
+        let headerRowIdx = -1;
+        let qIdx = -1;
+        for (let r = 0; r < Math.min(5, rows.length); r++) {
+            const h = rows[r].map((c) => String(c).toLowerCase().trim());
+            const qi = h.findIndex(
+                (c) => c === "question" || c === "questions",
+            );
+            if (qi !== -1) {
+                headerRowIdx = r;
+                qIdx = qi;
+                break;
+            }
+        }
+        if (headerRowIdx === -1) {
+            alert(
+                'No "question" column found in the first 5 rows of the sheet. The header cell must be labelled "Question" or "Questions".',
+            );
             return;
         }
-        const aIdx = headers.indexOf("answer");
+        const headers = rows[headerRowIdx].map((h) =>
+            String(h).toLowerCase().trim(),
+        );
+        const aIdx = headers.findIndex(
+            (c) => c === "answer" || c === "answers",
+        );
         let count = 0;
-        for (let i = 1; i < rows.length; i++) {
+        for (let i = headerRowIdx + 1; i < rows.length; i++) {
             const row = rows[i];
             const question = (row[qIdx] || "").trim();
             if (!question) continue;
             const answer = aIdx >= 0 ? (row[aIdx] || "").trim() : "";
-            await dbPut("questions", {
+            await dbPut("supplierQuestions", {
                 id: uid(),
                 projectId: state.activeProject.id,
-                question,
-                answer,
+                text: question,
+                draftAnswer: answer,
+                createdAt: Date.now(),
                 updatedAt: Date.now(),
             });
             count++;
@@ -675,7 +696,7 @@ async function exportQuestionsToSheets(token) {
     }
     try {
         const questions = await dbGetByIndex(
-            "questions",
+            "supplierQuestions",
             "projectId",
             state.activeProject.id,
         );
@@ -737,7 +758,7 @@ async function exportQuestionsToSheets(token) {
         }
         // Build values
         const values = [["Question", "Answer"]].concat(
-            questions.map((q) => [q.question || "", q.answer || ""]),
+            questions.map((q) => [q.text || "", q.draftAnswer || ""]),
         );
         const updateRes = await fetch(
             "https://sheets.googleapis.com/v4/spreadsheets/" +
@@ -790,13 +811,13 @@ async function exportQuestionsToCSV() {
         return;
     }
     const questions = await dbGetByIndex(
-        "questions",
+        "supplierQuestions",
         "projectId",
         state.activeProject.id,
     );
     const date = new Date().toISOString().slice(0, 10);
     const rows = ['"Question","Answer"'].concat(
-        questions.map((q) => csvQuote(q.question) + "," + csvQuote(q.answer)),
+        questions.map((q) => csvQuote(q.text) + "," + csvQuote(q.draftAnswer)),
     );
     const csv = rows.join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
@@ -883,11 +904,12 @@ async function importQuestionsFromCSV(file) {
         const question = (row[qIdx] || "").trim();
         if (!question) continue;
         const answer = aIdx >= 0 ? (row[aIdx] || "").trim() : "";
-        await dbPut("questions", {
+        await dbPut("supplierQuestions", {
             id: uid(),
             projectId: state.activeProject.id,
-            question,
-            answer,
+            text: question,
+            draftAnswer: answer,
+            createdAt: Date.now(),
             updatedAt: Date.now(),
         });
         count++;
@@ -999,7 +1021,7 @@ async function exportQuestionsToDoc() {
         return;
     }
     const questions = await dbGetByIndex(
-        "questions",
+        "supplierQuestions",
         "projectId",
         state.activeProject.id,
     );
@@ -1014,9 +1036,9 @@ async function exportQuestionsToDoc() {
         " \u2013 " +
         date;
     const lines = questions.map((q, i) => {
-        const qLine = i + 1 + ". " + (q.question || "");
-        const aLine = q.answer
-            ? "Answer: " + q.answer
+        const qLine = i + 1 + ". " + (q.text || "");
+        const aLine = q.draftAnswer
+            ? "Answer: " + q.draftAnswer
             : "Answer: (not yet answered)";
         return qLine + "\n" + aLine;
     });
