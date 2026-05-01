@@ -24,6 +24,10 @@ Sourcedesk/
 │   ├── flags.js            ← DEBUG, TEST, APP_VERSION, PROVIDERS constant, log()
 │   ├── db.js               ← IndexedDB open/CRUD helpers; DB_VERSION
 │   ├── state.js            ← Global `state` object; getCurrentProviderKey / setProviderKey
+│   ├── autosave.js         ← scheduleAutosave(), scheduleWorkingDocAutosave(),
+│   │                          scheduleNoteAutosave(), scheduleTaskAutosave(), scheduleTemplateAutosave()
+│   ├── diff.js             ← diffLines(), diffStats(), renderInlineDiffHtml() — LCS line-level diff
+│   ├── help.js             ← openHelpModal(), helpSwitchTab() — tabbed Help modal
 │   ├── boot.js             ← boot(), showView(), renderSidebar(), loadProject()
 │   ├── messages.js         ← renderMessages(), appendMessageEl(), formatMarkdown()
 │   ├── retrieval.js        ← BM25 tokenize/index/score, chunkText(), retrieveContext()
@@ -58,6 +62,19 @@ Sourcedesk/
 │   ├── tasks.js            ← Per-project task management view; full CRUD; loadTasks(),
 │   │                          openNewTask(), selectTask(), saveCurrentTask(),
 │   │                          deleteCurrentTask(), filterTaskList(), toggleTaskInContext()
+│   │                          toggleTaskCalendar(), exportTasksMarkdown(), exportTasksCSV()
+│   ├── contacts.js         ← Contacts & Resources view; loadContacts(), renderContactList(),
+│   │                          selectContact(), openNewContact(), saveCurrentContact(), etc.
+│   ├── guidelines.js       ← Position Guidelines view; loadGuidelines(), handleGuidelineUpload(),
+│   │                          openGuidelinesAnalyze() — AI extraction of responsibilities/tasks
+│   ├── evaluation.js       ← Proposal Evaluation view; loadEvaluation(), switchEvalTab(),
+│   │                          openNewCriterion(), evaluateCandidate(), exportScorecardMarkdown()
+│   ├── research.js         ← Research Board; Brave Search, crawl4ai, Research Agent,
+│   │                          openEditResearchItem(), exportResearchMarkdown(), exportResearchCSV()
+│   ├── suggestions.js      ← Feature Suggestion Box; openSuggestionBox(), submitSuggestion(),
+│   │                          openManageSuggestions()
+│   ├── editor.js           ← Dual-mode RTE; mountRichEditor(), destroyRichEditor(),
+│   │                          setRichEditorMode(), _rteMarkdownToHtml(), _rteHtmlToMarkdown()
 │   └── ui.js               ← Modal helpers, pill helpers, input resize, keyboard shortcuts
 ├── tests/
 │   └── test.html           ← Self-contained browser test runner (no server needed, file:// works)
@@ -107,17 +124,17 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 
 ## Architecture
 
-### IndexedDB Stores (current schema: `DB_VERSION = 10`)
+### IndexedDB Stores (current schema: `DB_VERSION = 11`)
 
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
 | `templates` | `id` | — | `{id, name, category, type, content, updatedAt}` |
 | `projects` | `id` | — | `{id, name, category, templateId, notes, instructions, workingContent, createdAt}` |
-| `docs` | `id` | `projectId` | `{id, projectId, name, content, uploadedAt}` |
-| `chats` | `id` | `projectId`, `sessionId` | `{id, projectId, sessionId, messages: [{role, content, sources, chunks}], createdAt, updatedAt}` |
+| `docs` | `id` | `projectId` | `{id, projectId, name, content, docType: 'doc'\|'guideline', uploadedAt}` |
+| `chats` | `id` | `projectId`, `sessionId` | `{id, projectId, sessionId, title, messages: [{role, content, sources, chunks}], createdAt, updatedAt}` |
 | `settings` | `key` | — | `{key, value}` — keys: `provider`, `model`, `globalContext`, `constants`, `localLlmUrl`, `driveToken`, `apiKey_anthropic`, `apiKey_openai`, `apiKey_openrouter`, `apiKey_github` (legacy: `apiKey` migrated → `apiKey_anthropic` on first boot) |
 | `notes` | `id` | `projectId` | `{id, projectId, title, content, pinned, includeInContext, createdAt, updatedAt}` |
-| `supplierQuestions` | `id` | `projectId` | `{id, projectId, text, draftAnswer, createdAt, updatedAt}` |
+| `supplierQuestions` | `id` | `projectId` | `{id, projectId, text, draftAnswer, status, confidence, questionNo, topic, vendor, contactName, createdAt, updatedAt}` |
 | `promptLibrary` | `id` | — | `{id, title, content, favorite, createdAt, updatedAt}` |
 | `docVersions` | `id` | `projectId` | `{id, projectId, content, savedAt, label}` |
 | `tasks` | `id` | `projectId` | `{id, projectId, title, description, status, priority, dueDate, includeInContext, createdAt, updatedAt}` |
@@ -125,6 +142,9 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 | `contacts` | `id` | `projectId` | `{id, projectId, type: 'contact'\|'resource', name, role, org, email, phone, url, notes, tags[], includeInContext, createdAt, updatedAt}` |
 | `suggestions` | `id` | — | `{id, title, category, details, createdAt, appVersion, projectId, projectName, posted, postedAt}` |
 | `research` | `id` | `projectId` | `{id, projectId, url, title, summary, fullText, tags[], retrievedAt, includeInContext, source: 'brave'\|'manual'}` |
+| `evalCriteria` | `id` | `projectId` | `{id, projectId, name, weight, maxScore, description}` |
+| `evalCandidates` | `id` | `projectId` | `{id, projectId, name, sourceDocIds[]}` |
+| `evalScores` | `id` | `projectId, candidateId, criterionId` | `{id, projectId, candidateId, criterionId, score, justification, evaluator}` |
 
 ### DB Helper Pattern
 All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)`, `dbDelete(store, key)`, `dbGetAll(store)`, `dbGetByIndex(store, index, val)`. All return Promises. Always await them.
@@ -145,6 +165,11 @@ let state = {
     constants: '',          // "KEY=value" lines; parsed by parseConstants(); used in resolveTemplateVars()
     driveToken: '',         // Google Drive OAuth access token (short-lived, ~1 hour)
     localLlmUrl: '',        // base URL for local OpenAI-compat server, e.g. http://localhost:11434/v1
+    embeddingModel: '',     // embedding model name for local hybrid retrieval; empty = BM25-only
+    braveApiKey: '',        // Brave Search API key
+    crawl4aiUrl: 'http://localhost:11235', // crawl4ai endpoint
+    markitdownUrl: '',      // MarkItDown server URL (injected by server.js via window.__SOURCEDESK_ENV__)
+    suggestionWebhookUrl: '', // optional webhook for feature suggestions
   },
   activeProject: null,    // full project object; may have .instructions, .workingContent fields
   activeDocs: new Set(),  // doc IDs toggled ON in context
@@ -157,6 +182,9 @@ let state = {
   currentNote: null,      // note object being edited in Notes view, or null
   editingProjectId: null, // project ID being edited in modal, or null (null = create mode)
   currentQuestion: null,  // supplier question object being viewed, or null
+  currentTask: null,      // task object being edited in Tasks view, or null
+  currentContact: null,   // contact object being edited in Contacts view, or null
+  currentGuideline: null, // guideline doc object being viewed in Guidelines view, or null
 };
 ```
 
@@ -254,7 +282,7 @@ Check provider docs before adding new models — IDs change frequently.
 ```js
 const DEBUG       = window.__SOURCEDESK_DEBUG__ || false;
 const TEST        = window.__SOURCEDESK_TEST__  || false;
-const APP_VERSION = '0.6.0';
+const APP_VERSION = '0.8.0';
 function log(...args) { if (DEBUG) console.log('[SD]', ...args); }
 ```
 
@@ -270,33 +298,71 @@ function log(...args) { if (DEBUG) console.log('[SD]', ...args); }
 `build.js` reads `src/index.html`, finds the literal string `  <!-- BUILD:JS -->`, and replaces it with `<script>\n{js}\n</script>`. If the placeholder is missing, the build throws.
 
 ### Terser reserved names — CRITICAL
-Terser mangle will rename any function not in the `reserved` list. Every function called from an HTML `onclick="..."` attribute **must** be in `build.js`'s `mangle.reserved` array. Current list (as of v0.6.0):
+Terser mangle will rename any function not in the `reserved` list. Every function called from an HTML `onclick="..."` attribute **must** be in `build.js`'s `mangle.reserved` array. Current list (as of v0.8.0):
 
 ```
 showView, openNewProject, saveProject, openNewTemplate, openEditTemplate,
 saveTemplate, deleteTemplate, openFillTemplate, applyFill, viewTemplateContent,
 promptAttachTemplate, openSettings, saveSettings, clearAllData, loadProject,
-sendMessage, toggleRightPanel, toggleDoc, toggleOtherProject, deleteDoc,
+sendMessage, stopStreaming, toggleRightPanel, toggleDoc, toggleOtherProject, deleteDoc,
 handleDocUpload, selectPill, selectPillByVal, closeModal, closeModalOnOverlay,
 onProviderChange, boot, exportDatabase, triggerImportDialog, importDatabase,
-exportProject, openNewNote, selectNote, saveCurrentNote, deleteCurrentNote,
-loadNotes, renderNotesList, validateImportShape, filterNotes, toggleNoteInContext,
-openEditProject, deleteProject, duplicateTemplate, openWorkingDoc, saveWorkingDoc,
-clearChatHistory, previewTemplateVars, openExtractVars, saveExtractedVars,
-createTemplateFromDoc, openDriveModal, verifyDriveToken, listDriveFiles,
-backupToDrive, disconnectDrive, fetchLocalModels, togglePreviewPanel,
-searchNotes, searchAllNotes, toggleNotePin,
+exportProject, openNewNote, openEditProject, deleteProject,
+selectNote, saveCurrentNote, deleteCurrentNote, loadNotes, renderNotesList,
+validateImportShape, filterNotes, toggleNoteInContext,
+duplicateTemplate, openWorkingDoc, saveWorkingDoc, clearChatHistory,
+previewTemplateVars, openExtractVars, saveExtractedVars, createTemplateFromDoc,
+openDriveModal, verifyDriveToken, listDriveFiles, backupToDrive, disconnectDrive,
+fetchLocalModels, togglePreviewPanel, searchNotes, searchAllNotes, toggleNotePin,
 loadSupplierQuestions, renderSQList, selectQuestion, openAddQuestionsModal,
 saveAddedQuestions, generateAnswerForQuestion, generateSelectedAnswers,
-saveCurrentSQAnswer, deleteQuestion, copyQuestionToClipboard,
-copyAnswerToClipboard, exportSelectedQuestions, exportAllQuestions,
+saveCurrentSQAnswer, deleteQuestion, copyQuestionToClipboard, copyAnswerToClipboard,
+exportSelectedQuestions, exportAllQuestions, exportTasksMarkdown, exportTasksCSV,
 filterSQList, toggleAllSQCheckboxes, scheduleSQAutoSave,
 topbarModelChange, refreshTopbarModels, syncTopbarModelSelect,
-newChat, renderChatSessionList, loadChatSession,
+setModelContextLimit, getContextLimit,
 openAttachMenu, handleAttachFiles, removeAttachment, clearPendingAttachments,
 renderAttachBar, getPendingAttachments, updateContextMeter,
 showStreamingIndicator, hideStreamingIndicator,
-setModelContextLimit, getContextLimit
+newChat, renderChatSessionList, loadChatSession, filterChatSessions,
+openVersionHistory, restoreDocVersion, deleteDocVersion, saveDocVersion,
+_vhStartLabelEdit, _vhSaveLabel, openVersionDiff, diffLines, diffStats, renderInlineDiffHtml,
+scheduleAutosave, cancelAutosave, flushAutosave, setAutosaveStatus,
+scheduleWorkingDocAutosave, scheduleNoteAutosave, scheduleTaskAutosave, scheduleTemplateAutosave,
+openHelpModal, helpSwitchTab,
+openSuggestionBox, submitSuggestion, openManageSuggestions, deleteSuggestion, exportSuggestions,
+testBraveKey, testCrawl4aiEndpoint, testMarkitdownServer,
+openResearchSearch, runResearchSearch, addResearchFromBrave,
+openAddResearchManual, submitResearchManual, loadResearchBoard,
+crawlResearchItem, summariseResearchItem, deleteResearchItem, toggleResearchInContext,
+openResearchAgent, runResearchAgent, generateResearchReport,
+_researchExtractJsonArray, openEditResearchItem, saveResearchItemEdit,
+_researchInsertTemplate, exportResearchMarkdown, exportResearchCSV,
+mountRichEditor, destroyRichEditor, setRichEditorMode, refreshRichEditor,
+_rteMarkdownToHtml, _rteHtmlToMarkdown,
+loadTasks, renderTaskList, selectTask, openNewTask, saveCurrentTask,
+deleteCurrentTask, filterTaskList, toggleTaskStatus, toggleTaskInContext,
+toggleTaskCalendar, _calNav, _calToday, _calSelectDay,
+loadContacts, renderContactList, selectContact, openNewContact,
+saveCurrentContact, deleteCurrentContact, filterContactList,
+toggleContactInContext, selectContactTypePill,
+loadGuidelines, selectGuideline, deleteGuideline,
+handleGuidelineUpload, openGuidelinesAnalyze,
+loadEvaluation, switchEvalTab, openNewCriterion, saveCurrentCriterion,
+openNewCandidate, saveCurrentCandidate, evaluateCandidate,
+exportScorecardMarkdown, _evalDeleteCriterion, _evalDeleteCandidate,
+openPromptLibrary, closePromptLibrary, renderPromptLibraryDropdown,
+insertPrompt, openSavePromptModal, openManagePromptLibrary,
+savePromptEntry, deletePromptEntry, togglePromptFavorite,
+getOrCreateAppFolder, getOrCreateVisibleRootFolder, getOrCreateProjectFolder,
+importSheetsQuestions, importSheetsQuestionsFromInput, exportQuestionsToSheets,
+exportQuestionsToCSV, importQuestionsFromCSV, parseBidNetHtml,
+openBidNetImportModal, handleBidNetImportFile, executeBidNetImport,
+generateBatch, setSQStatus, setSQConfidence, exportSQSummary, _sqEffectiveStatus,
+exportToGoogleDoc, exportQuestionsToDoc, exportWorkingDocToDoc,
+parseSpreadsheetId, convertFileToDriveText,
+testEmbeddingModel, getEmbedding, cosineSimilarity, indexDocEmbeddings, getDocEmbeddings,
+backupToServer, openCrossSearch, runCrossSearch
 ```
 
 **When you add a new function called from HTML, add it to this list or the minified build will silently break.**
@@ -378,32 +444,48 @@ When adding a new object store or index:
 
 ## Current State (as of last commit)
 
-**Current version: v0.8.0** — build output: `SourceDesk.html` (383.9 KB, 189.6 KB JS)
+**Current version: v0.8.0** (`src/flags.js`) — build output: `SourceDesk.html` committed at HEAD `db6fab2`
 
-> **Session note (2025-07-19):**
-> The following features are complete in `src/` and rebuilt into `SourceDesk.html`.
+> **Note:** `package.json` still shows `0.6.0` — needs to be bumped to `0.8.0` to stay in sync.
+
+> **Session note (2025-07-19, session 2):**
+> All features below are complete in `src/` and rebuilt into `SourceDesk.html`. Committed and pushed to `main`.
 >
-> 1. **Enhanced Supplier Questions** (`src/supplierQuestions.js`, `src/index.html`, `build.js`)
->    - BidNet HTML import via `parseBidNetHtml()` (in-browser DOMParser, adapted from Python/JS toolkit)
->    - Question status (unanswered / answered / needs-review / @todo) with pill UI
->    - AI confidence (HIGH/MEDIUM/LOW) parsed from model response marker, auto-sets status
->    - Batch generation (⚡ Batch button, 10 at a time with progress counter)
->    - Summary export (📊 Summary, generates full Markdown report with stats + vendor breakdown)
->    - Enhanced list: counts breakdown, vendor sub-text, questionNo prefix
->    - Question metadata panel: questionNo, topic, vendor, contactName
+> 1. **MarkItDown server integration** (`server.js`, `src/panel.js`, `src/settings.js`)
+>    - `server.js` now exposes `GET /health` (returns `{markitdownAvailable: bool}`) and `POST /convert` (accepts `{filename, data: base64}`, returns Markdown via `markitdown` CLI or `python -m markitdown` fallback)
+>    - `state.settings.markitdownUrl` — configurable; default injected by `server.js` via `window.__SOURCEDESK_ENV__`
+>    - Upload order: markitdown server → Google Drive convert (opt-in) → fallback text extraction
+>    - `testMarkitdownServer()` — Settings test button
 >
-> 2. **RTE link button** (`src/editor.js`)
->    - 🔗 button in toolbar; works in both raw (inserts `[text](url)`) and rendered mode (`createLink`)
+> 2. **Enhanced Supplier Questions** — BidNet HTML import, question status/confidence pills, batch generation, summary export, metadata panel
 >
-> Previous session fixes (stop button, doc card layout, Sheets store bug, RTE toggle label) are all built and working.
+> 3. **RTE link button** — 🔗 in toolbar; raw mode inserts `[text](url)`; rendered mode uses `createLink`
+>
+> 4. **Embedding indexing progress toast** — `indexDocEmbeddings(docId, chunks, onProgress)` callback; fixed-position `#embed-progress-toast`
+>
+> 5. **Server-side backup** — `POST /backup` saves to `backups/`; Settings button visible only when served over HTTP
+>
+> 6. **Tasks calendar view** — 📅 toggle; month grid highlights task days; day filter; `_calNav`, `_calToday`, `_calSelectDay`
+>
+> 7. **Research board enhancements** — per-card edit modal, query template quick-fills, Markdown/CSV export
+>
+> 8. **Position Guidelines view** (`src/guidelines.js`) — `docType:'guideline'` docs excluded from context; AI analyzer extracts responsibilities/tasks/templates; one-click Create Task / Create Template
+>
+> 9. **LLM-generated session titles** — fire-and-forget LLM call after first message generates 4–6 word title
+>
+> 10. **Cross-project session search** (`openCrossSearch()` + `runCrossSearch()`) — 🔍 sidebar button + Ctrl+Shift+K
+>
+> 11. **Proposal Evaluation** (`src/evaluation.js`) 🗄️ **DB_VERSION 11** — `evalCriteria`, `evalCandidates`, `evalScores` stores; three-tab view (Criteria / Candidates / Scorecard); AI scoring via single LLM call returning JSON; Markdown scorecard export
+>
+> 12. **Stop streaming button** — `stopStreaming()` aborts the active SSE reader; ■ Stop / ▶ Send toggle
 
 
 ### Committed & working ✅
 
 #### Core infrastructure
-- Build pipeline: 21 `src/*.js` files + `src/index.html` → `npm run build` → single `SourceDesk.html`
+- Build pipeline: 29 `src/*.js` files + `src/index.html` → `npm run build` → single `SourceDesk.html`
 - `DEBUG`, `TEST`, `APP_VERSION` flags in `src/flags.js`; `log()` helper; `DOMContentLoaded` boot gated on `!TEST`
-- IndexedDB schema at `DB_VERSION = 9`; five CRUD helpers (`dbGet`, `dbPut`, `dbDelete`, `dbGetAll`, `dbGetByIndex`)
+- IndexedDB schema at `DB_VERSION = 11`; five CRUD helpers (`dbGet`, `dbPut`, `dbDelete`, `dbGetAll`, `dbGetByIndex`)
 - `uid()` for all record IDs; defensive field access everywhere (old records missing new fields just return `undefined`)
 
 #### Projects & Documents
@@ -554,6 +636,48 @@ When adding a new object store or index:
 - All in `src/contacts.js`; reserved names: `loadContacts`, `renderContactList`, `selectContact`, `openNewContact`, `saveCurrentContact`, `deleteCurrentContact`, `filterContactList`, `toggleContactInContext`, `selectContactTypePill`
 - Included in `exportDatabase` / `importDatabase` / `clearAllData` / `backupToDrive` store arrays
 
+#### MarkItDown Server Integration
+- `server.js` exposes `GET /health` → `{markitdownAvailable: bool}` and `POST /convert` → Markdown text
+- `state.settings.markitdownUrl` — configurable; default injected by `server.js` via `window.__SOURCEDESK_ENV__`
+- Upload flow order: markitdown server → Google Drive conversion (opt-in) → fallback text extraction
+- `testMarkitdownServer()` — Settings test button
+- **Requirement**: `pip install markitdown` on the server machine; `npm run serve` (or `node server.js`) to enable
+
+#### Embedding Indexing Progress Toast
+- `indexDocEmbeddings(docId, chunks, onProgress)` — optional `(done, total)` callback
+- Fixed-position `#embed-progress-toast` shows live progress `Indexing "<file>": N/M chunks…`; auto-hides on completion
+
+#### Server-Side Backup
+- `POST /backup` endpoint in `server.js` saves timestamped JSON files to `backups/` directory
+- Settings button "💾 Backup to Server" calls `backupToServer()`; only visible when served over HTTP (not `file://`)
+
+#### Tasks Calendar View
+- 📅 toggle in Tasks view header shows a month grid; days with tasks are highlighted
+- `toggleTaskCalendar()`, `_calNav()`, `_calToday()`, `_calSelectDay()` — navigation + day filter
+- `exportTasksMarkdown()` and `exportTasksCSV()` — export current task list
+
+#### Position Guidelines (`src/guidelines.js`)
+- New per-project **Guidelines** view; sidebar nav button revealed after `loadProject()`
+- Guideline docs stored in existing `docs` store with `docType: 'guideline'`; excluded from chat context and `state.activeDocs`
+- AI analyzer: `openGuidelinesAnalyze()` — extracts responsibilities, recommended tasks, templates, reminders; one-click "Create Task" / "Create Template" actions
+- `loadGuidelines()`, `selectGuideline()`, `deleteGuideline()`, `handleGuidelineUpload()`
+
+#### LLM-Generated Session Titles & Cross-Project Search
+- After first message, a fire-and-forget LLM call generates a 4–6 word session title stored in `chats.title`
+- Cross-project session search: `openCrossSearch()` modal (🔍 sidebar button + Ctrl+Shift+K); `runCrossSearch(query)` searches all sessions by title + content; click loads project + session
+
+#### Proposal Evaluation (`src/evaluation.js`) 🗄️ DB_VERSION 11
+- New stores: `evalCriteria`, `evalCandidates`, `evalScores` (all with `projectId` index)
+- **Evaluation →** sidebar button; three-tab view: Criteria / Candidates / Scorecard
+- Criteria editor: `openNewCriterion()`, `saveCurrentCriterion()`, `_evalDeleteCriterion()`
+- Candidate manager: `openNewCandidate()`, `saveCurrentCandidate()`, `_evalDeleteCandidate()`; associates project docs to a candidate
+- AI scoring: `evaluateCandidate()` — single LLM call returning JSON `[{criterionId, score, justification}]`; saved to `evalScores`
+- `exportScorecardMarkdown()` — full Markdown scorecard export
+- Cascade-deleted with project; included in `exportDatabase()` / `importDatabase()` / `clearAllData()`
+
+#### Stop Streaming Button
+- `stopStreaming()` — aborts the active fetch `ReadableStream` reader; `state.streaming` flag drives ■ Stop / ▶ Send button toggle in the chat input row
+
 #### UI / UX
 - Dark theme; CSS custom properties for all colours; font stack: Syne 700 / Inter / JetBrains Mono
 - Keyboard shortcuts: Ctrl+Enter (send), Escape (close modal), Ctrl+N (new note), Ctrl+Shift+F (focus notes filter), Ctrl+S (save note / working doc), **F1 (open Help modal)**, **? (open Help modal when not editing)**
@@ -566,33 +690,39 @@ When adding a new object store or index:
 
 ### Still outstanding
 - ❌ Google Drive connector requires manual token paste — proper OAuth popup not possible from `file://` origin
-- ❌ Chat session titles are auto-generated from first-message preview only (60 chars); no LLM-generated title
-- ❌ No message editing / regeneration
-- ❌ No cross-project session search
-- ❌ No "recent notes" quick-access (cross-project search covers the main use case)
+- ❌ `embeddings` store excluded from `exportDatabase()` / `importDatabase()` / `clearAllData()` / `backupToDrive()` (vectors are large and regenerable; intentional for now)
+- ❌ `package.json` version (`0.6.0`) out of sync with `src/flags.js` APP_VERSION (`0.8.0`) — needs a bump
+- ❌ Proposal Evaluation: annotation semantics (value-add / deduction / disqualifier highlights) not yet implemented — numeric scores only currently
+- ❌ Multi-agent parallel evaluation (multiple LLMs simultaneously) not yet implemented
 
 ---
 
 ## Next Steps (Ordered for Next Session)
 
-1. **`npm run build`** → verify output, open `SourceDesk.html`, open `tests/test.html` → all green
-   - **IMPORTANT: build was NOT run at end of last session** — src/ edits are complete but `SourceDesk.html` is stale. Run build first.
-2. ~~**Stop streaming button**~~ ✅ (src edits done, needs build) — see below
-3. ~~**Context sidebar doc card layout**~~ ✅ (src edits done, needs build) — see below
-4. ~~**Sheets/CSV import/export store name bug**~~ ✅ (src edits done, needs build) — see below
-5. ~~**RTE toggle button label**~~ ✅ (src edits done, needs build) — see below
-6. Continue working through `docs/manual_testing_notes.md` items (items 5+ not yet tackled)
+1. ~~**`npm run build`**~~ ✅ — completed; `SourceDesk.html` committed at HEAD `db6fab2`
 2. ~~**Version labels**~~ ✅ — inline-edit a snapshot's label from the History modal (✎ button per row, Enter saves, Esc cancels)
 3. ~~**Important Contacts / Resources**~~ ✅ — per-project contacts and resource links with tags + include-in-context (DB_VERSION 8, new `contacts` store, `src/contacts.js`)
 4. ~~**Help modal**~~ ✅ — `src/help.js`, `?` topbar button, F1 / `?` hotkey, tabs for shortcuts / project types / views / context / about
 5. ~~**Generalised autosave**~~ ✅ — `src/autosave.js`; debounced (1.5 s) save with status pill; wired into Working Document, Notes, Tasks, **Templates** (`scheduleTemplateAutosave()` for in-modal edits of existing templates). Project edit form remains TODO.
 6. ~~**Version diffs**~~ ✅ — `src/diff.js` LCS line diff + `openVersionDiff()` modal in `versioning.js`; Diff button per row in History modal
-7. ~~**Feature suggestion box (item 16)**~~ ✅ 🗜️ DB_VERSION 9 — `src/suggestions.js`; “💡 Suggest a feature” link in the sidebar footer; new `suggestions` IndexedDB store. Modal lets users submit title + category + details; entries stored locally and optionally POSTed to a configurable webhook (`Settings → Suggestion Webhook URL`). "View All" lists past suggestions with delete + JSON export.
+7. ~~**Feature suggestion box (item 16)**~~ ✅ 🗜️ DB_VERSION 9 — `src/suggestions.js`; "💡 Suggest a feature" link in the sidebar footer; new `suggestions` IndexedDB store. Modal lets users submit title + category + details; entries stored locally and optionally POSTed to a configurable webhook (`Settings → Suggestion Webhook URL`). "View All" lists past suggestions with delete + JSON export.
 8. ~~**Brave Search + crawl4ai Settings fields (item 5)**~~ ✅ — `state.settings.braveApiKey`, `state.settings.crawl4aiUrl` (default `http://localhost:11235`); persisted via `saveSettings`; loaded on boot. Test buttons: `testBraveKey()` calls `https://api.search.brave.com/res/v1/web/search?q=test&count=1`, `testCrawl4aiEndpoint()` calls `<url>/health`. Wires into the upcoming Research project workflow (item 4).
 9. ~~**Rich-text editor scaffolding (item 15)**~~ ✅ — `src/editor.js` exports `mountRichEditor(textarea, opts)` / `destroyRichEditor` / `setRichEditorMode`. Dual-mode toolbar (Raw markdown ⇄ Rendered contenteditable). Toolbar: H1/H2/H3, **B** / *I* / <u>U</u> / `code`, • list, 1. list, blockquote, 2x2 table, page break, mode toggle. Mounted at boot on `#working-doc-editor`, `#note-editor`, `#tmpl-content`, `#sq-answer-editor`. Round-trip safe markdown ⇄ HTML conversion; existing autosave wiring (input event) preserved. 10 tests added (`tests/test.html` → `describe("rich-text editor")`).
 10. ~~**Research project type — first cut (item 4)**~~ ✅ 🗄️ DB_VERSION 10 — new `Research` project category (🔍 icon), new `research` IndexedDB store, new `src/research.js` module, dedicated **Research Board** view accessible from the sidebar (visible whenever a project is loaded; not gated to Research-category projects so RFP/RFI workflows can still pull research). Brave Search integration (10 results / call, `<strong>` highlight tags stripped). "+ Add" per result writes to the board. "+ Add URL" manual entry with optional title and tags. Per-card actions: **⤓ Crawl** (POST `<crawl4aiUrl>/crawl` with the documented body, prefer `fit_markdown` → `markdown` → `html`), **✨ Summarise** (sends crawled text through the active LLM provider with a procurement-tuned system prompt), **delete**, **Include in context** toggle. Research items with `includeInContext: true` are injected into the chat system prompt under `## Research`. Research store is included in `clearAllData()` / `exportDatabase()` / `backupToDrive()` / `importDatabase()`. 3 tests added.
 
 **Still TODO** for full item 4: AI "Research Topic" agent (auto-Brave → auto-crawl → auto-summarise → write to Working Document); "Export Research to Drive" (per-item Google Doc + per-board CSV/Markdown); per-card edit modal for tags & summary; suggested research-query templates.
+11. ~~**MarkItDown server integration**~~ ✅ — `server.js` `/health` + `/convert` endpoints; `markitdownUrl` setting; upload order: markitdown → Drive → text fallback; `testMarkitdownServer()`
+12. ~~**Enhanced Supplier Questions**~~ ✅ — BidNet HTML import, status/confidence pills, batch generation, summary export, metadata fields
+13. ~~**RTE link button**~~ ✅ — `src/editor.js`; raw mode inserts `[text](url)`; rendered mode `createLink`
+14. ~~**Embedding progress toast**~~ ✅ — `#embed-progress-toast`; `indexDocEmbeddings(docId, chunks, onProgress)` callback
+15. ~~**Server-side backup**~~ ✅ — `POST /backup` endpoint; Settings button visible when served over HTTP
+16. ~~**Tasks calendar view**~~ ✅ — 📅 toggle; month grid; `_calNav`, `_calToday`, `_calSelectDay`; `exportTasksMarkdown/CSV()`
+17. ~~**Research board enhancements**~~ ✅ — per-card edit modal; query template quick-fills; Markdown/CSV export
+18. ~~**Position Guidelines view**~~ ✅ — `src/guidelines.js`; `docType:'guideline'`; AI analyzer; one-click Create Task/Template
+19. ~~**LLM-generated session titles**~~ ✅ — fire-and-forget LLM call after first message; title stored in `chats.title`
+20. ~~**Cross-project session search**~~ ✅ — `openCrossSearch()` + `runCrossSearch()`; 🔍 sidebar button + Ctrl+Shift+K
+21. ~~**Proposal Evaluation**~~ ✅ 🗄️ DB_VERSION 11 — `src/evaluation.js`; `evalCriteria`, `evalCandidates`, `evalScores`; AI scoring; Markdown export
+22. ~~**Stop streaming button**~~ ✅ — `stopStreaming()`; ■ Stop / ▶ Send toggle
 
 ---
 ### Upcoming Feature Sessions
@@ -641,15 +771,15 @@ When adding a new object store or index:
 11. **Vendor Contact sync via People API** *(future)* — `auth/contacts`; People API v1; sync per-project contacts to a Google Contacts group
 12. **In-browser semantic embeddings** *(low priority, after local LLM path is proven)* — `transformers.js` + WASM `all-MiniLM-L6-v2`; ~30 MB one-time download
 
-13. **Proper Help system** *(small/medium)* — replace ad-hoc tooltips with a proper Help modal: keyboard shortcut reference, glossary of project types, walkthrough/tour of each major view, links to README sections; accessible via `?` button in topbar and `F1` key.
+13. ~~**Proper Help system**~~ ✅ — `src/help.js`, `?` topbar button, F1/`?` hotkey, tabbed modal: Shortcuts / Project Types / Views / Context System / About
 
-14. **Autosave everywhere** *(small)* — generalise the supplier-questions debounced-autosave pattern (1.5 s) to: Working Document, Notes (already on switch — add live), Tasks edit form, Project edit fields, Templates edit. Visual `● Saving…` / `✓ Saved` indicator near the title bar.
+14. ~~**Autosave everywhere**~~ ✅ — `src/autosave.js`; debounced 1.5 s save with `● Saving…` / `✓ Saved` status pill
 
-15. **Rich-text editors with raw / rendered toggle** *(medium)* — Working Document, Notes, Templates, and Supplier Q answer field get a dual-mode editor: **Raw markdown** (current textarea) and **Rendered** (contenteditable with style toolbar). Toolbar buttons (initial set): H1 / H2 / H3, **Bold**, *Italic*, <u>Underline</u>, `inline code`, table, bullet list, numbered list, page break (`<div class="page-break">`), block quote. Toggle preserves content via markdown <-> HTML conversion. New module `src/editor.js` exporting `mountRichEditor(textarea, opts)`.
+15. ~~**Rich-text editors with raw / rendered toggle**~~ ✅ — `src/editor.js`; dual-mode toolbar; mounted on Working Doc, Notes, Templates, SQ answer field
 
-16. **Feature suggestion box** *(small)* — sidebar/footer link "💡 Suggest a feature" → modal with title + description + optional category dropdown; saved to a new local `suggestions` IndexedDB store and optionally POSTed to a configurable webhook URL (Settings field) or appended to a Google Doc in the SourceDesk Drive folder.
+16. ~~**Feature suggestion box**~~ ✅ — `src/suggestions.js`; DB_VERSION 9; `suggestions` store; webhook integration
 
-17. **Versioning a deliverable document with diffs** *(medium)* — extend Working Document Versioning: each row in History modal gets a "Diff" button → side-by-side or inline diff view (line-level, additions green / removals red). Use a small JS LCS diff implementation (no external deps). Apply to the upcoming `targetDocs` store as well.
+17. ~~**Versioning a deliverable document with diffs**~~ ✅ — `src/diff.js` LCS diff; `openVersionDiff()` in `versioning.js`; Diff button per row in History modal
 
 18. **Highlights & comments as document metadata** *(medium)* — in the rendered editor users can select text → "Highlight" (color picker) or "Add Comment" (popup); stored as a sidecar `{ docId, range, color, comment, author, createdAt }` in a new `annotations` store, NOT inline in the document text. Annotations rendered as overlay spans. **Export options**: "Export with annotations" (HTML/PDF with highlights baked in + comment footnotes) vs. "Export clean" (plain markdown).
 
@@ -657,16 +787,12 @@ When adding a new object store or index:
 
 20. **Highlights as a notes section** *(small/medium)* — auto-aggregate all annotations of type `highlight` from a project's docs into a per-project "Highlights" panel (next to Notes). Each highlight is a row showing source doc, snippet, color, jump-to-source link. Each highlight has an "Include in context" checkbox — checked highlights injected into system prompt as `## Highlighted Excerpts`.
 
-21. **Proposal Evaluation project type** *(large)* — new project category `Evaluation`. Dedicated views:
-    - **Criteria editor** — list of weighted scoring criteria `{ name, weight, maxScore, description }`; sum of weights normalised to 100
-    - **Candidate list** — each candidate is a sub-project or document set (uploaded proposal). Per-candidate scorecard auto-computed from per-criterion scores
-    - **Annotation semantics** — highlights tagged as `value-add` (green), `deduction` (yellow w/ point delta), or `disqualifier` (red strikethrough); deductions and disqualifiers feed into auto-scoring math
-    - **Auto-evaluator** — "Evaluate with AI" button: runs the active LLM (or multiple LLMs in parallel — multi-agent panel) against each criterion + candidate; produces a draft score + justification; user can accept/override. Multi-agent mode shows scorecards side-by-side
-    - New stores: `evalCriteria` `{id, projectId, name, weight, maxScore, description}`, `evalCandidates` `{id, projectId, name, sourceDocIds[]}`, `evalScores` `{id, projectId, candidateId, criterionId, score, justification, evaluator}` — DB_VERSION bump
+21. ~~**Proposal Evaluation project type**~~ ✅ 🗄️ DB_VERSION 11 — `src/evaluation.js`; `evalCriteria`, `evalCandidates`, `evalScores` stores; three-tab view; AI scoring; Markdown export. **Note**: annotation semantics (value-add / deduction / disqualifier) and multi-agent parallel evaluation not yet implemented.
 
 22. **Collaborative evaluation (multi-user)** *(very long term — gated on v2 rewrite)* — real-time multi-user scoring with per-evaluator scorecards aggregated into a consensus view; comments threaded per criterion; requires a real backend, auth, and sync — punt to v2.
 
 ---
+
 
 ## V2 Roadmap (separate branch / target — TODO: have Opus draft a full plan)
 
@@ -690,9 +816,9 @@ When the v1 single-file static-app phase is feature-complete (through item 21 ab
 ## Gotchas & Learnings
 
 ### Shell environment
-- This is WSL on Windows. **Heredocs (`<< 'EOF'`) do not work** in the terminal tool — causes "end of file unexpected" syntax error.
-- Workaround: Write Python (or JS) scripts to a file using `edit_file`, then run them with `python3 script.py`. Delete the temp file after.
-- Shell substitutions (`$VAR`, `$(...)`, backticks) are also blocked in the terminal tool. Resolve values before calling terminal, or chain with `&&`.
+- This project runs on **macOS**. Most shell features work normally.
+- Shell substitutions (`$VAR`, `$(...)`, backticks) are blocked in the terminal tool. Resolve values before calling terminal, or chain with `&&`.
+- Heredocs (`<< 'EOF'`) also do not work in the terminal tool. Workaround: Write scripts to a file using `edit_file`, then run with `node script.js` or `python3 script.py`. Delete the temp file after.
 
 ### Editor vs terminal-created files
 - Files created by shell commands (`sed`, `cat`, redirects) are **not immediately visible to the `edit_file` tool**. The tool returns "path not found" even though the file exists on disk.
