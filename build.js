@@ -320,6 +320,8 @@ async function build() {
           "indexDocEmbeddings",
           "getDocEmbeddings",
           "backupToServer",
+          "openCrossSearch",
+          "runCrossSearch",
         ],
       },
       format: {

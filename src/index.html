@@ -1775,15 +1775,25 @@
                 <div class="sidebar-divider"></div>
                 <div class="sidebar-section" style="flex-shrink: 0">
                     Chats
-                    <button
-                        class="sidebar-add"
-                        id="new-chat-btn"
-                        onclick="newChat()"
-                        title="Start a new chat session"
-                        style="font-size: 13px; font-weight: 700"
-                    >
-                        +
-                    </button>
+                    <div style="display: flex; gap: 4px; align-items: center">
+                        <button
+                            class="sidebar-add"
+                            title="Search all sessions across projects (Ctrl+Shift+K)"
+                            onclick="openCrossSearch()"
+                            style="font-size: 13px"
+                        >
+                            🔍
+                        </button>
+                        <button
+                            class="sidebar-add"
+                            id="new-chat-btn"
+                            onclick="newChat()"
+                            title="Start a new chat session"
+                            style="font-size: 13px; font-weight: 700"
+                        >
+                            +
+                        </button>
+                    </div>
                 </div>
                 <div style="padding: 4px 8px 2px">
                     <input
@@ -5156,6 +5166,45 @@ Or paste numbered / blank-line separated questions…"
                         Add Questions
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Cross-project session search modal -->
+        <div
+            id="modal-cross-search"
+            class="modal hidden"
+            style="max-width: 600px; width: 96%"
+        >
+            <div class="modal-title">🔎 Search All Sessions</div>
+            <div
+                style="
+                    font-size: 12px;
+                    color: var(--text-muted);
+                    margin: -4px 0 10px;
+                "
+            >
+                Search across every chat session in every project.
+            </div>
+            <input
+                type="text"
+                class="form-input"
+                id="cross-search-input"
+                placeholder="Type to search…"
+                oninput="runCrossSearch(this.value)"
+            />
+            <div
+                id="cross-search-results"
+                style="
+                    margin-top: 10px;
+                    max-height: 400px;
+                    overflow-y: auto;
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius);
+                    background: var(--surface2);
+                "
+            ></div>
+            <div class="modal-footer">
+                <button class="btn-ghost" onclick="closeModal()">Close</button>
             </div>
         </div>
 
