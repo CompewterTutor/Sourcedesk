@@ -140,6 +140,10 @@ function showView(v) {
     const rv = document.getElementById("research-view");
     if (rv) rv.style.display = v === "research" ? "flex" : "none";
   }
+  {
+    const gv = document.getElementById("guidelines-view");
+    if (gv) gv.style.display = v === "guidelines" ? "flex" : "none";
+  }
   if (v === "templates") renderTemplatesGrid();
   if (v === "notes") loadNotes();
   if (v === "working-doc") _fillWorkingDocEditor();
@@ -148,6 +152,7 @@ function showView(v) {
   if (v === "contacts") loadContacts();
   if (v === "research" && typeof loadResearchBoard === "function")
     loadResearchBoard();
+  if (v === "guidelines") loadGuidelines();
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
@@ -199,9 +204,11 @@ async function loadProject(id) {
     state.activeChatId = latest.id;
   }
 
-  // load docs for project — enable all by default
+  // load docs for project — enable all by default (exclude guideline docs from context)
   const docs = await dbGetByIndex("docs", "projectId", id);
-  docs.forEach((d) => state.activeDocs.add(d.id));
+  docs.forEach((d) => {
+    if (d.docType !== "guideline") state.activeDocs.add(d.id);
+  });
 
   document.getElementById("welcome-screen").classList.add("hidden");
   document.getElementById("chat-messages").classList.remove("hidden");
@@ -229,6 +236,9 @@ async function loadProject(id) {
 
   const researchBtn = document.getElementById("research-nav-btn");
   if (researchBtn) researchBtn.style.display = "";
+
+  const guidelinesBtn = document.getElementById("guidelines-nav-btn");
+  if (guidelinesBtn) guidelinesBtn.style.display = "";
 
   renderSidebar();
   renderMessages();
