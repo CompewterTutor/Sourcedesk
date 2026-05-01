@@ -153,6 +153,12 @@ function showView(v) {
   if (v === "research" && typeof loadResearchBoard === "function")
     loadResearchBoard();
   if (v === "guidelines") loadGuidelines();
+  {
+    const ev = document.getElementById("evaluation-view");
+    if (ev) ev.style.display = v === "evaluation" ? "flex" : "none";
+  }
+  if (v === "evaluation" && typeof loadEvaluation === "function")
+    loadEvaluation();
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
@@ -165,6 +171,7 @@ function renderSidebar() {
     "Vendor Q": "🏢",
     Contract: "📑",
     Research: "🔍",
+    Evaluation: "⚖",
     Other: "📁",
   };
   state.projects
@@ -239,6 +246,9 @@ async function loadProject(id) {
 
   const guidelinesBtn = document.getElementById("guidelines-nav-btn");
   if (guidelinesBtn) guidelinesBtn.style.display = "";
+
+  const evalBtn = document.getElementById("eval-nav-btn");
+  if (evalBtn) evalBtn.style.display = "";
 
   renderSidebar();
   renderMessages();

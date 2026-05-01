@@ -1897,6 +1897,21 @@
                     </button>
                 </div>
                 <div class="sidebar-divider"></div>
+                <div class="sidebar-section" style="flex-shrink: 0">
+                    Evaluation
+                    <button
+                        class="sidebar-add"
+                        id="eval-nav-btn"
+                        onclick="
+                            if (state.activeProject) showView('evaluation');
+                        "
+                        title="Proposal Evaluation"
+                        style="font-size: 14px; display: none"
+                    >
+                        &rarr;
+                    </button>
+                </div>
+                <div class="sidebar-divider"></div>
                 <div
                     style="
                         padding: 8px 12px;
@@ -3452,6 +3467,330 @@
                     </div>
                 </div>
 
+                <!-- Evaluation View -->
+                <div
+                    id="evaluation-view"
+                    style="
+                        display: none;
+                        flex: 1;
+                        flex-direction: column;
+                        overflow: hidden;
+                    "
+                >
+                    <div class="view-header">
+                        <div class="view-title">Proposal Evaluation</div>
+                        <button class="btn-icon" onclick="showView('chat')">
+                            &#x2190; Back
+                        </button>
+                        <button
+                            class="btn-secondary"
+                            id="eval-tab-criteria"
+                            onclick="switchEvalTab('criteria')"
+                            style="font-size: 12px"
+                        >
+                            Criteria
+                        </button>
+                        <button
+                            class="btn-secondary"
+                            id="eval-tab-candidates"
+                            onclick="switchEvalTab('candidates')"
+                            style="font-size: 12px"
+                        >
+                            Candidates
+                        </button>
+                        <button
+                            class="btn-secondary"
+                            id="eval-tab-scorecard"
+                            onclick="switchEvalTab('scorecard')"
+                            style="font-size: 12px"
+                        >
+                            Scorecard
+                        </button>
+                        <button
+                            class="btn-ghost"
+                            onclick="exportScorecardMarkdown()"
+                            style="font-size: 12px"
+                            title="Export scorecard as Markdown"
+                        >
+                            &#x2B07; Export
+                        </button>
+                    </div>
+
+                    <!-- CRITERIA TAB -->
+                    <div
+                        id="eval-criteria-panel"
+                        style="display: flex; flex: 1; overflow: hidden"
+                    >
+                        <div
+                            style="
+                                width: 280px;
+                                min-width: 200px;
+                                border-right: 1px solid var(--border);
+                                display: flex;
+                                flex-direction: column;
+                                overflow: hidden;
+                                flex-shrink: 0;
+                            "
+                        >
+                            <div
+                                style="
+                                    padding: 8px;
+                                    border-bottom: 1px solid var(--border);
+                                "
+                            >
+                                <button
+                                    class="btn-primary"
+                                    style="width: 100%"
+                                    onclick="openNewCriterion()"
+                                >
+                                    + Add Criterion
+                                </button>
+                            </div>
+                            <div
+                                id="eval-criteria-list"
+                                style="overflow-y: auto; flex: 1"
+                            ></div>
+                        </div>
+                        <div
+                            style="
+                                flex: 1;
+                                display: flex;
+                                flex-direction: column;
+                                padding: 20px;
+                                gap: 14px;
+                                overflow-y: auto;
+                            "
+                        >
+                            <div
+                                id="eval-criterion-placeholder"
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    flex: 1;
+                                    color: var(--text-muted);
+                                    font-size: 13px;
+                                "
+                            >
+                                Select or add a criterion
+                            </div>
+                            <div
+                                id="eval-criterion-form"
+                                style="
+                                    display: none;
+                                    flex-direction: column;
+                                    gap: 14px;
+                                "
+                            >
+                                <div class="form-row">
+                                    <label class="form-label">Name</label
+                                    ><input
+                                        id="eval-crit-name"
+                                        class="form-input"
+                                        placeholder="e.g. Technical Capability"
+                                    />
+                                </div>
+                                <div
+                                    class="form-row"
+                                    style="display: flex; gap: 12px"
+                                >
+                                    <div style="flex: 1">
+                                        <label class="form-label"
+                                            >Weight (%)</label
+                                        ><input
+                                            id="eval-crit-weight"
+                                            class="form-input"
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            value="20"
+                                        />
+                                    </div>
+                                    <div style="flex: 1">
+                                        <label class="form-label"
+                                            >Max Score</label
+                                        ><input
+                                            id="eval-crit-maxscore"
+                                            class="form-input"
+                                            type="number"
+                                            min="1"
+                                            value="10"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <label class="form-label">Description</label
+                                    ><textarea
+                                        id="eval-crit-desc"
+                                        class="form-textarea"
+                                        rows="3"
+                                        placeholder="What to look for…"
+                                    ></textarea>
+                                </div>
+                                <div style="display: flex; gap: 8px">
+                                    <button
+                                        class="btn-primary"
+                                        onclick="saveCurrentCriterion()"
+                                    >
+                                        Save Criterion
+                                    </button>
+                                    <button
+                                        class="btn-ghost"
+                                        id="eval-crit-delete-btn"
+                                        onclick="_evalDeleteCriterion()"
+                                        style="display: none"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CANDIDATES TAB -->
+                    <div
+                        id="eval-candidates-panel"
+                        style="display: none; flex: 1; overflow: hidden"
+                    >
+                        <div
+                            style="
+                                width: 280px;
+                                min-width: 200px;
+                                border-right: 1px solid var(--border);
+                                display: flex;
+                                flex-direction: column;
+                                overflow: hidden;
+                                flex-shrink: 0;
+                            "
+                        >
+                            <div
+                                style="
+                                    padding: 8px;
+                                    border-bottom: 1px solid var(--border);
+                                "
+                            >
+                                <button
+                                    class="btn-primary"
+                                    style="width: 100%"
+                                    onclick="openNewCandidate()"
+                                >
+                                    + Add Candidate
+                                </button>
+                            </div>
+                            <div
+                                id="eval-candidates-list"
+                                style="overflow-y: auto; flex: 1"
+                            ></div>
+                        </div>
+                        <div
+                            style="
+                                flex: 1;
+                                display: flex;
+                                flex-direction: column;
+                                padding: 20px;
+                                gap: 14px;
+                                overflow-y: auto;
+                            "
+                        >
+                            <div
+                                id="eval-candidate-placeholder"
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    flex: 1;
+                                    color: var(--text-muted);
+                                    font-size: 13px;
+                                "
+                            >
+                                Select or add a candidate proposal
+                            </div>
+                            <div
+                                id="eval-candidate-form"
+                                style="
+                                    display: none;
+                                    flex-direction: column;
+                                    gap: 14px;
+                                "
+                            >
+                                <div class="form-row">
+                                    <label class="form-label"
+                                        >Candidate Name</label
+                                    ><input
+                                        id="eval-cand-name"
+                                        class="form-input"
+                                        placeholder="e.g. Vendor A &#x2014; Acme Corp"
+                                    />
+                                </div>
+                                <div class="form-row">
+                                    <label class="form-label">Notes</label
+                                    ><textarea
+                                        id="eval-cand-notes"
+                                        class="form-textarea"
+                                        rows="2"
+                                        placeholder="Optional notes…"
+                                    ></textarea>
+                                </div>
+                                <div class="form-row">
+                                    <label class="form-label"
+                                        >Source Documents
+                                        <span
+                                            style="
+                                                color: var(--text-muted);
+                                                font-size: 10px;
+                                            "
+                                            >&#x2014; check project docs to
+                                            include in AI evaluation</span
+                                        ></label
+                                    >
+                                    <div
+                                        id="eval-cand-docs"
+                                        style="
+                                            display: flex;
+                                            flex-direction: column;
+                                            gap: 4px;
+                                            max-height: 180px;
+                                            overflow-y: auto;
+                                        "
+                                    ></div>
+                                </div>
+                                <div style="display: flex; gap: 8px">
+                                    <button
+                                        class="btn-primary"
+                                        onclick="saveCurrentCandidate()"
+                                    >
+                                        Save Candidate
+                                    </button>
+                                    <button
+                                        class="btn-ghost"
+                                        id="eval-cand-delete-btn"
+                                        onclick="_evalDeleteCandidate()"
+                                        style="display: none"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SCORECARD TAB -->
+                    <div
+                        id="eval-scorecard-panel"
+                        style="
+                            display: none;
+                            flex: 1;
+                            overflow: hidden;
+                            flex-direction: column;
+                        "
+                    >
+                        <div
+                            id="eval-scorecard-area"
+                            style="flex: 1; overflow: auto; padding: 16px"
+                        ></div>
+                    </div>
+                </div>
+
                 <!-- Research: Brave Search modal -->
                 <div id="modal-research-search" class="modal hidden">
                     <div class="modal-title">🔍 Brave Search</div>
@@ -3914,6 +4253,13 @@
                         </div>
                         <div
                             class="type-pill"
+                            data-val="Evaluation"
+                            onclick="selectPill(this, 'tmpl-category-pills')"
+                        >
+                            ⚖ Evaluation
+                        </div>
+                        <div
+                            class="type-pill"
                             data-val="Other"
                             onclick="selectPill(this, 'tmpl-category-pills')"
                         >
@@ -4063,6 +4409,13 @@
                             onclick="selectPill(this, 'proj-category-pills')"
                         >
                             Research
+                        </div>
+                        <div
+                            class="type-pill"
+                            data-val="Evaluation"
+                            onclick="selectPill(this, 'proj-category-pills')"
+                        >
+                            ⚖ Evaluation
                         </div>
                         <div
                             class="type-pill"
