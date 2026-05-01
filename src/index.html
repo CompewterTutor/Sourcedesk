@@ -2208,6 +2208,13 @@
                             align-items: center;
                         "
                     >
+                        <input
+                            type="file"
+                            id="bidnet-import-file"
+                            accept=".html,.htm"
+                            style="display: none"
+                            onchange="handleBidNetImportFile(event)"
+                        />
                         <button
                             class="btn-primary"
                             onclick="openAddQuestionsModal()"
@@ -2216,9 +2223,31 @@
                         </button>
                         <button
                             class="btn-secondary"
+                            onclick="openBidNetImportModal()"
+                            title="Import questions from a saved BidNet Q&A HTML page"
+                        >
+                            📥 BidNet HTML
+                        </button>
+                        <button
+                            class="btn-secondary"
+                            id="sq-batch-btn"
+                            onclick="generateBatch()"
+                            title="Generate AI answers for the next 10 unanswered questions"
+                        >
+                            ⚡ Batch (10)
+                        </button>
+                        <button
+                            class="btn-secondary"
                             onclick="generateSelectedAnswers()"
                         >
                             ⚡ Generate Selected
+                        </button>
+                        <button
+                            class="btn-secondary"
+                            onclick="exportSQSummary()"
+                            title="Export a full summary report with stats, @TODO list, and full Q&A table"
+                        >
+                            📊 Summary
                         </button>
                         <button
                             class="btn-secondary"
@@ -2333,6 +2362,148 @@
                                     overflow: hidden;
                                 "
                             >
+                                <!-- Meta info: questionNo, topic, vendor, contact -->
+                                <div
+                                    id="sq-meta"
+                                    style="
+                                        display: none;
+                                        flex-direction: column;
+                                        gap: 6px;
+                                        flex-shrink: 0;
+                                        background: var(--surface2);
+                                        border-radius: var(--radius);
+                                        padding: 8px 12px;
+                                    "
+                                >
+                                    <div
+                                        style="
+                                            display: flex;
+                                            gap: 12px;
+                                            flex-wrap: wrap;
+                                            align-items: center;
+                                        "
+                                    >
+                                        <span
+                                            id="sq-meta-qno"
+                                            style="
+                                                font-family: var(--font-mono);
+                                                font-size: 11px;
+                                                color: var(--text-muted);
+                                            "
+                                        ></span>
+                                        <span
+                                            id="sq-meta-topic"
+                                            style="
+                                                font-size: 11px;
+                                                color: var(--accent);
+                                                font-weight: 600;
+                                            "
+                                        ></span>
+                                        <span
+                                            id="sq-meta-vendor"
+                                            style="
+                                                font-size: 11px;
+                                                color: var(--text-dim);
+                                            "
+                                        ></span>
+                                        <span
+                                            id="sq-meta-contact"
+                                            style="
+                                                font-size: 11px;
+                                                color: var(--text-dim);
+                                            "
+                                        ></span>
+                                    </div>
+                                </div>
+                                <!-- Status & Confidence pills -->
+                                <div
+                                    style="
+                                        display: flex;
+                                        gap: 6px;
+                                        flex-wrap: wrap;
+                                        align-items: center;
+                                        flex-shrink: 0;
+                                    "
+                                >
+                                    <span
+                                        style="
+                                            font-size: 11px;
+                                            color: var(--text-muted);
+                                            font-family: var(--font-mono);
+                                        "
+                                        >Status:</span
+                                    >
+                                    <div
+                                        class="type-pill"
+                                        id="sq-status-unanswered"
+                                        onclick="setSQStatus('unanswered')"
+                                    >
+                                        ○ Open
+                                    </div>
+                                    <div
+                                        class="type-pill"
+                                        id="sq-status-answered"
+                                        onclick="setSQStatus('answered')"
+                                    >
+                                        ✅ Answered
+                                    </div>
+                                    <div
+                                        class="type-pill"
+                                        id="sq-status-needs-review"
+                                        onclick="setSQStatus('needs-review')"
+                                    >
+                                        ⚠ Review
+                                    </div>
+                                    <div
+                                        class="type-pill"
+                                        id="sq-status-todo"
+                                        onclick="setSQStatus('todo')"
+                                    >
+                                        🔲 @TODO
+                                    </div>
+                                    <div
+                                        id="sq-confidence-group"
+                                        style="
+                                            display: none;
+                                            gap: 4px;
+                                            align-items: center;
+                                            margin-left: 8px;
+                                        "
+                                    >
+                                        <span
+                                            style="
+                                                font-size: 11px;
+                                                color: var(--text-muted);
+                                                font-family: var(--font-mono);
+                                            "
+                                            >Conf:</span
+                                        >
+                                        <div
+                                            class="type-pill"
+                                            id="sq-conf-high"
+                                            onclick="setSQConfidence('high')"
+                                            style="padding: 3px 8px"
+                                        >
+                                            High
+                                        </div>
+                                        <div
+                                            class="type-pill"
+                                            id="sq-conf-medium"
+                                            onclick="setSQConfidence('medium')"
+                                            style="padding: 3px 8px"
+                                        >
+                                            Med
+                                        </div>
+                                        <div
+                                            class="type-pill"
+                                            id="sq-conf-low"
+                                            onclick="setSQConfidence('low')"
+                                            style="padding: 3px 8px"
+                                        >
+                                            Low
+                                        </div>
+                                    </div>
+                                </div>
                                 <!-- Question -->
                                 <div
                                     style="
@@ -4448,6 +4619,103 @@
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="closeModal()">
                         Close
+                    </button>
+                </div>
+            </div>
+
+            <!-- BidNet Import Preview Modal -->
+            <div
+                id="modal-bidnet-import"
+                class="modal hidden"
+                style="max-width: 780px; width: 95vw"
+            >
+                <div class="modal-title">Import BidNet Q&A Questions</div>
+                <div
+                    id="bidnet-import-count"
+                    style="
+                        font-size: 13px;
+                        color: var(--text-dim);
+                        margin-bottom: 12px;
+                    "
+                ></div>
+                <div
+                    style="
+                        overflow-x: auto;
+                        max-height: 340px;
+                        overflow-y: auto;
+                        border: 1px solid var(--border);
+                        border-radius: var(--radius);
+                    "
+                >
+                    <table
+                        style="
+                            width: 100%;
+                            border-collapse: collapse;
+                            font-size: 12px;
+                        "
+                    >
+                        <thead>
+                            <tr
+                                style="
+                                    background: var(--surface2);
+                                    position: sticky;
+                                    top: 0;
+                                "
+                            >
+                                <th
+                                    style="
+                                        padding: 6px 8px;
+                                        text-align: left;
+                                        font-family: var(--font-mono);
+                                        font-size: 11px;
+                                        color: var(--text-muted);
+                                        white-space: nowrap;
+                                    "
+                                >
+                                    Q#
+                                </th>
+                                <th
+                                    style="
+                                        padding: 6px 8px;
+                                        text-align: left;
+                                        color: var(--text-muted);
+                                    "
+                                >
+                                    Vendor
+                                </th>
+                                <th
+                                    style="
+                                        padding: 6px 8px;
+                                        text-align: left;
+                                        color: var(--accent);
+                                    "
+                                >
+                                    Topic
+                                </th>
+                                <th
+                                    style="
+                                        padding: 6px 8px;
+                                        text-align: left;
+                                        color: var(--text-dim);
+                                    "
+                                >
+                                    Question (preview)
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="bidnet-preview-table"></tbody>
+                    </table>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeModal()">
+                        Cancel
+                    </button>
+                    <button
+                        class="btn-primary"
+                        id="bidnet-import-btn"
+                        onclick="executeBidNetImport()"
+                    >
+                        Import
                     </button>
                 </div>
             </div>

@@ -378,35 +378,24 @@ When adding a new object store or index:
 
 ## Current State (as of last commit)
 
-**Current version: v0.8.0** — build output: `SourceDesk.html` (230.6 KB, 95.1 KB JS)
+**Current version: v0.8.0** — build output: `SourceDesk.html` (383.9 KB, 189.6 KB JS)
 
-> **Session note (manual-testing-notes pass, session ending without build):**
-> The following fixes are complete in `src/` but `SourceDesk.html` has NOT been rebuilt yet.
-> Run `npm run build` (or `npm run dev`) before testing.
+> **Session note (2025-07-19):**
+> The following features are complete in `src/` and rebuilt into `SourceDesk.html`.
 >
-> 1. **Stop streaming button** (`src/chat.js`, `src/index.html`, `build.js`)
->    - `AbortController` wired into the `fetch()` call via `signal`
->    - Red **■ Stop** button replaces Send during generation (`_setStreamingUI(streaming)`)
->    - On abort: partial text already received is saved to session with `_(stopped)_` marker
->    - `stopStreaming` added to Terser `mangle.reserved` list in `build.js`
+> 1. **Enhanced Supplier Questions** (`src/supplierQuestions.js`, `src/index.html`, `build.js`)
+>    - BidNet HTML import via `parseBidNetHtml()` (in-browser DOMParser, adapted from Python/JS toolkit)
+>    - Question status (unanswered / answered / needs-review / @todo) with pill UI
+>    - AI confidence (HIGH/MEDIUM/LOW) parsed from model response marker, auto-sets status
+>    - Batch generation (⚡ Batch button, 10 at a time with progress counter)
+>    - Summary export (📊 Summary, generates full Markdown report with stats + vendor breakdown)
+>    - Enhanced list: counts breakdown, vendor sub-text, questionNo prefix
+>    - Question metadata panel: questionNo, topic, vendor, contactName
 >
-> 2. **Context sidebar doc card layout** (`src/panel.js`, `src/index.html`)
->    - `.context-doc` changed from single flex row to two-row column layout
->    - Row 1: checkbox + doc name (truncated with ellipsis, `min-width:0`)
->    - Row 2: Extract / →Tmpl / ✕ buttons (indented, more breathing room)
->    - `title` attribute on card element shows full filename as tooltip
+> 2. **RTE link button** (`src/editor.js`)
+>    - 🔗 button in toolbar; works in both raw (inserts `[text](url)`) and rendered mode (`createLink`)
 >
-> 3. **Sheets/CSV import+export store name bug** (`src/drive.js`)
->    - All 4 functions were using wrong store `"questions"` — fixed to `"supplierQuestions"`
->    - Field names fixed: `question` → `text`, `answer` → `draftAnswer` (matching actual schema)
->    - Import functions now also add `createdAt` field
->    - Sheets import now scans first 5 rows for the header row (handles title rows above header)
->    - Accepts both `"question"` and `"questions"` as column name
->
-> 4. **RTE toggle button label** (`src/editor.js`)
->    - Button now shows the **current mode** (so user knows where they are)
->    - Raw mode → `"👁 Preview"` (click to preview); Rendered mode → `"✏ Raw"` (click to go back)
->    - Added descriptive `title` tooltip on each state
+> Previous session fixes (stop button, doc card layout, Sheets store bug, RTE toggle label) are all built and working.
 
 
 ### Committed & working ✅

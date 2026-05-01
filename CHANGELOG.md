@@ -9,6 +9,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Enhanced Supplier Questions view** — major upgrade adapting the BidNet Q&A toolkit workflow into the web UI:
+  - **BidNet HTML import** — `📥 BidNet HTML` toolbar button opens a file picker for saved BidNet Q&A HTML pages; in-browser `parseBidNetHtml()` (adapted from `scripts/extract_qna_consolidated.py` + `bidnet_export.js`) uses `DOMParser` to extract `questionNo`, `vendor`, `contactName`, `topic`, and `text` from `.questionAnswerTitle` / `#questionContainer_*` / `.vendorName` / `.questionNo` elements; preview modal shows first 20 rows (Q# | Vendor | Topic | Question) with item count; `executeBidNetImport()` writes all items to IndexedDB with `status: 'unanswered'` and preserved insertion order
+  - **Question status** — four statuses: `unanswered` (○), `answered` (✅), `needs-review` (⚠), `todo` (🔲); pill row in the detail panel; `setSQStatus()` persists to DB; backward-compatible via `_sqEffectiveStatus()` which derives status from `draftAnswer` for legacy records
+  - **AI confidence** — system prompt instructs the model to append `[CONFIDENCE: HIGH/MEDIUM/LOW]` marker; `generateAnswerForQuestion()` parses and strips the marker, auto-sets status (`HIGH → answered`, `MEDIUM → needs-review`, `LOW → todo`), saves `confidence` field to DB; confidence pill row shown only for answered/needs-review questions; `setSQConfidence()` allows manual override
+  - **Question metadata** — `sq-meta` panel shows questionNo, topic (accent colour), vendor (with 🏢 icon), and contactName (with 👤 icon) when available; hidden when all fields are empty; populated from BidNet import or manually set
+  - **Batch generation** — `⚡ Batch (10)` button finds the next 10 unanswered questions and generates answers sequentially with live progress counter (`Generating N/10…`) in the button; completion alert shows how many remain
+  - **Summary export** — `📊 Summary` button generates a structured Markdown report: statistics table, vendor breakdown, @TODO items table, needs-review section, and full Q&A table with status/confidence; saved as `qa-summary-<project>-<timestamp>.md`
+  - **Enhanced list** — count row shows `N total · N open · N ⚠ · N @todo` breakdown; list items show vendor name as sub-text and questionNo prefix in monospace; status icon coloured (green ✅ / amber ⚠ / muted ○🔲)
+  - **Auto-promote on manual save** — `saveCurrentSQAnswer()` auto-sets `status: 'answered'` when text is typed into a previously unanswered question
+  - **Enhanced export** — `exportSelectedQuestions()` / `exportAllQuestions()` now include topic, vendor, and `[Confidence: HIGH]` annotation in the Markdown output
+- **RTE link button** — `🔗` button added to the rich-text editor toolbar (between `</>` code and the separator before lists); works in **both** raw and rendered modes — raw mode wraps the selected text as `[text](url)` in the textarea; rendered mode uses `execCommand('createLink', url)`; `markdownToHtml()` already converted `[text](url)` to `<a href=...>` so round-trip is fully supported
+
+### Changed
+- `supplierQuestions` records now support new optional fields: `status`, `confidence`, `vendor`, `contactName`, `topic`, `questionNo` — existing records without these fields are handled defensively (no DB migration needed, no DB version bump)
+
+### Build
+- `build.js`: adds `parseBidNetHtml`, `openBidNetImportModal`, `handleBidNetImportFile`, `executeBidNetImport`, `generateBatch`, `setSQStatus`, `setSQConfidence`, `exportSQSummary`, `_sqEffectiveStatus` to `mangle.reserved`
+- Production build: ~383.9 KB total / ~189.6 KB JS
+
+---
+
 ## [Unreleased] 🗄️
 
 ### Added
