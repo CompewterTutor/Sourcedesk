@@ -33,8 +33,13 @@ async function renderRightPanel() {
     tmplEl.innerHTML = `<div style="font-size:11px;color:var(--text-muted)">No template — <span style="color:var(--accent);cursor:pointer" onclick="promptAttachTemplate()">attach one</span></div>`;
   }
 
-  // Project docs
-  const docs = await dbGetByIndex("docs", "projectId", state.activeProject.id);
+  // Project docs — exclude guideline docs (managed separately in Guidelines view)
+  const allDocs = await dbGetByIndex(
+    "docs",
+    "projectId",
+    state.activeProject.id,
+  );
+  const docs = allDocs.filter((d) => d.docType !== "guideline");
   const docsEl = document.getElementById("ctx-project-docs");
   docsEl.innerHTML = "";
   if (!docs.length) {
