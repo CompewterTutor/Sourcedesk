@@ -258,6 +258,10 @@ async function build() {
           "filterTaskList",
           "toggleTaskStatus",
           "toggleTaskInContext",
+          "toggleTaskCalendar",
+          "_calNav",
+          "_calToday",
+          "_calSelectDay",
           "loadContacts",
           "renderContactList",
           "selectContact",
@@ -304,6 +308,7 @@ async function build() {
           "cosineSimilarity",
           "indexDocEmbeddings",
           "getDocEmbeddings",
+          "backupToServer",
         ],
       },
       format: {

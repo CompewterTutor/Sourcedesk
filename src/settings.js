@@ -550,3 +550,49 @@ async function exportDatabase() {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+async function backupToServer() {
+  const isServed = window.location.protocol !== "file:";
+  if (!isServed) {
+    alert(
+      "Backup to Server is only available when SourceDesk is served via node server.js.",
+    );
+    return;
+  }
+  const stores = [
+    "templates",
+    "projects",
+    "docs",
+    "chats",
+    "settings",
+    "notes",
+    "embeddings",
+    "contacts",
+    "suggestions",
+    "research",
+  ];
+  const data = {
+    version: DB_VERSION,
+    appVersion: APP_VERSION,
+    exportedAt: new Date().toISOString(),
+    stores: {},
+  };
+  for (const s of stores) data.stores[s] = await dbGetAll(s);
+  const json = JSON.stringify(data, null, 2);
+  try {
+    const resp = await fetch(window.location.origin + "/backup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: json,
+    });
+    if (!resp.ok) {
+      const msg = await resp.text();
+      alert("Backup failed: " + msg);
+      return;
+    }
+    const result = await resp.json();
+    alert("Backup saved to server: " + result.saved);
+  } catch (e) {
+    alert("Backup failed: " + (e.message || e));
+  }
+}

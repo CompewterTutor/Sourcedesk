@@ -73,6 +73,12 @@ async function boot() {
       state.settings.model = _senv.localLlmDefaultModel;
     }
 
+    // Show server backup button only when running via the local server
+    if (window.location.protocol !== "file:") {
+      const sbBtn = document.getElementById("server-backup-btn");
+      if (sbBtn) sbBtn.style.display = "";
+    }
+
     // Set version string in topbar
     const vEl = document.getElementById("app-version");
     if (vEl) vEl.textContent = `v${APP_VERSION}`;

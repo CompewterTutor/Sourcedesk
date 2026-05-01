@@ -1,3 +1,17 @@
+// ─── EMBEDDING PROGRESS TOAST ────────────────────────────────────────────────
+function _showEmbedToast(msg) {
+  const el = document.getElementById("embed-progress-toast");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+function _hideEmbedToast() {
+  const el = document.getElementById("embed-progress-toast");
+  if (!el) return;
+  el.style.display = "none";
+}
+
 // ─── RIGHT PANEL ──────────────────────────────────────────────────────────────
 async function renderRightPanel() {
   if (!state.activeProject) return;
@@ -151,7 +165,19 @@ async function handleDocUpload(event) {
     // Index embeddings if embedding model is configured
     if (state.settings.embeddingModel && state.settings.localLlmUrl) {
       const chunks = chunkText(text, 400, 60);
-      indexDocEmbeddings(doc.id, chunks).catch(() => {});
+      const docName = doc.name;
+      indexDocEmbeddings(doc.id, chunks, function (done, total) {
+        _showEmbedToast(
+          'Indexing "' + docName + '": ' + done + "/" + total + " chunks\u2026",
+        );
+      })
+        .then(function () {
+          _showEmbedToast('\u2713 Indexed "' + docName + '"');
+          setTimeout(_hideEmbedToast, 3000);
+        })
+        .catch(function () {
+          _hideEmbedToast();
+        });
     }
   }
   event.target.value = "";

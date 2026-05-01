@@ -2716,6 +2716,19 @@
                                     >
                                         ⬇ CSV
                                     </button>
+                                    <button
+                                        class="btn-icon"
+                                        id="task-cal-toggle-btn"
+                                        onclick="toggleTaskCalendar()"
+                                        title="Toggle calendar view"
+                                        style="
+                                            font-size: 16px;
+                                            padding: 4px 8px;
+                                            opacity: 0.5;
+                                        "
+                                    >
+                                        📅
+                                    </button>
                                 </div>
                                 <input
                                     id="task-filter"
@@ -2724,6 +2737,17 @@
                                     oninput="filterTaskList(this.value)"
                                 />
                             </div>
+                            <div
+                                id="task-calendar"
+                                style="
+                                    display: none;
+                                    border-bottom: 1px solid var(--border);
+                                    padding: 8px;
+                                    overflow-y: auto;
+                                    max-height: 260px;
+                                    flex-shrink: 0;
+                                "
+                            ></div>
                             <div
                                 id="task-list"
                                 style="overflow-y: auto; flex: 1"
@@ -4353,6 +4377,15 @@
                         style="display: none"
                         onchange="importDatabase(this.files[0])"
                     />
+                    <button
+                        class="btn-secondary"
+                        id="server-backup-btn"
+                        onclick="backupToServer()"
+                        title="Save a backup JSON to the server filesystem (only works when served via node server.js)"
+                        style="display: none"
+                    >
+                        💾 Backup to Server
+                    </button>
                     <button class="btn-secondary" onclick="closeModal()">
                         Cancel
                     </button>
@@ -4809,6 +4842,28 @@ Or paste numbered / blank-line separated questions…"
                 </div>
             </div>
         </div>
+
+        <!-- Embedding progress toast -->
+        <div
+            id="embed-progress-toast"
+            style="
+                display: none;
+                position: fixed;
+                bottom: 24px;
+                right: 24px;
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 8px 14px;
+                font-size: 12px;
+                color: var(--text-dim);
+                z-index: 9000;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+                pointer-events: none;
+                max-width: 300px;
+                word-break: break-word;
+            "
+        ></div>
 
         <!-- BUILD:JS -->
     </body>

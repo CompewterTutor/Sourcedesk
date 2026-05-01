@@ -219,6 +219,40 @@ function handler(req, res) {
     return;
   }
 
+  // ─── Database backup ────────────────────────────────────────────────────
+  if (url === "/backup" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", () => {
+      try {
+        const backupsDir = path.join(__dirname, "backups");
+        fs.mkdirSync(backupsDir, { recursive: true });
+        const now = new Date()
+          .toISOString()
+          .replace(/:/g, "-")
+          .replace(/\..+$/, "");
+        const filename = `sourcedesk-backup-${now}.json`;
+        const fullPath = path.join(backupsDir, filename);
+        fs.writeFileSync(fullPath, body, "utf8");
+        console.log("  Backup saved:", fullPath);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ saved: filename, path: fullPath }));
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.end("Backup failed: " + e.message);
+      }
+    });
+    req.on("error", () => {
+      try {
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.end("Request error");
+      } catch (_) {}
+    });
+    return;
+  }
+
   // ─── Main app ──────────────────────────────────────────────────────────
   if (url === "/" || url === "/SourceDesk.html" || url === "/index.html") {
     let html;
@@ -248,7 +282,7 @@ function handler(req, res) {
 
   // Anything else → 404
   res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-  res.end(`Not found: ${url}\nAvailable endpoints: / /health /convert`);
+  res.end(`Not found: ${url}\nAvailable endpoints: / /health /convert /backup`);
 }
 
 // ─── Start ────────────────────────────────────────────────────────────────────
