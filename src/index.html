@@ -4060,6 +4060,65 @@
                 </div>
                 <div class="form-row">
                     <label class="form-label"
+                        >MarkItDown Server URL
+                        <span style="color: var(--text-muted); font-size: 10px"
+                            >— optional; URL of a running SourceDesk server with
+                            <code
+                                style="
+                                    font-family: var(--font-mono);
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                "
+                                >markitdown</code
+                            >
+                            installed. Enables high-quality .docx / .xlsx /
+                            .pptx / .pdf → Markdown conversion on document
+                            upload. Run
+                            <code
+                                style="
+                                    font-family: var(--font-mono);
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                "
+                                >pip install markitdown</code
+                            >
+                            then
+                            <code
+                                style="
+                                    font-family: var(--font-mono);
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                "
+                                >npm run serve</code
+                            >.</span
+                        ></label
+                    >
+                    <div style="display: flex; gap: 8px; align-items: center">
+                        <input
+                            class="form-input"
+                            id="settings-markitdown-url"
+                            type="text"
+                            placeholder="http://localhost:3000"
+                            style="flex: 1"
+                        />
+                        <button
+                            class="btn-secondary"
+                            onclick="testMarkitdownServer()"
+                        >
+                            Test
+                        </button>
+                    </div>
+                    <div
+                        id="markitdown-test-status"
+                        style="
+                            font-size: 11px;
+                            color: var(--text-muted);
+                            margin-top: 4px;
+                        "
+                    ></div>
+                </div>
+                <div class="form-row">
+                    <label class="form-label"
                         >Suggestion Webhook URL
                         <span style="color: var(--text-muted); font-size: 10px"
                             >— optional; if set, suggestions submitted via the

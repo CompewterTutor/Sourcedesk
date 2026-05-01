@@ -228,6 +228,7 @@ async function build() {
           "scheduleTemplateAutosave",
           "testBraveKey",
           "testCrawl4aiEndpoint",
+          "testMarkitdownServer",
           "openResearchSearch",
           "runResearchSearch",
           "addResearchFromBrave",
