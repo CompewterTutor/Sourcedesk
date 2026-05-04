@@ -67,6 +67,8 @@ Per-provider API keys stored separately in IndexedDB. Switch providers at any ti
 
 **Local LLM** — works with [Ollama](https://ollama.com) and [LM Studio](https://lmstudio.ai) via their OpenAI-compatible API. When running via `npm run serve`, all local LLM requests are automatically proxied through the SourceDesk server to bypass browser CORS restrictions (including the `Authorization` header limitation). LM Studio's newer `/api/v1` base URL is supported alongside the standard `/v1` — both work without any extra configuration. The API key field is optional (Ollama doesn't require one; LM Studio's auth can be toggled in its server settings).
 
+The topbar local-model selector (visible when provider = Local LLM) includes two utility buttons alongside the model dropdown: **⟳** re-detects available models, and **⏏ Unload** evicts the current model from VRAM. Unload tries the Ollama native API first (`POST /api/generate` with `keep_alive: 0`), then falls back to LM Studio's `POST /api/v1/models/unload` endpoint if Ollama is not the target server. This makes it easy to free VRAM before switching to a different model without leaving SourceDesk. Requires LM Studio 0.4.0+ for the LM Studio path.
+
 ### Notes
 Per-project note editor (sidebar → Notes →):
 - Create, edit, save, delete notes with title and body
