@@ -158,6 +158,36 @@ function runMarkitdown(file, cb) {
   });
 }
 
+// ─── Markdown post-processing ───────────────────────────────────────────────
+/**
+ * Clean up markitdown output to improve RAG quality:
+ *  1. Strip Word-generated TOC hyperlinks  — e.g. "[Section Name 6](#_Toc123456)"
+ *     These are navigation artifacts with dead anchors and page numbers that
+ *     add noise without useful content for retrieval.
+ *  2. Strip empty data-URI image placeholders — e.g. "![](data:image/jpeg;base64...)"
+ *     No alt text, no useful information.
+ *  3. Collapse 3+ consecutive blank lines to 2 (tidy up gaps left by removals).
+ */
+function _cleanMarkdown(markdown) {
+  const kept = [];
+  for (const line of markdown.split("\n")) {
+    const t = line.trim();
+    // Drop Word TOC hyperlink lines: [Any text with trailing page number](#_TocNNNNN)
+    if (/^\[.+\]\(#_Toc\d+\)$/.test(t)) continue;
+    // Drop lines that are *only* an empty data-URI image (whole-line case)
+    if (/^!\[\]\(data:[^)]+\)$/.test(t)) continue;
+    kept.push(line);
+  }
+  return (
+    kept
+      .join("\n")
+      // Also strip inline data-URI image placeholders that appear mid-line
+      .replace(/!\[\]\(data:[^)]+\)/g, "")
+      // Collapse 3+ consecutive blank lines to 2
+      .replace(/\n{3,}/g, "\n\n")
+  );
+}
+
 // ─── CORS headers ────────────────────────────────────────────────────────────
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -272,7 +302,7 @@ function handler(req, res) {
           return;
         }
         res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-        res.end(markdown);
+        res.end(_cleanMarkdown(markdown));
       });
     });
     req.on("error", () => {
