@@ -33,6 +33,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - The upload status auto-hides after **12 seconds** for errors/warnings vs 4 seconds for success, giving users time to read actionable messages.
   - The server startup log now correctly distinguishes between markitdown-not-found, markitdown-installed-but-no-docx-support, and fully-functional.
 
+- **Word TOC links and embedded image placeholders polluting converted Markdown** (`server.js`) — markitdown faithfully reproduces a Word document's Table of Contents as Markdown hyperlinks (`[Section Name 6](#_Toc224551634)`) and embedded images as data-URI placeholders (`![](data:image/jpeg;base64...)`). For a 40-page manual this produced ~133 lines / 4 KB of TOC noise at the top of the document before any real content, significantly hurting BM25 retrieval quality. Fixed by `_cleanMarkdown(markdown)` in `server.js`, called on every `/convert` response before it is returned to the browser:
+  - Line filter drops any line whose trimmed content matches `[text](#_TocNNNNN)` (TOC anchor links).
+  - Line filter drops any line that is *only* a data-URI image placeholder.
+  - Global string replace strips inline data-URI image placeholders that appear mid-line (e.g. a logo prepended to the first paragraph).
+  - Collapses 3+ consecutive blank lines to 2.
+  - Result on a real 40-page procurement manual: 733 → 600 lines, 49894 → 45834 chars.
+
 ### Build
 - `build.js`: adds `openDocEditor`, `saveDocContent`, `downloadDocOriginal`, `downloadDocMarkdown`, `reconvertDoc` to `mangle.reserved`
 - `server.js`: adds `POST /proxy` endpoint; requires `https` module; startup log now includes the proxy URL

@@ -480,6 +480,22 @@ When adding a new object store or index:
 >    - `handleGuidelineUpload` now uses the same three-stage pipeline, stores original, shows status
 >    - Guideline list items show conversion badge + ✎ Edit button (shared doc editor modal)
 
+> **Session note (2025-07-20 — markitdown quality fixes):** All features below committed and pushed to `main` (commits `491a73c`, `e0790ce`).
+>
+> 1. **`markitdown[all]` optional deps fix** (`server.js`, `src/panel.js`, `src/settings.js`)
+>    - Root cause: `markitdown` was installed without optional format extras (`mammoth` for docx, etc.), so `/health` returned `markitdownAvailable: true` but actual docx conversions failed with a Python traceback.
+>    - `pip install "markitdown[all]"` installs all optional converters. **Required on the server machine.**
+>    - `_testDocxConversion()` in `server.js` — writes a tiny embedded test `.docx` and runs markitdown on it; `checkMarkitdown()` now runs this as step 2 after `--help`.
+>    - `/health` now returns `{ markitdownAvailable, docxAvailable }` (two distinct booleans).
+>    - Settings Test button shows three states: ✓ fully ready / ⚠ installed but missing deps / ✗ not found.
+>    - `/convert` error messages truncated to first 400 chars (strips full Python tracebacks).
+>    - Binary-only fallback (`docx`/`xlsx`/`pptx`/`pdf`) now saves a human-readable placeholder + `conversionMethod: 'failed'` instead of binary garbage; doc card shows `⚠ Failed` badge in red.
+>    - Upload error status auto-hides after 12 s (vs 4 s for success).
+>
+> 2. **Word TOC link / image placeholder cleanup** (`server.js`)
+>    - `_cleanMarkdown(markdown)` post-processes every `/convert` response: strips `[text](#_TocNNNNN)` TOC anchor lines, strips `![](data:image/...;base64...)` placeholders (whole-line and inline), collapses 3+ blank lines to 2.
+>    - On a 40-page procurement manual: 733 → 600 lines, ~4 KB of pure TOC noise removed before any real content.
+
 > All features below are complete in `src/` and rebuilt into `SourceDesk.html`. Committed and pushed to `main`.
 >
 > 1. **MarkItDown server integration** (`server.js`, `src/panel.js`, `src/settings.js`)
@@ -668,11 +684,14 @@ When adding a new object store or index:
 - Included in `exportDatabase` / `importDatabase` / `clearAllData` / `backupToDrive` store arrays
 
 #### MarkItDown Server Integration
-- `server.js` exposes `GET /health` → `{markitdownAvailable: bool}` and `POST /convert` → Markdown text
+- `server.js` exposes `GET /health` → `{markitdownAvailable: bool, docxAvailable: bool}` and `POST /convert` → cleaned Markdown text
+- `/health` runs two checks: (1) `markitdown --help` confirms the CLI is on PATH; (2) `_testDocxConversion()` writes a tiny embedded test `.docx` to a temp file and runs markitdown on it — `docxAvailable` is only `true` if the output contains the known test string. This catches the common case of `markitdown` installed without optional format dependencies.
+- `_cleanMarkdown(markdown)` post-processes every `/convert` response before it is returned: strips Word TOC hyperlinks (`[text](#_TocNNNNN)` lines), strips data-URI image placeholders (whole-line and inline), collapses 3+ blank lines to 2.
 - `state.settings.markitdownUrl` — configurable; default injected by `server.js` via `window.__SOURCEDESK_ENV__`
 - Upload flow order: markitdown server → Google Drive conversion (opt-in) → fallback text extraction
-- `testMarkitdownServer()` — Settings test button
-- **Requirement**: `pip install markitdown` on the server machine; `npm run serve` (or `node server.js`) to enable
+- For binary-only types (`.docx`, `.xlsx`, `.pptx`, `.pdf`) when markitdown fails and no Drive token is present, a human-readable placeholder is saved instead of garbage binary text; `conversionMethod` is set to `'failed'`; doc card badge shows `⚠ Failed` in red; the ⟳ re-convert button on the card retries after the issue is fixed.
+- `testMarkitdownServer()` — Settings test button; shows three states: ✓ fully ready / ⚠ installed but missing format deps / ✗ not found
+- **Requirement**: `pip install "markitdown[all]"` on the server machine (installs `mammoth` for docx, `openpyxl` for xlsx, `python-pptx` for pptx, `pdfminer-six` for pdf); `npm run serve` (or `node server.js`) to enable
 
 #### Embedding Indexing Progress Toast
 - `indexDocEmbeddings(docId, chunks, onProgress)` — optional `(done, total)` callback
