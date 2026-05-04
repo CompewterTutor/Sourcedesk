@@ -286,31 +286,7 @@ async function unloadLocalModel() {
   const root = base.replace(/\/(api\/)?v\d+\/?$/i, "");
 
   try {
-    // 1. Try Ollama: POST /api/generate with keep_alive: 0
-    const ollamaRes = await _localFetch(root + "/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: model, keep_alive: 0 }),
-    });
-    if (ollamaRes.ok) {
-      _setUnloadStatus("\u2713 Unloaded (Ollama)", "var(--success)");
-      setTimeout(function () {
-        _setUnloadStatus("");
-      }, 4000);
-      return;
-    }
-    if (ollamaRes.status !== 404) {
-      // Ollama responded with a real error — surface it
-      _setUnloadStatus(
-        "\u26a0 Ollama HTTP " + ollamaRes.status,
-        "var(--accent)",
-      );
-      setTimeout(function () {
-        _setUnloadStatus("");
-      }, 4000);
-      return;
-    }
-    // Ollama returned 404 — this is probably LM Studio, try its API
+    // 1. Try LM Studio first: POST /api/v1/models/unload (deterministic endpoint, 0.4.0+)
     const lmsRes = await _localFetch(root + "/api/v1/models/unload", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -318,9 +294,33 @@ async function unloadLocalModel() {
     });
     if (lmsRes.ok) {
       _setUnloadStatus("\u2713 Unloaded (LM Studio)", "var(--success)");
-    } else {
+      setTimeout(function () {
+        _setUnloadStatus("");
+      }, 4000);
+      return;
+    }
+    if (lmsRes.status !== 404) {
+      // LM Studio responded with a real error (not "endpoint not found") — surface it
       _setUnloadStatus(
         "\u26a0 LM Studio HTTP " + lmsRes.status,
+        "var(--accent)",
+      );
+      setTimeout(function () {
+        _setUnloadStatus("");
+      }, 4000);
+      return;
+    }
+    // LM Studio returned 404 — endpoint not present; this is probably Ollama, use keep_alive trick
+    const ollamaRes = await _localFetch(root + "/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: model, keep_alive: 0 }),
+    });
+    if (ollamaRes.ok) {
+      _setUnloadStatus("\u2713 Unloaded (Ollama)", "var(--success)");
+    } else {
+      _setUnloadStatus(
+        "\u26a0 Ollama HTTP " + ollamaRes.status,
         "var(--accent)",
       );
     }

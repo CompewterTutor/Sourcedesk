@@ -490,15 +490,17 @@ When adding a new object store or index:
 >    - `handleGuidelineUpload` now uses the same three-stage pipeline, stores original, shows status
 >    - Guideline list items show conversion badge + ✎ Edit button (shared doc editor modal)
 
+> **Session note (2026-05-04 — Unload model probe order inversion):** Change committed and rebuilt into `SourceDesk.html`.
+>
+> 1. **`unloadLocalModel()` probe order inverted** (`src/settings.js`) — LM Studio's `/api/v1/models/unload` is now tried **first** (deterministic REST endpoint, 0.4.0+); only if it returns 404 does the function fall back to Ollama's `POST /api/generate keep_alive:0` side-effect workaround. Previously Ollama was tried first, causing an unnecessary failed round-trip on LM Studio setups. Status messages unchanged: "✓ Unloaded (LM Studio)" / "✓ Unloaded (Ollama)" / "⚠ HTTP N" / "✗ error".
+
 > **Session note (2025-07-20 — Guidelines global view + task/template tracking + unload model):** All features below committed to `main`.
 >
 > 1. **Guidelines global view** (`src/guidelines.js`) — `loadGuidelines()` and `_runAnalyze()` now use `dbGetAll("docs")` / `dbGetAll("guidelineAnalyses")` so ALL projects' guideline docs and analyses are visible in the Guidelines view regardless of which project is active. Each doc card and analysis chip shows a project-name badge. Uploads and analysis saves still target the active project.
 >
 > 2. **Create Task / Create Template — persistent tracking** (`src/guidelines.js`) — buttons now permanently show ✓ Created (green) after a successful creation, and an ↗ Open Task / ↗ Open Template jump button is appended so the user can navigate straight to the new record.
 >
-> 3. **⏏ Unload model button** (`src/settings.js`, `src/index.html`) — topbar + Settings modal; tries Ollama first (`POST /api/generate keep_alive:0`), falls back to LM Studio v1 (`POST /api/v1/models/unload {identifier}`) on 404; status shows which server responded.
->
-> 4. **⚠️ TODO next session** — invert the unload probe order in `unloadLocalModel()`: try LM Studio `/api/v1/models/unload` **first**, then Ollama `/api/generate keep_alive:0` as fallback. LM Studio's endpoint is deterministic; Ollama's is a side-effect call. Inverting avoids an unnecessary failed request on Ollama setups. See `src/settings.js` → `unloadLocalModel()`.
+> 3. **⏏ Unload model button** (`src/settings.js`, `src/index.html`) — topbar + Settings modal; tries LM Studio first (`POST /api/v1/models/unload {identifier}`), falls back to Ollama (`POST /api/generate keep_alive:0`) on 404; status shows which server responded.
 
 > **Session note (2025-07-20 — Guidelines analysis persistence + proxy envelope fix):** All features below committed and rebuilt into `SourceDesk.html`.
 >
@@ -784,7 +786,6 @@ When adding a new object store or index:
 - ❌ `package.json` version (`0.6.0`) out of sync with `src/flags.js` APP_VERSION (`0.8.0`) — needs a bump
 - ❌ Proposal Evaluation: annotation semantics (value-add / deduction / disqualifier highlights) not yet implemented — numeric scores only currently
 - ❌ Multi-agent parallel evaluation (multiple LLMs simultaneously) not yet implemented
-- ❌ `unloadLocalModel()` probe order is Ollama-first then LM Studio — should be **inverted** (LM Studio first, Ollama fallback) because LM Studio's `/api/v1/models/unload` is a deterministic endpoint while Ollama's `keep_alive: 0` trick is a side-effect workaround; see `src/settings.js`
 
 ---
 
@@ -935,7 +936,7 @@ Two completely different mechanisms are used to evict a model from VRAM dependin
 - **Ollama**: `POST {root}/api/generate` with `{"model": "name", "keep_alive": 0}` — this is a side-effect of the generate endpoint; Ollama evicts the model when `keep_alive` is 0 rather than running inference.
 - **LM Studio 0.4+**: `POST {root}/api/v1/models/unload` with `{"identifier": "name"}` — a dedicated management endpoint in LM Studio's native v1 REST API (introduced in 0.4.0; not present in older versions).
 
-`unloadLocalModel()` currently tries Ollama first, then falls back to LM Studio if Ollama returns 404. This order **should be inverted** — LM Studio's endpoint is well-defined and version-gated, making it the better primary probe. The Ollama approach always "succeeds" (returns 200) whether or not it actually had the model loaded, which means the fallback logic works correctly in the current order but the cleaner long-term solution is LM Studio-first. The server root for both is derived by stripping `/v1` (or `/api/v1`) from the configured base URL — the same regex used by `fetchLocalModels()` for the OpenAI-compat URL normalisation.
+`unloadLocalModel()` tries LM Studio first, then falls back to Ollama if LM Studio returns 404. LM Studio's endpoint is well-defined and version-gated (0.4.0+), making it the correct primary probe. If LM Studio returns 404 (endpoint not present), the function falls back to Ollama's `keep_alive: 0` side-effect approach. Note that Ollama's `/api/generate keep_alive:0` always returns 200 regardless of whether a model was actually loaded — it is a workaround, not a management endpoint. The server root for both is derived by stripping `/v1` (or `/api/v1`) from the configured base URL — the same regex used by `fetchLocalModels()` for the OpenAI-compat URL normalisation.
 
 ### LM Studio `/api/v1` vs `/v1`
 - LM Studio's newer API versions expose model listing at `/api/v1/models` (their own schema: `key` for model ID, `display_name` for label) but the OpenAI-compatible chat/embeddings endpoints live at `/v1/chat/completions` and `/v1/embeddings`.

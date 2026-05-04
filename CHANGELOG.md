@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **`unloadLocalModel()` probe order inverted** (`src/settings.js`) — previously the function tried Ollama's `/api/generate keep_alive:0` trick first and fell back to LM Studio's `/api/v1/models/unload` on 404. This is now reversed: LM Studio's `/api/v1/models/unload` is tried first because it is a deterministic, version-gated REST endpoint (LM Studio 0.4.0+) with well-defined success/failure semantics. Only if LM Studio returns 404 (endpoint not present) does the function fall back to the Ollama `keep_alive:0` side-effect workaround. This avoids an unnecessary failed round-trip on LM Studio setups and more accurately reflects which server is running.
+
+---
+
 ## [Unreleased] 🗄️
 
 ### Fixed
