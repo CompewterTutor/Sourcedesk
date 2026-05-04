@@ -57,12 +57,14 @@ function chunkText(text, size = 400, overlap = 60) {
 async function getEmbedding(text) {
   if (!state.settings.embeddingModel || !state.settings.localLlmUrl)
     return null;
-  const base = state.settings.localLlmUrl.replace(/\/$/, "");
+  const base = state.settings.localLlmUrl
+    .replace(/\/$/, "")
+    .replace(/\/api(\/v\d+)$/i, "$1");
   try {
     const headers = { "Content-Type": "application/json" };
     if (state.settings.localKey)
       headers["Authorization"] = "Bearer " + state.settings.localKey;
-    const res = await fetch(base + "/embeddings", {
+    const res = await _localFetch(base + "/embeddings", {
       method: "POST",
       headers,
       body: JSON.stringify({

@@ -48,9 +48,10 @@ Create reusable skeleton documents or example docs. Templates support:
 ### Context Panel
 Shows exactly what the AI can "see" for the current chat:
 - Attached template with Fill and View shortcuts
-- All uploaded project docs with per-doc include/exclude toggles
+- All uploaded project docs with per-doc include/exclude toggles, each labelled with how it was converted (**MarkItDown** / **Drive** / **Text**)
+- **Edit** button on every doc card opens a markdown editor — view and edit the converted content, **↓ Download** as `.md`, **↓ Download** the original file, or **⟳ Re-convert** with MarkItDown
 - Checkboxes to pull in documents from other projects
-- Upload new files directly from the panel
+- Upload `.txt`, `.md`, `.pdf`, `.docx`, `.xlsx`, `.pptx`, `.csv` — binary formats are automatically converted to Markdown via [MarkItDown](https://github.com/microsoft/markitdown) (when the local server is running) with live status feedback during upload
 
 ### Retrieval (BM25)
 When you send a message, BM25 scores all active document chunks against your query, pulls the top 4 matches, and injects them into the system prompt. Each reply bubble shows which documents were referenced.
@@ -63,6 +64,8 @@ Settings → AI Provider supports:
 - **GitHub Models** — GPT-4o, Phi-4, Llama 3.3 70B, DeepSeek V3, Mistral Large
 
 Per-provider API keys stored separately in IndexedDB. Switch providers at any time without losing keys.
+
+**Local LLM** — works with [Ollama](https://ollama.com) and [LM Studio](https://lmstudio.ai) via their OpenAI-compatible API. When running via `npm run serve`, all local LLM requests are automatically proxied through the SourceDesk server to bypass browser CORS restrictions (including the `Authorization` header limitation). LM Studio's newer `/api/v1` base URL is supported alongside the standard `/v1` — both work without any extra configuration. The API key field is optional (Ollama doesn't require one; LM Studio's auth can be toggled in its server settings).
 
 ### Notes
 Per-project note editor (sidebar → Notes →):

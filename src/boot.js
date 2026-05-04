@@ -29,6 +29,7 @@ async function boot() {
     const openaiKey = await dbGet("settings", "apiKey_openai");
     const openrouterKey = await dbGet("settings", "apiKey_openrouter");
     const githubKey = await dbGet("settings", "apiKey_github");
+    const localKey = await dbGet("settings", "apiKey_local");
     const constants = await dbGet("settings", "constants");
     const driveToken = await dbGet("settings", "driveToken");
     // Legacy: old single apiKey → migrate to anthropicKey
@@ -42,6 +43,7 @@ async function boot() {
     if (openaiKey) state.settings.openaiKey = openaiKey.value;
     if (openrouterKey) state.settings.openrouterKey = openrouterKey.value;
     if (githubKey) state.settings.githubKey = githubKey.value;
+    if (localKey) state.settings.localKey = localKey.value;
     if (constants) state.settings.constants = constants.value;
     if (driveToken) state.settings.driveToken = driveToken.value;
     const localLlmUrl = await dbGet("settings", "localLlmUrl");

@@ -95,6 +95,11 @@ async function build() {
       mangle: {
         // Preserve names used from HTML onclick attributes
         reserved: [
+          "openDocEditor",
+          "saveDocContent",
+          "downloadDocOriginal",
+          "downloadDocMarkdown",
+          "reconvertDoc",
           "showView",
           "openNewProject",
           "saveProject",

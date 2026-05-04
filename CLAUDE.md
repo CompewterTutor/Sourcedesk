@@ -162,6 +162,7 @@ let state = {
     openaiKey: '',
     openrouterKey: '',
     githubKey: '',
+    localKey: '',
     constants: '',          // "KEY=value" lines; parsed by parseConstants(); used in resolveTemplateVars()
     driveToken: '',         // Google Drive OAuth access token (short-lived, ~1 hour)
     localLlmUrl: '',        // base URL for local OpenAI-compat server, e.g. http://localhost:11434/v1
@@ -354,6 +355,7 @@ exportScorecardMarkdown, _evalDeleteCriterion, _evalDeleteCandidate,
 openPromptLibrary, closePromptLibrary, renderPromptLibraryDropdown,
 insertPrompt, openSavePromptModal, openManagePromptLibrary,
 savePromptEntry, deletePromptEntry, togglePromptFavorite,
+openDocEditor, saveDocContent, downloadDocOriginal, downloadDocMarkdown, reconvertDoc,
 getOrCreateAppFolder, getOrCreateVisibleRootFolder, getOrCreateProjectFolder,
 importSheetsQuestions, importSheetsQuestionsFromInput, exportQuestionsToSheets,
 exportQuestionsToCSV, importQuestionsFromCSV, parseBidNetHtml,
@@ -448,7 +450,36 @@ When adding a new object store or index:
 
 > **Note:** `package.json` still shows `0.6.0` — needs to be bumped to `0.8.0` to stay in sync.
 
-> **Session note (2025-07-19, session 2):**
+> **Session note (2025-07-20):**
+> All features below are complete in `src/` and rebuilt into `SourceDesk.html`.
+>
+> 1. **Local LLM CORS proxy** (`server.js`, `src/flags.js`, `src/api.js`, `src/settings.js`, `src/retrieval.js`)
+>    - `POST /proxy` endpoint in `server.js` forwards local LLM requests server-side to bypass the browser CORS restriction that prevents `Authorization` being covered by `Access-Control-Allow-Headers: *`
+>    - `_localFetch(url, options)` helper in `flags.js` routes through `/proxy` when `window.__SOURCEDESK_ENV__` is set, falls back to direct `fetch` otherwise
+>    - `buildApiCall` wraps local provider calls in the proxy envelope; `fetchLocalModels`, `testEmbeddingModel`, `getEmbedding` all use `_localFetch`
+>
+> 2. **LM Studio `/api/v1` + model schema fixes** (`src/api.js`, `src/retrieval.js`, `src/settings.js`)
+>    - Regex strips `/api` from base URL for chat/embeddings so both `/api/v1` and `/v1` base URLs work
+>    - Model detection now recognises LM Studio's `key` (id) and `display_name` (label) fields
+>    - `fetchLocalModels` error messages now show the actual failure (401 → actionable hint, empty list → load-a-model message, unknown schema → first model's keys)
+>
+> 3. **Local API key boot fix** (`src/boot.js`, `src/state.js`)
+>    - `apiKey_local` was saved to IndexedDB but never loaded on boot; `state.settings.localKey` was always `""` after a refresh
+>    - Fixed: `boot()` now loads `apiKey_local` → `state.settings.localKey`; `localKey: ""` added to initial state
+>
+> 4. **Doc conversion feedback + original file storage + editor modal** (`src/panel.js`, `src/index.html`)
+>    - `docs` records now store `originalData` (base64), `originalMimeType`, `conversionMethod`
+>    - Live per-file status messages in the right panel during upload
+>    - Doc cards show coloured conversion badge (MarkItDown / Drive / Text)
+>    - **Edit** button opens a full doc editor modal: edit markdown, Save, ↓ Markdown, ↓ Original, ⟳ Re-convert
+>    - **⟳** card button re-converts using stored original without opening the modal
+>    - `convertWithMarkitdown` accepts pre-read base64; `readFileAsBase64` helper added
+>    - File inputs now accept `.xlsx` and `.pptx`
+>
+> 5. **Guidelines uploader parity** (`src/guidelines.js`, `src/index.html`)
+>    - `handleGuidelineUpload` now uses the same three-stage pipeline, stores original, shows status
+>    - Guideline list items show conversion badge + ✎ Edit button (shared doc editor modal)
+
 > All features below are complete in `src/` and rebuilt into `SourceDesk.html`. Committed and pushed to `main`.
 >
 > 1. **MarkItDown server integration** (`server.js`, `src/panel.js`, `src/settings.js`)
@@ -837,6 +868,16 @@ When the v1 single-file static-app phase is feature-complete (through item 21 ab
 
 ### IndexedDB in tests
 - `src/main.js` attempts no IndexedDB access when `TEST = true` (because `boot()` never runs). Any test that exercises async DB code would need to mock `window.indexedDB` or use a fake IDB library — avoid writing such tests for now and stick to pure-function coverage.
+
+### LM Studio `/api/v1` vs `/v1`
+- LM Studio's newer API versions expose model listing at `/api/v1/models` (their own schema: `key` for model ID, `display_name` for label) but the OpenAI-compatible chat/embeddings endpoints live at `/v1/chat/completions` and `/v1/embeddings`.
+- SourceDesk strips `/api` from the configured base URL when building chat and embedding URLs via a regex: `.replace(/\/api(\/v\d+)$/i, '$1')`. This means both `/api/v1` and `/v1` work as a base URL without user configuration.
+- Model detection (`fetchLocalModels`) always uses the base URL as-is (appending `/models`), which correctly hits `/api/v1/models`.
+
+### Local LLM CORS proxy
+- Browsers enforce a strict rule: `Authorization` cannot be covered by `Access-Control-Allow-Headers: *` (wildcard). LM Studio and Ollama both use the wildcard, so any request that includes an `Authorization` header will be blocked by the browser regardless of the LM Studio CORS setting.
+- The fix is the `/proxy` endpoint in `server.js` — it makes the request server-side (no CORS restrictions) and streams the response back. This only works when the app is served via `npm run serve` (i.e., `window.__SOURCEDESK_ENV__` is defined). When running from `file://`, direct fetch is used and CORS issues may still appear if a key is set.
+- `_localFetch(url, options)` in `flags.js` is the single switching point — change it there if the proxy logic ever needs updating.
 
 ### `formatMarkdown` is not a real markdown parser
 - It's a series of regex replacements. It handles bold, italic, inline code, fenced code blocks, h2/h3, unordered lists, and double-newline paragraphs. It does NOT handle: nested lists, ordered lists properly, tables, blockquotes, horizontal rules, or complex nesting. Extend with caution — regex order matters.

@@ -15,10 +15,12 @@
 //   POST /convert       → converts a document to Markdown via markitdown
 //                          Body: JSON { filename: string, data: string (base64) }
 //                          Response: text/plain Markdown
+//   POST /proxy        → proxies requests to local LLM servers (avoids browser CORS)
 
 "use strict";
 
 const http = require("http");
+const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -253,6 +255,121 @@ function handler(req, res) {
     return;
   }
 
+  // ─── Local LLM proxy ──────────────────────────────────────────────────────────
+  // Forwards requests to local LLM servers (LM Studio, Ollama, etc.) server-side
+  // to bypass CORS restrictions. Browsers forbid the Authorization header from
+  // being covered by a wildcard Access-Control-Allow-Headers: * — this proxy
+  // avoids the browser making the cross-origin request at all.
+  if (url === "/proxy" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", () => {
+      let payload;
+      try {
+        payload = JSON.parse(body);
+      } catch (_) {
+        res.writeHead(400, { "Content-Type": "text/plain" });
+        res.end("Invalid JSON body");
+        return;
+      }
+
+      const {
+        url: targetUrl,
+        method: fwdMethod = "POST",
+        headers: fwdHeaders = {},
+        body: fwdBody = "",
+      } = payload;
+
+      if (!targetUrl) {
+        res.writeHead(400, { "Content-Type": "text/plain" });
+        res.end("Missing url");
+        return;
+      }
+
+      let parsedTarget;
+      try {
+        parsedTarget = new URL(targetUrl);
+      } catch (_) {
+        res.writeHead(400, { "Content-Type": "text/plain" });
+        res.end("Invalid target URL");
+        return;
+      }
+
+      const isHttps = parsedTarget.protocol === "https:";
+      const lib = isHttps ? https : http;
+
+      const bodyBuf = Buffer.from(
+        typeof fwdBody === "string" ? fwdBody : JSON.stringify(fwdBody),
+        "utf8",
+      );
+
+      // Strip hop-by-hop headers, then set correct content-length
+      const outHeaders = Object.assign({}, fwdHeaders);
+      delete outHeaders["host"];
+      delete outHeaders["Host"];
+      delete outHeaders["content-length"];
+      delete outHeaders["Content-Length"];
+      if (bodyBuf.length > 0) outHeaders["content-length"] = bodyBuf.length;
+
+      const reqOptions = {
+        hostname: parsedTarget.hostname,
+        port: parsedTarget.port || (isHttps ? 443 : 80),
+        path: parsedTarget.pathname + (parsedTarget.search || ""),
+        method: fwdMethod,
+        headers: outHeaders,
+      };
+
+      // CORS headers so browser accepts our proxy response
+      Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
+
+      console.log(`  [proxy] → ${fwdMethod} ${targetUrl}`);
+
+      const proxyReq = lib.request(reqOptions, (proxyRes) => {
+        const respHeaders = {};
+        if (proxyRes.headers["content-type"]) {
+          respHeaders["Content-Type"] = proxyRes.headers["content-type"];
+        }
+        Object.entries(CORS_HEADERS).forEach(([k, v]) => {
+          respHeaders[k] = v;
+        });
+        res.writeHead(proxyRes.statusCode, respHeaders);
+        proxyRes.pipe(res);
+        // Abort upstream if the browser disconnects
+        req.on("close", () => {
+          try {
+            proxyReq.destroy();
+          } catch (_) {}
+        });
+      });
+
+      proxyReq.on("error", (err) => {
+        console.error(
+          `  [proxy] error proxying to ${targetUrl}:`,
+          err.code,
+          err.message,
+        );
+        try {
+          if (!res.headersSent) {
+            res.writeHead(502, { "Content-Type": "text/plain" });
+          }
+          res.end("Proxy error: " + err.message);
+        } catch (_) {}
+      });
+
+      if (bodyBuf.length > 0) proxyReq.write(bodyBuf);
+      proxyReq.end();
+    });
+    req.on("error", () => {
+      try {
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.end("Request error");
+      } catch (_) {}
+    });
+    return;
+  }
+
   // ─── Main app ──────────────────────────────────────────────────────────
   if (url === "/" || url === "/SourceDesk.html" || url === "/index.html") {
     let html;
@@ -302,6 +419,9 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`  Default model: ${model}`);
   console.log(
     `  Convert API:   http://localhost:${PORT}/convert  (markitdown)`,
+  );
+  console.log(
+    `  Proxy:         http://localhost:${PORT}/proxy  (local LLM CORS bypass)`,
   );
   console.log("  ──────────────────────────────────────────");
   console.log("  Ctrl+C to stop");

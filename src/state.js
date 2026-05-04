@@ -10,6 +10,7 @@ let state = {
     openaiKey: "",
     openrouterKey: "",
     githubKey: "",
+    localKey: "",
     constants: "",
     driveToken: "",
     localLlmUrl: "",

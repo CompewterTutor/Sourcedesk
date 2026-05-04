@@ -3357,7 +3357,7 @@
                             <input
                                 type="file"
                                 style="display: none"
-                                accept=".txt,.md,.pdf,.docx,.csv"
+                                accept=".txt,.md,.pdf,.docx,.xlsx,.pptx,.csv"
                                 onchange="handleGuidelineUpload(event)"
                                 multiple
                             />
@@ -3386,6 +3386,18 @@
                             >
                                 Guideline documents
                             </div>
+                            <div
+                                id="guidelines-upload-status"
+                                style="
+                                    display: none;
+                                    font-size: 11px;
+                                    color: var(--text-muted);
+                                    font-family: &quot;DM Mono&quot;, monospace;
+                                    padding: 6px 10px;
+                                    background: var(--surface2);
+                                    word-break: break-word;
+                                "
+                            ></div>
                             <div
                                 id="guidelines-list"
                                 style="overflow-y: auto; flex: 1"
@@ -4151,7 +4163,7 @@
                                     type="file"
                                     id="doc-upload-input"
                                     multiple
-                                    accept=".txt,.md,.pdf,.docx,.csv"
+                                    accept=".txt,.md,.pdf,.docx,.xlsx,.pptx,.csv"
                                     style="display: none"
                                     onchange="handleDocUpload(event)"
                                 />
@@ -4166,6 +4178,20 @@
                                 >
                             </label>
                         </div>
+                        <div
+                            id="doc-upload-status"
+                            style="
+                                display: none;
+                                font-size: 11px;
+                                color: var(--text-muted);
+                                font-family: &quot;DM Mono&quot;, monospace;
+                                padding: 6px 8px;
+                                background: var(--surface2);
+                                border-radius: var(--radius);
+                                margin-bottom: 6px;
+                                word-break: break-word;
+                            "
+                        ></div>
                         <div id="ctx-project-docs"></div>
                     </div>
                     <div
@@ -4468,6 +4494,104 @@
                         onclick="saveProject()"
                     >
                         Create Project
+                    </button>
+                </div>
+            </div>
+
+            <!-- Doc Editor Modal -->
+            <div id="modal-doc-editor" class="modal hidden">
+                <div
+                    style="
+                        display: flex;
+                        align-items: flex-start;
+                        justify-content: space-between;
+                        gap: 12px;
+                        margin-bottom: 14px;
+                    "
+                >
+                    <div>
+                        <div
+                            class="modal-title"
+                            id="doc-editor-filename"
+                            style="font-size: 16px; margin-bottom: 4px"
+                        >
+                            Document
+                        </div>
+                        <div
+                            id="doc-editor-meta"
+                            style="
+                                font-size: 11px;
+                                color: var(--text-muted);
+                                font-family: &quot;DM Mono&quot;, monospace;
+                            "
+                        ></div>
+                    </div>
+                    <button
+                        class="btn-icon"
+                        onclick="closeModal()"
+                        style="flex-shrink: 0"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <textarea
+                    id="doc-editor-content"
+                    style="
+                        width: 100%;
+                        min-height: 380px;
+                        background: var(--surface);
+                        border: 1px solid var(--border);
+                        border-radius: var(--radius);
+                        color: var(--text);
+                        font-family: &quot;DM Mono&quot;, monospace;
+                        font-size: 12px;
+                        padding: 10px;
+                        resize: vertical;
+                        box-sizing: border-box;
+                        line-height: 1.6;
+                    "
+                    placeholder="Document content will appear here…"
+                ></textarea>
+                <div
+                    style="
+                        display: flex;
+                        gap: 8px;
+                        flex-wrap: wrap;
+                        align-items: center;
+                        margin-top: 12px;
+                        padding-top: 12px;
+                        border-top: 1px solid var(--border);
+                    "
+                >
+                    <button
+                        id="doc-editor-reconvert"
+                        class="btn-secondary"
+                        onclick="reconvertDoc()"
+                        title="Re-run MarkItDown conversion using the stored original file"
+                    >
+                        ⟳ Re-convert
+                    </button>
+                    <button
+                        id="doc-editor-dl-original"
+                        class="btn-secondary"
+                        onclick="downloadDocOriginal()"
+                        title="Download the original uploaded file"
+                    >
+                        ↓ Original
+                    </button>
+                    <button
+                        class="btn-secondary"
+                        onclick="downloadDocMarkdown()"
+                        title="Download the current markdown content as a .md file"
+                    >
+                        ↓ Markdown
+                    </button>
+                    <button
+                        class="btn-primary"
+                        onclick="saveDocContent()"
+                        style="margin-left: auto"
+                    >
+                        Save
                     </button>
                 </div>
             </div>

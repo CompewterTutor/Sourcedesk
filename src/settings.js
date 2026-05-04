@@ -20,15 +20,20 @@ async function fetchLocalModels() {
     if (keyEl && keyEl.value.trim()) {
       reqHeaders["Authorization"] = "Bearer " + keyEl.value.trim();
     }
-    const res = await fetch(base + "/models", { headers: reqHeaders });
+    const res = await _localFetch(base + "/models", {
+      method: "GET",
+      headers: reqHeaders,
+    });
+    if (res.status === 401)
+      throw new Error("HTTP 401 — enter the API key in the field above");
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
-    // Ollama returns { models: [...] }, OpenAI-compat returns { data: [...] }
+    log("fetchLocalModels raw response:", JSON.stringify(data).slice(0, 300));
     const list = data.data || data.models || [];
     const models = list
       .map((m) => ({
-        id: m.id || m.name || m.model,
-        label: m.id || m.name || m.model,
+        id: m.id || m.key || m.name || m.model,
+        label: m.display_name || m.id || m.key || m.name || m.model,
         contextLength:
           m.context_length ||
           m.context_window ||
@@ -38,7 +43,15 @@ async function fetchLocalModels() {
       }))
       .filter((m) => m.id);
 
-    if (!models.length) throw new Error("No models returned");
+    if (!models.length) {
+      const topKeys = Object.keys(data).join(", ") || "(empty)";
+      const listLen = list.length;
+      throw new Error(
+        listLen
+          ? `${listLen} model(s) found but none had a usable id/name field (first model keys: ${Object.keys(list[0] || {}).join(", ")})`
+          : `Empty model list — load a model in LM Studio first (response keys: ${topKeys})`,
+      );
+    }
 
     PROVIDERS.local.models = models;
     PROVIDERS.local.defaultModel = models[0].id;
@@ -71,9 +84,8 @@ async function fetchLocalModels() {
     }
     syncTopbarModelSelect();
   } catch (err) {
-    if (sel)
-      sel.innerHTML =
-        '<option value="">⚠ Detection failed — check URL &amp; CORS</option>';
+    const msg = err.message || "Detection failed";
+    if (sel) sel.innerHTML = `<option value="">⚠ ${msg}</option>`;
     log("fetchLocalModels:", err.message);
   }
 }
@@ -323,7 +335,7 @@ async function testEmbeddingModel() {
     const headers = { "Content-Type": "application/json" };
     const localKey = state.settings.localKey || "";
     if (localKey) headers["Authorization"] = "Bearer " + localKey;
-    const res = await fetch(base + "/embeddings", {
+    const res = await _localFetch(base + "/embeddings", {
       method: "POST",
       headers,
       body: JSON.stringify({ model, input: "test" }),
