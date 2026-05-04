@@ -251,9 +251,11 @@ async function refreshTopbarModels() {
 }
 
 // ─── UNLOAD LOCAL MODEL ───────────────────────────────────────────────────────
-// Sends an Ollama-compatible "unload" request (keep_alive: 0) for the currently
-// selected model. Strips /v1 from the base URL to hit the native Ollama API.
-// Useful when switching between large models that cannot be co-resident in VRAM.
+// Tries two unload approaches in sequence:
+//   1. Ollama native API: POST {root}/api/generate  { model, keep_alive: 0 }
+//   2. LM Studio v1 API:  POST {root}/api/v1/models/unload  { identifier: model }
+// Both use the same root URL obtained by stripping the /v1 (or /api/v1) suffix
+// from the configured base URL.  Falls through to LM Studio if Ollama 404s.
 async function unloadLocalModel() {
   const base = (state.settings.localLlmUrl || "").replace(/\/$/, "");
   if (!base) {
@@ -280,19 +282,47 @@ async function unloadLocalModel() {
 
   _setUnloadStatus("Unloading\u2026", "var(--text-muted)");
 
-  // Ollama native API: strip /v1 (or /api/v1) suffix to get root URL
-  const ollamaBase = base.replace(/\/(api\/)?v\d+\/?$/i, "");
+  // Strip /v1 or /api/v1 suffix to get the server root
+  const root = base.replace(/\/(api\/)?v\d+\/?$/i, "");
 
   try {
-    const res = await _localFetch(ollamaBase + "/api/generate", {
+    // 1. Try Ollama: POST /api/generate with keep_alive: 0
+    const ollamaRes = await _localFetch(root + "/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: model, keep_alive: 0 }),
     });
-    if (res.ok) {
-      _setUnloadStatus("\u2713 Unloaded", "var(--success)");
+    if (ollamaRes.ok) {
+      _setUnloadStatus("\u2713 Unloaded (Ollama)", "var(--success)");
+      setTimeout(function () {
+        _setUnloadStatus("");
+      }, 4000);
+      return;
+    }
+    if (ollamaRes.status !== 404) {
+      // Ollama responded with a real error — surface it
+      _setUnloadStatus(
+        "\u26a0 Ollama HTTP " + ollamaRes.status,
+        "var(--accent)",
+      );
+      setTimeout(function () {
+        _setUnloadStatus("");
+      }, 4000);
+      return;
+    }
+    // Ollama returned 404 — this is probably LM Studio, try its API
+    const lmsRes = await _localFetch(root + "/api/v1/models/unload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: model }),
+    });
+    if (lmsRes.ok) {
+      _setUnloadStatus("\u2713 Unloaded (LM Studio)", "var(--success)");
     } else {
-      _setUnloadStatus("\u26a0 HTTP " + res.status, "var(--accent)");
+      _setUnloadStatus(
+        "\u26a0 LM Studio HTTP " + lmsRes.status,
+        "var(--accent)",
+      );
     }
   } catch (e) {
     _setUnloadStatus("\u2717 " + (e.message || "Failed"), "var(--danger)");
