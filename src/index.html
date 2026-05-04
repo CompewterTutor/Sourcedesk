@@ -1657,6 +1657,18 @@
                     >
                         ⟳
                     </button>
+                    <button
+                        class="btn-icon"
+                        onclick="unloadLocalModel()"
+                        title="Unload current model from VRAM (Ollama only)"
+                        style="padding: 3px 6px; font-size: 10px"
+                    >
+                        ⏏
+                    </button>
+                    <span
+                        id="unload-model-status-topbar"
+                        style="font-size: 10px; color: var(--text-muted)"
+                    ></span>
                 </div>
                 <div style="flex: 1"></div>
                 <button
@@ -4813,6 +4825,26 @@
                         >
                             Detect Models
                         </button>
+                        <button
+                            class="btn-secondary"
+                            onclick="unloadLocalModel()"
+                            title="Unload current model from VRAM (Ollama only)"
+                        >
+                            ⏏ Unload
+                        </button>
+                    </div>
+                    <div
+                        style="
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                            margin-top: 4px;
+                        "
+                    >
+                        <span
+                            id="unload-model-status-settings"
+                            style="font-size: 11px; color: var(--text-muted)"
+                        ></span>
                     </div>
                     <div
                         id="local-cors-warning"

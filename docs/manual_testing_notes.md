@@ -12,3 +12,10 @@
 - add calendar widget for tasks in the sidebar right
 - if running in server mode need a way to have the user backup their stuff to the server if they want
 - there's another sub project here that pertains to the Q&A portion of the job/tool I built separately: it is located in the .private-documents folder under the Supplier_Q_AND_A folder. You can grok that project by reading the README.md, the WORKFLOW.md and the projects/RFP_F-75/input/memory-final.md. I'd like you to adapt the scripts inside the scripts folder there to add tools to the web ui for sourcedesk. Think about a plan to do that and how to adapt that tool for use here. Also when questions are added to the "questions" view, I'd like to be able to batch 10 at a time with comments in between and keep a running count of both unanswered questions and also questions that may be answered by ai but need further detail or confirmation on being fully correct. a confidence level along with that would be nice. a summary at the end as a deliverable would be great. You can see the deliverables i generated for the first run in the project folder. there's also an intermediate folder for artifacts from importing from the bidnet UI.
+
+---
+## 5-4-26
+- new guidelines tool is great so far. need to change it to be global to all projects instead of project specific.
+- if a task that's in the analysis that has already had "create task" clicked, we need to mark it created and maybe have a jump to task and open the task panel with the task selected.
+- same with templates/template creation
+- need to have an unload model button, i tried to select a new model between analysis runs and it failed trying to load the new model without unloading the old one.

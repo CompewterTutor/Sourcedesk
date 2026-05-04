@@ -250,6 +250,58 @@ async function refreshTopbarModels() {
   syncTopbarModelSelect();
 }
 
+// ─── UNLOAD LOCAL MODEL ───────────────────────────────────────────────────────
+// Sends an Ollama-compatible "unload" request (keep_alive: 0) for the currently
+// selected model. Strips /v1 from the base URL to hit the native Ollama API.
+// Useful when switching between large models that cannot be co-resident in VRAM.
+async function unloadLocalModel() {
+  const base = (state.settings.localLlmUrl || "").replace(/\/$/, "");
+  if (!base) {
+    alert("No Local LLM Base URL configured. Set it in Settings first.");
+    return;
+  }
+  const model = state.settings.model;
+  if (!model) {
+    alert("No model currently selected.");
+    return;
+  }
+  // Build status element references (topbar and/or settings modal)
+  const statusEls = [
+    document.getElementById("unload-model-status-topbar"),
+    document.getElementById("unload-model-status-settings"),
+  ].filter(Boolean);
+
+  function _setUnloadStatus(msg, color) {
+    statusEls.forEach(function (el) {
+      el.textContent = msg;
+      el.style.color = color || "var(--text-muted)";
+    });
+  }
+
+  _setUnloadStatus("Unloading\u2026", "var(--text-muted)");
+
+  // Ollama native API: strip /v1 (or /api/v1) suffix to get root URL
+  const ollamaBase = base.replace(/\/(api\/)?v\d+\/?$/i, "");
+
+  try {
+    const res = await _localFetch(ollamaBase + "/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: model, keep_alive: 0 }),
+    });
+    if (res.ok) {
+      _setUnloadStatus("\u2713 Unloaded", "var(--success)");
+    } else {
+      _setUnloadStatus("\u26a0 HTTP " + res.status, "var(--accent)");
+    }
+  } catch (e) {
+    _setUnloadStatus("\u2717 " + (e.message || "Failed"), "var(--danger)");
+  }
+  setTimeout(function () {
+    _setUnloadStatus("");
+  }, 4000);
+}
+
 function syncTopbarModelSelect() {
   const topbarSel = document.getElementById("topbar-model-select");
   const settingsSel = document.getElementById("settings-model");

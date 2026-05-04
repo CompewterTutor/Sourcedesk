@@ -351,6 +351,7 @@ async function build() {
           "backupToServer",
           "openCrossSearch",
           "runCrossSearch",
+          "unloadLocalModel",
         ],
       },
       format: {

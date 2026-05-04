@@ -10,15 +10,12 @@ let _projectAnalyses = []; // in-memory cache of analyses for active project
 // ─── LOAD & RENDER LIST ───────────────────────────────────────────────────────
 
 async function loadGuidelines() {
-  if (!state.activeProject) return;
+  // Guidelines are GLOBAL — show docs and analyses from all projects, not just the active one.
   _currentGuideline = null;
   _currentAnalysisId = null;
 
-  const allDocs = await dbGetByIndex(
-    "docs",
-    "projectId",
-    state.activeProject.id,
-  );
+  // Load ALL guideline docs from every project
+  const allDocs = await dbGetAll("docs");
   const docs = allDocs.filter(function (d) {
     return d.docType === "guideline";
   });
@@ -27,13 +24,9 @@ async function loadGuidelines() {
   });
   renderGuidelinesList(docs);
 
-  // Load saved analyses
+  // Load ALL saved analyses from every project
   try {
-    _projectAnalyses = await dbGetByIndex(
-      "guidelineAnalyses",
-      "projectId",
-      state.activeProject.id,
-    );
+    _projectAnalyses = await dbGetAll("guidelineAnalyses");
   } catch (e) {
     _projectAnalyses = [];
   }
@@ -98,6 +91,14 @@ function renderGuidelinesList(docs) {
           _badgeMap[_cm][0] +
           "</span>"
         : "";
+    const _proj = state.projects.find(function (p) {
+      return p.id === doc.projectId;
+    });
+    const _projBadge = _proj
+      ? " <span style=\"font-size:9px;color:var(--text-muted);font-family:'DM Mono',monospace;background:var(--surface2);padding:1px 4px;border-radius:3px\">" +
+        _proj.name.replace(/</g, "&lt;") +
+        "</span>"
+      : "";
     el.innerHTML =
       '<span class="sq-item-icon" style="font-size:14px">\uD83D\uDCC4</span>' +
       '<div class="sq-item-text" style="flex:1;min-width:0">' +
@@ -108,6 +109,7 @@ function renderGuidelinesList(docs) {
       '<div style="font-size:11px;color:var(--text-muted)">' +
       date +
       (sizeKb ? " \u00b7 " + sizeKb + " KB" : "") +
+      _projBadge +
       "</div>" +
       "</div>" +
       '<button class="btn-ghost" style="font-size:11px;padding:2px 6px;flex-shrink:0" onclick="event.stopPropagation();openDocEditor(\'' +
@@ -308,11 +310,7 @@ function openGuidelinesAnalyze() {
 async function _runAnalyze(docIdsFilter) {
   if (!state.activeProject) return;
 
-  const allDocs = await dbGetByIndex(
-    "docs",
-    "projectId",
-    state.activeProject.id,
-  );
+  const allDocs = await dbGetAll("docs");
   let guidelines = allDocs.filter(function (d) {
     return d.docType === "guideline";
   });
@@ -645,7 +643,12 @@ function _guidelineJsonAttr(obj) {
 // ─── CREATE TASK ─────────────────────────────────────────────────────────────
 
 async function _guidelineCreateTask(task, btn) {
-  if (!state.activeProject) return;
+  if (!state.activeProject) {
+    alert(
+      "Select a project first \u2014 tasks are saved to the active project.",
+    );
+    return;
+  }
   const record = {
     id: uid(),
     projectId: state.activeProject.id,
@@ -660,13 +663,21 @@ async function _guidelineCreateTask(task, btn) {
   };
   await dbPut("tasks", record);
   if (btn) {
-    const orig = btn.textContent;
-    btn.textContent = "✓ Added";
+    const taskId = record.id;
+    btn.textContent = "\u2713 Created";
     btn.disabled = true;
-    setTimeout(function () {
-      btn.textContent = orig;
-      btn.disabled = false;
-    }, 2000);
+    btn.style.color = "var(--success)";
+    const jumpBtn = document.createElement("button");
+    jumpBtn.className = "btn-ghost";
+    jumpBtn.textContent = "\u2197 Open Task";
+    jumpBtn.style.cssText = "font-size:11px;padding:3px 8px;margin-left:6px";
+    jumpBtn.onclick = function () {
+      showView("tasks");
+      loadTasks().then(function () {
+        selectTask(taskId);
+      });
+    };
+    btn.parentNode.appendChild(jumpBtn);
   }
 }
 
@@ -689,13 +700,20 @@ async function _guidelineCreateTemplate(tmpl, btn) {
   await dbPut("templates", record);
   state.templates.push(record);
   if (btn) {
-    const orig = btn.textContent;
-    btn.textContent = "\u2713 Added";
+    const tmplId = record.id;
+    btn.textContent = "\u2713 Created";
     btn.disabled = true;
-    setTimeout(function () {
-      btn.textContent = orig;
-      btn.disabled = false;
-    }, 2000);
+    btn.style.color = "var(--success)";
+    const jumpBtn = document.createElement("button");
+    jumpBtn.className = "btn-ghost";
+    jumpBtn.textContent = "\u2197 Open Template";
+    jumpBtn.style.cssText = "font-size:11px;padding:3px 8px;margin-left:6px";
+    jumpBtn.onclick = function () {
+      showView("templates");
+      renderTemplatesGrid();
+      openEditTemplate(tmplId);
+    };
+    btn.parentNode.appendChild(jumpBtn);
   }
 }
 
@@ -779,6 +797,9 @@ function _renderAnalysisBar() {
     const modelName = a.isMaster
       ? "\u2B50 Master"
       : _gaModelShort(a.model || "");
+    const _chipProj = state.projects.find(function (p) {
+      return p.id === a.projectId;
+    });
     chip.innerHTML =
       '<span style="font-weight:600">' +
       modelName.replace(/</g, "&lt;") +
@@ -790,6 +811,13 @@ function _renderAnalysisBar() {
         ? '<span style="color:var(--text-muted);font-size:10px">' +
           (a.docIds || []).length +
           " docs</span>"
+        : "") +
+      (_chipProj
+        ? '<span style="color:var(--text-muted);font-size:10px;max-width:60px;overflow:hidden;text-overflow:ellipsis" title="' +
+          _chipProj.name.replace(/"/g, "&quot;") +
+          '">' +
+          _chipProj.name.replace(/</g, "&lt;") +
+          "</span>"
         : "") +
       (a.label
         ? '<span style="color:var(--accent-dim);font-size:10px;max-width:80px;overflow:hidden;text-overflow:ellipsis">' +
