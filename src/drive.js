@@ -520,6 +520,7 @@ async function backupToDrive() {
       "evalCriteria",
       "evalCandidates",
       "evalScores",
+      "guidelineAnalyses",
     ];
     const data = {
       version: DB_VERSION,
@@ -1104,6 +1105,7 @@ async function importDatabase(file) {
     "evalCriteria",
     "evalCandidates",
     "evalScores",
+    "guidelineAnalyses",
   ];
   for (const s of stores) {
     const items = await dbGetAll(s);

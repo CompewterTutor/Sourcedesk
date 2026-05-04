@@ -1564,6 +1564,42 @@
             .guidelines-card:hover {
                 border-color: var(--accent-dim);
             }
+            .ga-chip {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                padding: 3px 8px 3px 10px;
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                cursor: pointer;
+                font-size: 11px;
+                white-space: nowrap;
+                flex-shrink: 0;
+                transition: border-color 0.15s;
+                color: var(--text-dim);
+                font-family: "DM Mono", monospace;
+            }
+            .ga-chip:hover {
+                border-color: var(--accent-dim);
+            }
+            .ga-chip.active {
+                border-color: var(--accent);
+                background: var(--surface);
+                color: var(--text);
+            }
+            .ga-chip-del {
+                opacity: 0;
+                color: var(--danger);
+                cursor: pointer;
+                font-size: 10px;
+                padding: 0 2px;
+                transition: opacity 0.1s;
+                line-height: 1;
+            }
+            .ga-chip:hover .ga-chip-del {
+                opacity: 0.8;
+            }
         </style>
     </head>
     <body>
@@ -3403,7 +3439,7 @@
                                 style="overflow-y: auto; flex: 1"
                             ></div>
                         </div>
-                        <!-- Right: detail + recommendations -->
+                        <!-- Right: always-visible analysis panel -->
                         <div
                             style="
                                 flex: 1;
@@ -3412,68 +3448,117 @@
                                 overflow: hidden;
                             "
                         >
+                            <!-- Action bar (always visible) -->
                             <div
-                                id="guidelines-detail-placeholder"
+                                id="guidelines-action-bar"
                                 style="
+                                    padding: 10px 16px;
+                                    border-bottom: 1px solid var(--border);
                                     display: flex;
                                     align-items: center;
-                                    justify-content: center;
-                                    flex: 1;
-                                    color: var(--text-muted);
-                                    font-size: 13px;
-                                    text-align: center;
-                                    padding: 32px;
-                                    line-height: 1.6;
-                                "
-                            >
-                                Upload a position description or SOP,<br />
-                                then click <b>&#x1F916; Analyze All</b>.
-                            </div>
-                            <div
-                                id="guidelines-detail-panel"
-                                style="
-                                    display: none;
-                                    flex-direction: column;
-                                    flex: 1;
-                                    overflow: hidden;
+                                    gap: 8px;
+                                    flex-shrink: 0;
                                 "
                             >
                                 <div
-                                    style="
-                                        padding: 12px 16px;
-                                        border-bottom: 1px solid var(--border);
-                                        display: flex;
-                                        align-items: center;
-                                        gap: 10px;
-                                    "
-                                >
-                                    <div
-                                        id="guidelines-selected-name"
-                                        style="
-                                            font-weight: 600;
-                                            font-size: 13px;
-                                            color: var(--text);
-                                            flex: 1;
-                                        "
-                                    ></div>
-                                    <button
-                                        class="btn-primary"
-                                        onclick="openGuidelinesAnalyze()"
-                                    >
-                                        &#x1F916; Analyze All
-                                    </button>
-                                </div>
-                                <div
-                                    id="guidelines-recommendations"
+                                    id="guidelines-selected-name"
                                     style="
                                         flex: 1;
-                                        overflow-y: auto;
-                                        padding: 16px;
-                                        display: flex;
-                                        flex-direction: column;
-                                        gap: 16px;
+                                        font-size: 13px;
+                                        color: var(--text-muted);
                                     "
-                                ></div>
+                                >
+                                    Upload a guideline doc, then click Analyze.
+                                </div>
+                                <button
+                                    id="guidelines-analyze-this-btn"
+                                    class="btn-secondary"
+                                    style="font-size: 12px; display: none"
+                                    onclick="analyzeThisGuideline()"
+                                    title="Analyze only this document"
+                                >
+                                    &#x1F916; This Doc
+                                </button>
+                                <button
+                                    class="btn-primary"
+                                    style="font-size: 12px"
+                                    onclick="openGuidelinesAnalyze()"
+                                >
+                                    &#x1F916; Analyze All
+                                </button>
+                                <button
+                                    class="btn-secondary"
+                                    style="font-size: 12px"
+                                    onclick="openCreateMasterAnalysis()"
+                                    title="Synthesize saved analyses into a master"
+                                >
+                                    &#x2B50; Master
+                                </button>
+                            </div>
+                            <!-- Analysis chips bar (shown when analyses exist) -->
+                            <div
+                                id="guidelines-analysis-bar"
+                                style="
+                                    display: none;
+                                    padding: 5px 12px;
+                                    border-bottom: 1px solid var(--border);
+                                    background: var(--surface);
+                                    flex-shrink: 0;
+                                "
+                            >
+                                <div
+                                    style="
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 6px;
+                                        overflow-x: auto;
+                                    "
+                                >
+                                    <span
+                                        style="
+                                            font-size: 10px;
+                                            color: var(--text-muted);
+                                            white-space: nowrap;
+                                            flex-shrink: 0;
+                                            font-family:
+                                                &quot;DM Mono&quot;, monospace;
+                                            letter-spacing: 0.04em;
+                                        "
+                                        >SAVED:</span
+                                    >
+                                    <div
+                                        id="guidelines-analysis-chips"
+                                        style="display: flex; gap: 6px; flex: 1"
+                                    ></div>
+                                </div>
+                            </div>
+                            <!-- Content area (doc preview or analysis results) -->
+                            <div
+                                id="guidelines-content-area"
+                                style="
+                                    flex: 1;
+                                    overflow-y: auto;
+                                    padding: 16px;
+                                    display: flex;
+                                    flex-direction: column;
+                                    gap: 12px;
+                                "
+                            >
+                                <div
+                                    style="
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        height: 100%;
+                                        color: var(--text-muted);
+                                        font-size: 13px;
+                                        text-align: center;
+                                        line-height: 1.6;
+                                    "
+                                >
+                                    Upload a position description or SOP,<br />
+                                    then click <b>&#x1F916; Analyze All</b>.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -5565,6 +5650,134 @@ Or paste numbered / blank-line separated questions…"
                         Add Questions
                     </button>
                 </div>
+            </div>
+
+            <!-- Guidelines Master Analysis Modal -->
+            <div
+                id="modal-ga-master"
+                class="modal hidden"
+                style="
+                    max-width: 520px;
+                    width: 95%;
+                    max-height: 80vh;
+                    display: flex;
+                    flex-direction: column;
+                "
+            >
+                <div class="modal-header">
+                    <div class="modal-title">
+                        &#x2B50; Create Master Analysis
+                    </div>
+                    <button class="btn-icon" onclick="closeModal()">
+                        &#x2715;
+                    </button>
+                </div>
+                <div
+                    style="
+                        padding: 0 20px 20px;
+                        display: flex;
+                        flex-direction: column;
+                        flex: 1;
+                        overflow: hidden;
+                    "
+                >
+                    <p
+                        style="
+                            font-size: 12px;
+                            color: var(--text-muted);
+                            margin: 0 0 12px 0;
+                            flex-shrink: 0;
+                            line-height: 1.5;
+                        "
+                    >
+                        Select which saved analyses to synthesize. The AI will
+                        combine the best insights into a single master analysis.
+                    </p>
+                    <div
+                        id="ga-master-analysis-list"
+                        style="
+                            flex: 1;
+                            overflow-y: auto;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 6px;
+                            margin-bottom: 14px;
+                            min-height: 60px;
+                        "
+                    ></div>
+                    <div
+                        id="ga-master-status"
+                        style="
+                            display: none;
+                            font-size: 12px;
+                            color: var(--text-muted);
+                            margin-bottom: 10px;
+                            padding: 8px 10px;
+                            background: var(--surface2);
+                            border-radius: var(--radius);
+                        "
+                    ></div>
+                    <div
+                        style="
+                            display: flex;
+                            gap: 8px;
+                            justify-content: flex-end;
+                            flex-shrink: 0;
+                        "
+                    >
+                        <button class="btn-secondary" onclick="closeModal()">
+                            Cancel
+                        </button>
+                        <button
+                            id="ga-master-run-btn"
+                            class="btn-primary"
+                            onclick="runCreateMaster()"
+                        >
+                            &#x2B50; Synthesize
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Guidelines Analysis Diff Modal -->
+            <div
+                id="modal-ga-diff"
+                class="modal hidden"
+                style="
+                    max-width: 860px;
+                    width: 97%;
+                    max-height: 90vh;
+                    display: flex;
+                    flex-direction: column;
+                "
+            >
+                <div class="modal-header">
+                    <div id="ga-diff-title" class="modal-title">
+                        Compare Analyses
+                    </div>
+                    <button class="btn-icon" onclick="closeModal()">
+                        &#x2715;
+                    </button>
+                </div>
+                <div
+                    id="ga-diff-stats"
+                    style="
+                        padding: 6px 20px;
+                        border-bottom: 1px solid var(--border);
+                        font-size: 12px;
+                        color: var(--text-muted);
+                        flex-shrink: 0;
+                    "
+                ></div>
+                <div
+                    id="ga-diff-content"
+                    style="
+                        flex: 1;
+                        overflow-y: auto;
+                        padding: 16px 20px;
+                        font-size: 12px;
+                    "
+                ></div>
             </div>
         </div>
 

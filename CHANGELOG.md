@@ -9,6 +9,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] 🗄️
+
+### Fixed
+- **Guidelines preview truncation** (`src/guidelines.js`) — the guideline detail panel previously showed only a 300-character teaser of the converted document's content. The preview limit has been raised to 2 000 characters, rendered in a scrollable box, with a **✎ View / Edit** button always visible so the full content is reachable via the doc editor modal without leaving the Guidelines view.
+- **Non-streaming request body silently ignored through local LLM proxy** (`src/guidelines.js`, `src/evaluation.js`) — when routing local LLM requests through the server-side `/proxy` endpoint, `buildApiCall()` wraps the real request body in a proxy envelope: `{ url, method, headers, body: "<inner-JSON-string>" }`. Both the Guidelines analyser and the Proposal Evaluation candidate scorer attempted to disable streaming by calling `JSON.parse(apiCall.body)` and setting `bodyObj.stream = false` — but `apiCall.body` in the proxy case is the *outer* envelope object, not the inner body string. The LLM therefore still received `stream: true`, returned an SSE text response, and the subsequent `resp.json()` call failed with `Unexpected token 'd', "data: {\"id\"...is not valid JSON"`. Fixed in both files by detecting the proxy envelope shape (`typeof apiCall.body === 'string'` vs. `typeof apiCall.body === 'object'`) and patching `stream: false` inside the serialised inner body before re-stringifying the envelope.
+
+### Added
+- **Guideline Analyses persistence** 🗄️ (`src/guidelines.js`, `src/db.js`) — analysis results are now saved to a new `guidelineAnalyses` IndexedDB store (DB_VERSION bumped 11 → 12, `projectId` index). Each record stores provider name, model ID, analysed doc IDs and names, full results text, a user-editable label, timestamps, an `isMaster` flag, `sourceIds` for master provenance, and a `versions[]` array for master synthesis history.
+- **"This Doc" and "Analyze All" action buttons** (`src/guidelines.js`, `src/index.html`) — the Guidelines right panel now shows a persistent action bar with three buttons: **This Doc** (analyzes only the currently selected guideline doc via `analyzeThisGuideline()`), **Analyze All** (analyzes all guideline docs for the project), and **Master** (opens the master synthesis modal). A single `#guidelines-content-area` div hosts whichever view is active (doc preview, analysis results, or the chips bar).
+- **Analysis chips bar** (`src/guidelines.js`) — a row of chips rendered by `_renderAnalysisBar()` shows all saved analyses for the project. Each chip displays a short model name (`_gaModelShort()`), a relative timestamp (`_gaRelTime()`), and a doc count. Clicking a chip calls `selectGuidelineAnalysis(id)` to display that analysis; a hover ✕ calls `deleteGuidelineAnalysis(id)`. The active chip is highlighted with `var(--accent)`.
+- **Inline label editing for analyses** (`_gaStartLabelEdit()`, `_gaSaveLabel()`, `_gaSaveAnalysisLabel()`) — each analysis chip's label can be edited in-place; Enter saves, Esc cancels. Auto-generated labels default to `"Analysis N (M docs)"` or `"Master N"` but can be renamed freely. Same pattern applies to master version rows.
+- **Master synthesis** (`openCreateMasterAnalysis()`, `runCreateMaster()`) — the **Master** button opens `modal-ga-master` which lists all non-master saved analyses with checkboxes and a count, model, and label per row. Selecting two or more and clicking **Create Master** sends a structured synthesis prompt (all analysis texts concatenated) to the active LLM as a non-streaming request, then saves the result as a new `guidelineAnalyses` record with `isMaster: true`. If a previous master already exists for the project, the new synthesis is appended as a new entry in `versions[]` on the existing master record rather than creating a duplicate.
+- **Master versioning** (`_saveGAVersion()`, `openGAVersionHistory()`, `restoreGAVersion()`, `deleteGAVersion()`) — master analyses accumulate all past synthesis runs in `record.versions[]`. A **History** button in the analysis display opens a versioned list in `#guidelines-content-area`; each row shows an auto or custom label, timestamp, and a 100-char preview. **Restore** replaces the master's current results text (saving the displaced content as a new version first); **Delete** removes that version entry.
+- **Analysis diff** (`openGADiff()`, `_openGACompareModal()`) — a **Diff** button on analysis chips and on version rows opens `modal-ga-diff` (a new modal powered by `src/diff.js` LCS line-level diff) to compare any two analyses or master versions. The modal header shows `+N/-N` change stats; the body renders the inline colour-coded diff.
+- **`guidelineAnalyses` in export / import / backup / cascade delete** (`src/settings.js`, `src/drive.js`, `src/projects.js`) — the new store is included in the `exportDatabase()`, `importDatabase()`, `clearAllData()`, and `backupToDrive()` store arrays, and is cascade-deleted when `deleteProject()` removes a project.
+
+### Build
+- `build.js`: adds `analyzeThisGuideline`, `selectGuidelineAnalysis`, `deleteGuidelineAnalysis`, `openCreateMasterAnalysis`, `runCreateMaster`, `openGAVersionHistory`, `restoreGAVersion`, `deleteGAVersion`, `openGADiff`, `_gaStartLabelEdit`, `_gaSaveLabel`, `_gaSaveAnalysisLabel`, `_openGACompareModal` to `mangle.reserved`
+
+---
+
 ## [Unreleased]
 
 ### Added

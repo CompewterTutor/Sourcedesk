@@ -296,6 +296,7 @@ async function clearAllData() {
     "evalCriteria",
     "evalCandidates",
     "evalScores",
+    "guidelineAnalyses",
   ];
   for (const s of stores) {
     const items = await dbGetAll(s);
@@ -557,6 +558,7 @@ async function exportDatabase() {
     "evalCriteria",
     "evalCandidates",
     "evalScores",
+    "guidelineAnalyses",
   ];
   const data = {
     version: DB_VERSION,

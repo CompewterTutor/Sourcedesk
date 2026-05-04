@@ -103,6 +103,15 @@ Per-project task list, accessible from **Tasks →** in the sidebar when a proje
 - Task fields: title, description, status (To Do / In Progress / Done), priority (Low / Medium / High), due date
 - **Include in context** toggle — checked tasks with non-done status are injected into the system prompt as `## Active Tasks` on every message
 
+### Position Guidelines
+Per-project guideline document manager, accessible from **Guidelines →** in the sidebar when a project is loaded:
+- Upload job descriptions, SOPs, org charts, and policy documents as guideline docs (stored separately from chat-context documents)
+- **Analyze** guideline docs with the active LLM — **This Doc** analyzes the selected file; **Analyze All** analyzes every guideline doc at once
+- Results are saved automatically as labelled analysis records — browse them as chips in the action bar; click a chip to view, ✕ to delete, or click the label to rename it inline
+- **Compare analyses** — the **Diff** button on any chip shows a colour-coded line-level diff between two analyses or versions
+- **Master synthesis** — select two or more saved analyses and click **Master** to have the LLM synthesize a unified findings report; master analyses are versioned so you can restore any previous synthesis
+- One-click actions in analysis results: **Create Task** scaffolds a new task from an extracted responsibility; **Create Template** generates a template from a suggested template outline
+
 ### Prompt Library
 Save and reuse prompts across any chat session. Click the 📚 book icon button left of the chat input to open the library dropdown:
 - **Favorites** appear at the top (★ toggle per entry); the 5 most recent non-favorited entries appear below a divider
@@ -244,7 +253,7 @@ Example `.env` values:
 
 ### Project Data & Contacts
 - [x] **Task Management** — per-project tasks with title, description, status, priority, due date; include-in-context toggle; export as Markdown or CSV
-- [ ] **Position Guidelines & Responsibilities parser** *(planned)* — upload job descriptions, SOPs, org charts; AI extracts responsibilities, suggests tasks, project templates, recurring reminders, and relevant vendor categories; one-click actions to scaffold the project
+- [x] **Position Guidelines & Responsibilities parser** — upload job descriptions, SOPs, org charts, and policy docs; AI extracts responsibilities, tasks, template outlines, and reminders; one-click "Create Task" and "Create Template" actions; saved analyses with chips bar, inline label editing, model tracking, master synthesis (multi-analysis LLM aggregation), master versioning, and line-level diff comparison between any two analyses
 - [ ] **Important Contacts / Resources** — per-project contact info and links with tags; include-in-context toggle
 - [ ] **Vendor Catalog** — directory of vendors and agencies categorised by expertise; include in context for relevant projects
 - [ ] **Project Deliverables** — define expected outputs/artifacts with deadlines and milestones; export as a zip of generated files or structured JSON/CSV

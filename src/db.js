@@ -1,6 +1,6 @@
 // ─── IndexedDB ────────────────────────────────────────────────────────────────
 const DB_NAME = "sourcedesk",
-  DB_VERSION = 11;
+  DB_VERSION = 12;
 let db;
 
 function openDB() {
@@ -109,6 +109,11 @@ function openDB() {
         const es = d.createObjectStore("evalScores", { keyPath: "id" });
         es.createIndex("projectId", "projectId", { unique: false });
         es.createIndex("candidateId", "candidateId", { unique: false });
+      }
+      // guideline analyses store — persists AI analysis runs per project (DB v12)
+      if (!d.objectStoreNames.contains("guidelineAnalyses")) {
+        const ga = d.createObjectStore("guidelineAnalyses", { keyPath: "id" });
+        ga.createIndex("projectId", "projectId", { unique: false });
       }
     };
     req.onsuccess = (e) => {

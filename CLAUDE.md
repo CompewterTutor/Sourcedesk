@@ -66,7 +66,12 @@ Sourcedesk/
 │   ├── contacts.js         ← Contacts & Resources view; loadContacts(), renderContactList(),
 │   │                          selectContact(), openNewContact(), saveCurrentContact(), etc.
 │   ├── guidelines.js       ← Position Guidelines view; loadGuidelines(), handleGuidelineUpload(),
-│   │                          openGuidelinesAnalyze() — AI extraction of responsibilities/tasks
+│   │                          analyzeThisGuideline(), _runAnalyze(), _saveGuidelineAnalysis(),
+│   │                          _renderAnalysisBar(), selectGuidelineAnalysis(), deleteGuidelineAnalysis(),
+│   │                          openCreateMasterAnalysis(), runCreateMaster(),
+│   │                          openGAVersionHistory(), restoreGAVersion(), deleteGAVersion(),
+│   │                          openGADiff(), _openGACompareModal() — AI analysis persistence,
+│   │                          chips bar, master synthesis, versioning & diff
 │   ├── evaluation.js       ← Proposal Evaluation view; loadEvaluation(), switchEvalTab(),
 │   │                          openNewCriterion(), evaluateCandidate(), exportScorecardMarkdown()
 │   ├── research.js         ← Research Board; Brave Search, crawl4ai, Research Agent,
@@ -124,7 +129,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 
 ## Architecture
 
-### IndexedDB Stores (current schema: `DB_VERSION = 11`)
+### IndexedDB Stores (current schema: `DB_VERSION = 12`)
 
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
@@ -145,6 +150,7 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 | `evalCriteria` | `id` | `projectId` | `{id, projectId, name, weight, maxScore, description}` |
 | `evalCandidates` | `id` | `projectId` | `{id, projectId, name, sourceDocIds[]}` |
 | `evalScores` | `id` | `projectId, candidateId, criterionId` | `{id, projectId, candidateId, criterionId, score, justification, evaluator}` |
+| `guidelineAnalyses` | `id` | `projectId` | `{id, projectId, label, provider, model, docIds[], docNames[], results, isMaster, sourceIds[], versions: [{id, results, savedAt, label}], createdAt, updatedAt}` |
 
 ### DB Helper Pattern
 All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)`, `dbDelete(store, key)`, `dbGetAll(store)`, `dbGetByIndex(store, index, val)`. All return Promises. Always await them.
@@ -364,7 +370,11 @@ generateBatch, setSQStatus, setSQConfidence, exportSQSummary, _sqEffectiveStatus
 exportToGoogleDoc, exportQuestionsToDoc, exportWorkingDocToDoc,
 parseSpreadsheetId, convertFileToDriveText,
 testEmbeddingModel, getEmbedding, cosineSimilarity, indexDocEmbeddings, getDocEmbeddings,
-backupToServer, openCrossSearch, runCrossSearch
+backupToServer, openCrossSearch, runCrossSearch,
+analyzeThisGuideline, selectGuidelineAnalysis, deleteGuidelineAnalysis,
+openCreateMasterAnalysis, runCreateMaster,
+openGAVersionHistory, restoreGAVersion, deleteGAVersion,
+openGADiff, _gaStartLabelEdit, _gaSaveLabel, _gaSaveAnalysisLabel, _openGACompareModal
 ```
 
 **When you add a new function called from HTML, add it to this list or the minified build will silently break.**
@@ -479,6 +489,22 @@ When adding a new object store or index:
 > 5. **Guidelines uploader parity** (`src/guidelines.js`, `src/index.html`)
 >    - `handleGuidelineUpload` now uses the same three-stage pipeline, stores original, shows status
 >    - Guideline list items show conversion badge + ✎ Edit button (shared doc editor modal)
+
+> **Session note (2025-07-20 — Guidelines analysis persistence + proxy envelope fix):** All features below committed and rebuilt into `SourceDesk.html`.
+>
+> 1. **Guidelines preview truncation fix** (`src/guidelines.js`) — preview limit raised 300 → 2000 chars; rendered in a scrollable box; ✎ View / Edit button added to reach the full doc editor without leaving the view.
+>
+> 2. **Non-streaming proxy envelope bug** (`src/guidelines.js`, `src/evaluation.js`) — `buildApiCall()` for the local provider wraps the request in a proxy envelope `{ url, method, headers, body: "<inner-JSON-string>" }`. Both the Guidelines analyser and Evaluation candidate scorer tried to patch `stream: false` on the outer parsed object instead of inside the inner body string. Result: LLM received `stream: true`, returned SSE text, `resp.json()` threw `Unexpected token 'd'`. Fixed by detecting the envelope shape and patching the inner body string correctly.
+>
+> 3. **Guideline Analyses persistence** 🗄️ **DB_VERSION 12** — new `guidelineAnalyses` IndexedDB store. Each analysis record stores provider, model, doc IDs/names, results text, label, `isMaster` flag, `sourceIds`, `versions[]`, and timestamps. Included in export/import/backup/cascade-delete.
+>
+> 4. **Guidelines action bar + chips bar** — right panel reworked with three action buttons (This Doc / Analyze All / Master) and a chips bar (`_renderAnalysisBar()`) showing all saved analyses; chips support inline label editing, click-to-view, and hover-delete.
+>
+> 5. **Master synthesis** — `openCreateMasterAnalysis()` / `runCreateMaster()` — multi-analysis LLM synthesis saved as `isMaster: true`; subsequent re-runs append versions rather than creating duplicates.
+>
+> 6. **Master versioning** — `_saveGAVersion()` / `openGAVersionHistory()` / `restoreGAVersion()` / `deleteGAVersion()` — full version history for master analyses with restore and delete.
+>
+> 7. **Analysis diff** — `openGADiff()` / `_openGACompareModal()` — line-level LCS diff between any two analyses or master versions via `modal-ga-diff` + `src/diff.js`.
 
 > **Session note (2025-07-20 — markitdown quality fixes):** All features below committed and pushed to `main` (commits `491a73c`, `e0790ce`).
 >
@@ -706,11 +732,15 @@ When adding a new object store or index:
 - `toggleTaskCalendar()`, `_calNav()`, `_calToday()`, `_calSelectDay()` — navigation + day filter
 - `exportTasksMarkdown()` and `exportTasksCSV()` — export current task list
 
-#### Position Guidelines (`src/guidelines.js`)
+#### Position Guidelines (`src/guidelines.js`) 🗄️ DB_VERSION 12
 - New per-project **Guidelines** view; sidebar nav button revealed after `loadProject()`
-- Guideline docs stored in existing `docs` store with `docType: 'guideline'`; excluded from chat context and `state.activeDocs`
-- AI analyzer: `openGuidelinesAnalyze()` — extracts responsibilities, recommended tasks, templates, reminders; one-click "Create Task" / "Create Template" actions
-- `loadGuidelines()`, `selectGuideline()`, `deleteGuideline()`, `handleGuidelineUpload()`
+- Guideline docs stored in existing `docs` store with `docType: 'guideline'`; excluded from chat context and `state.activeDocs`; preview raised to 2 000 chars with scrollable box + ✎ View/Edit button
+- **AI analysis**: **This Doc** button (`analyzeThisGuideline()`) analyzes selected doc; **Analyze All** button (`_runAnalyze()`) analyzes all project guideline docs
+- **Analysis persistence**: results auto-saved to `guidelineAnalyses` store (`_saveGuidelineAnalysis()`); chips bar (`_renderAnalysisBar()`) shows all saved analyses with model, relative time, doc count; inline label editing; click to view, ✕ to delete
+- **Master synthesis** (`openCreateMasterAnalysis()`, `runCreateMaster()`) — synthesize multiple analyses into a unified master; subsequent re-runs append as versions instead of creating duplicates
+- **Master versioning** (`_saveGAVersion()`, `openGAVersionHistory()`, `restoreGAVersion()`, `deleteGAVersion()`) — full history of master synthesis runs with restore and delete
+- **Analysis diff** (`openGADiff()`, `_openGACompareModal()`) — line-level LCS diff between any two analyses or master versions via `modal-ga-diff`
+- `guidelineAnalyses` included in `exportDatabase()` / `importDatabase()` / `clearAllData()` / `backupToDrive()` / cascade `deleteProject()`
 
 #### LLM-Generated Session Titles & Cross-Project Search
 - After first message, a fire-and-forget LLM call generates a 4–6 word session title stored in `chats.title`
@@ -897,6 +927,32 @@ When the v1 single-file static-app phase is feature-complete (through item 21 ab
 - Browsers enforce a strict rule: `Authorization` cannot be covered by `Access-Control-Allow-Headers: *` (wildcard). LM Studio and Ollama both use the wildcard, so any request that includes an `Authorization` header will be blocked by the browser regardless of the LM Studio CORS setting.
 - The fix is the `/proxy` endpoint in `server.js` — it makes the request server-side (no CORS restrictions) and streams the response back. This only works when the app is served via `npm run serve` (i.e., `window.__SOURCEDESK_ENV__` is defined). When running from `file://`, direct fetch is used and CORS issues may still appear if a key is set.
 - `_localFetch(url, options)` in `flags.js` is the single switching point — change it there if the proxy logic ever needs updating.
+
+### Non-streaming requests through the local LLM proxy — patch the inner body, not the outer envelope
+When you need a synchronous (non-streaming) LLM response (e.g. Guidelines analysis, Proposal Evaluation), you call `buildApiCall()` and then modify the body to set `stream: false` before calling `fetch()`. This works correctly for all direct providers. But for the **local** provider when the app is served via `npm run serve`, `buildApiCall()` returns a proxy envelope:
+```Sourcedesk/src/flags.js#L1-1
+{ url, headers, body: '{"url":"http://...","method":"POST","headers":{...},"body":"{\"model\":...\"stream\":true}"}' }
+```
+The outer `body` field is already a JSON *string* (the serialised envelope). If you do `JSON.parse(apiCall.body).stream = false` you're patching the outer envelope object, not the inner body. The LLM still receives `stream: true` and returns an SSE stream; `resp.json()` then throws `Unexpected token 'd', "data: {\"id\"..."`.
+
+**Correct pattern:**
+```Sourcedesk/src/guidelines.js#L1-1
+let bodyStr = apiCall.body;
+try {
+  const outer = JSON.parse(bodyStr);
+  if (outer && typeof outer.body === 'string') {
+    // proxy envelope — patch the inner body string
+    const inner = JSON.parse(outer.body);
+    inner.stream = false;
+    outer.body = JSON.stringify(inner);
+    bodyStr = JSON.stringify(outer);
+  } else {
+    outer.stream = false;
+    bodyStr = JSON.stringify(outer);
+  }
+} catch { /* leave as-is */ }
+```
+See `_runAnalyze()` in `src/guidelines.js` and `evaluateCandidate()` in `src/evaluation.js` for the reference implementation.
 
 ### `formatMarkdown` is not a real markdown parser
 - It's a series of regex replacements. It handles bold, italic, inline code, fenced code blocks, h2/h3, unordered lists, and double-newline paragraphs. It does NOT handle: nested lists, ordered lists properly, tables, blockquotes, horizontal rules, or complex nesting. Extend with caution — regex order matters.
