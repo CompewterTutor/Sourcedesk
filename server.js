@@ -26,6 +26,10 @@ const path = require("path");
 const os = require("os");
 const { execFile } = require("child_process");
 
+// Base64-encoded minimal .docx for capability testing
+const TINY_TEST_DOCX_B64 =
+  "UEsDBBQAAAAAAO2+o1x5bjPXrQEAAK0BAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbDw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9IlVURi04IiBzdGFuZGFsb25lPSJ5ZXMiPz48VHlwZXMgeG1sbnM9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9wYWNrYWdlLzIwMDYvY29udGVudC10eXBlcyI+PERlZmF1bHQgRXh0ZW5zaW9uPSJyZWxzIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLXBhY2thZ2UucmVsYXRpb25zaGlwcyt4bWwiLz48RGVmYXVsdCBFeHRlbnNpb249InhtbCIgQ29udGVudFR5cGU9ImFwcGxpY2F0aW9uL3htbCIvPjxPdmVycmlkZSBQYXJ0TmFtZT0iL3dvcmQvZG9jdW1lbnQueG1sIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLW9mZmljZWRvY3VtZW50LndvcmRwcm9jZXNzaW5nbWwuZG9jdW1lbnQubWFpbit4bWwiLz48L1R5cGVzPlBLAwQUAAAAAADtvqNcm/036ikBAAApAQAACwAAAF9yZWxzLy5yZWxzPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxSZWxhdGlvbnNoaXBzIHhtbG5zPSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvcGFja2FnZS8yMDA2L3JlbGF0aW9uc2hpcHMiPjxSZWxhdGlvbnNoaXAgSWQ9InJJZDEiIFR5cGU9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9vZmZpY2VEb2N1bWVudC8yMDA2L3JlbGF0aW9uc2hpcHMvb2ZmaWNlRG9jdW1lbnQiIFRhcmdldD0id29yZC9kb2N1bWVudC54bWwiLz48L1JlbGF0aW9uc2hpcHM+UEsDBBQAAAAAAO2+o1wS4lEtsQEAALEBAAARAAAAd29yZC9kb2N1bWVudC54bWw8P3htbCB2ZXJzaW9uPSIxLjAiIGVuY29kaW5nPSJVVEYtOCIgc3RhbmRhbG9uZT0ieWVzIj8+PHc6ZG9jdW1lbnQgeG1sbnM6d3BjPSJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL29mZmljZS93b3JkLzIwMTAvd29yZHByb2Nlc3NpbmdDYW52YXMiIHhtbG5zOnc9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy93b3JkcHJvY2Vzc2luZ21sLzIwMDYvbWFpbiI+PHc6Ym9keT48dzpwPjx3OnI+PHc6dD5UaGlzIGlzIGEgdGVzdCBkb2N1bWVudC4gSGVsbG8gV29ybGQuIFByb2N1cmVtZW50IGRldGFpbHMgaGVyZS48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnI+PHc6dD5TZWNvbmQgcGFyYWdyYXBoIHdpdGggbW9yZSBpbmZvcm1hdGlvbiBhYm91dCB0aGUgcHJvamVjdC48L3c6dD48L3c6cj48L3c6cD48L3c6Ym9keT48L3c6ZG9jdW1lbnQ+UEsDBBQAAAAAAO2+o1zp+cGTmwAAAJsAAAAcAAAAd29yZC9fcmVscy9kb2N1bWVudC54bWwucmVsczw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9IlVURi04IiBzdGFuZGFsb25lPSJ5ZXMiPz48UmVsYXRpb25zaGlwcyB4bWxucz0iaHR0cDovL3NjaGVtYXMub3BlbnhtbGZvcm1hdHMub3JnL3BhY2thZ2UvMjAwNi9yZWxhdGlvbnNoaXBzIj48L1JlbGF0aW9uc2hpcHM+UEsBAhQDFAAAAAAA7b6jXHluM9etAQAArQEAABMAAAAAAAAAAAAAAIABAAAAAFtDb250ZW50X1R5cGVzXS54bWxQSwECFAMUAAAAAADtvqNcm/036ikBAAApAQAACwAAAAAAAAAAAAAAgAHeAQAAX3JlbHMvLnJlbHNQSwECFAMUAAAAAADtvqNcEuJRLbEBAACxAQAAEQAAAAAAAAAAAAAAgAEwAwAAd29yZC9kb2N1bWVudC54bWxQSwECFAMUAAAAAADtvqNc6fnBk5sAAACbAAAAHAAAAAAAAAAAAAAAgAEQBQAAd29yZC9fcmVscy9kb2N1bWVudC54bWwucmVsc1BLBQYAAAAABAAEAAMBAADlBQAAAAA=";
+
 // ─── .env parser ──────────────────────────────────────────────────────────────
 function loadEnv(envPath) {
   const result = {};
@@ -58,27 +62,66 @@ const HTML_SRC = path.join(__dirname, "SourceDesk.html");
 // ─── markitdown availability & execution ─────────────────────────────────────
 // Cached availability: null = unchecked, true/false = result
 let _markitdownAvailable = null;
+let _markitdownDocxAvailable = null;
 
-function checkMarkitdown(cb) {
-  if (_markitdownAvailable !== null) {
-    cb(_markitdownAvailable);
+// Verify that markitdown can actually convert .docx files by running a tiny test conversion.
+function _testDocxConversion(cb) {
+  const tmpFile = path.join(
+    os.tmpdir(),
+    "sd-mkd-docx-test-" + Date.now() + ".docx",
+  );
+  try {
+    fs.writeFileSync(tmpFile, Buffer.from(TINY_TEST_DOCX_B64, "base64"));
+  } catch (e) {
+    cb(false);
     return;
   }
-  // Try direct `markitdown` command first
+  runMarkitdown(tmpFile, (err, output) => {
+    try {
+      fs.unlinkSync(tmpFile);
+    } catch (_) {}
+    // The test docx contains "Hello World" in its text content
+    cb(
+      !err &&
+        typeof output === "string" &&
+        output.toLowerCase().includes("hello world"),
+    );
+  });
+}
+
+function checkMarkitdown(cb) {
+  if (_markitdownAvailable !== null && _markitdownDocxAvailable !== null) {
+    cb(_markitdownAvailable, _markitdownDocxAvailable);
+    return;
+  }
+  // Step 1: verify markitdown is on PATH
   execFile("markitdown", ["--help"], { timeout: 5000 }, (err) => {
     if (!err) {
       _markitdownAvailable = true;
-      cb(true);
+      // Step 2: test actual docx conversion to catch missing optional deps
+      _testDocxConversion((docxOk) => {
+        _markitdownDocxAvailable = docxOk;
+        cb(true, docxOk);
+      });
       return;
     }
-    // Fall back to `python3 -m markitdown`
+    // Try python3 -m markitdown fallback
     execFile(
       "python3",
       ["-m", "markitdown", "--help"],
       { timeout: 5000 },
       (err2) => {
-        _markitdownAvailable = !err2;
-        cb(!err2);
+        const ok = !err2;
+        _markitdownAvailable = ok;
+        if (!ok) {
+          _markitdownDocxAvailable = false;
+          cb(false, false);
+          return;
+        }
+        _testDocxConversion((docxOk) => {
+          _markitdownDocxAvailable = docxOk;
+          cb(true, docxOk);
+        });
       },
     );
   });
@@ -152,9 +195,15 @@ function handler(req, res) {
 
   // ─── Health check ──────────────────────────────────────────────────────
   if (url === "/health" && req.method === "GET") {
-    checkMarkitdown((available) => {
+    checkMarkitdown((available, docxAvailable) => {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "ok", markitdownAvailable: available }));
+      res.end(
+        JSON.stringify({
+          status: "ok",
+          markitdownAvailable: available,
+          docxAvailable: !!docxAvailable,
+        }),
+      );
     });
     return;
   }
@@ -204,8 +253,22 @@ function handler(req, res) {
         } catch (_) {}
 
         if (err) {
+          // Truncate long Python tracebacks to a useful one-liner for the browser
+          const full = String(err.message || err);
+          const brief =
+            full
+              .split("\n")
+              .filter(
+                (l) =>
+                  l.trim() &&
+                  !l.startsWith("  ") &&
+                  !l.startsWith("File ") &&
+                  !l.startsWith("Traceback"),
+              )
+              .join(" | ")
+              .slice(0, 400) || full.slice(0, 400);
           res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
-          res.end("markitdown failed: " + err.message);
+          res.end("markitdown failed: " + brief);
           return;
         }
         res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
@@ -428,14 +491,20 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log("");
 
   // Check markitdown and log result asynchronously
-  checkMarkitdown((available) => {
-    if (available) {
+  checkMarkitdown((available, docxAvailable) => {
+    if (available && docxAvailable) {
       console.log(
         "  ✓ markitdown available — .docx / .xlsx / .pptx / .pdf conversion enabled",
       );
+    } else if (available && !docxAvailable) {
+      console.log(
+        "  ⚠ markitdown found but missing optional document format dependencies",
+      );
+      console.log('    Run:  pip install "markitdown[all]"');
+      console.log("    Then restart the server.");
     } else {
       console.log("  ⚠ markitdown not found on PATH");
-      console.log("    Install with:  pip install markitdown");
+      console.log('    Install with:  pip install "markitdown[all]"');
       console.log("    Then restart the server.");
     }
     console.log("");

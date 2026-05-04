@@ -55,6 +55,7 @@ async function renderRightPanel() {
       markitdown: ["MarkItDown", "var(--success)"],
       drive: ["Drive", "#4a9eff"],
       text: ["Text", "var(--text-muted)"],
+      failed: ["⚠ Failed", "var(--danger)"],
     };
     const _badge =
       _cm && _badgeMap[_cm]
@@ -174,13 +175,12 @@ async function handleDocUpload(event) {
           "var(--success)",
         );
       } catch (err) {
+        const brief = String(err.message || err)
+          .split("\n")[0]
+          .slice(0, 200);
         _setUploadStatus(
-          "MarkItDown failed for " +
-            file.name +
-            " (" +
-            err.message +
-            "), trying fallback\u2026",
-          "var(--accent)",
+          "\u26a0 MarkItDown failed for " + file.name + " \u2014 " + brief,
+          "var(--danger)",
         );
         log(
           "markitdown conversion failed:",
@@ -223,14 +223,37 @@ async function handleDocUpload(event) {
       }
     }
 
-    // ── 3. Basic text extraction (final fallback) ─────────────────────
+    // ── 3. Final fallback: text extraction for plain text, placeholder for binary ──
     if (!text) {
-      if (!statusEl || statusEl.style.display === "none") {
-        _setUploadStatus("Loading " + file.name + "\u2026");
-      }
-      text = await readFileAsText(file);
-      if (conversionMethod === "text") {
-        _setUploadStatus("\u2713 " + file.name + " loaded (text extraction)");
+      // For binary-only formats (docx/xlsx/pptx/pdf), readFileAsText produces unreadable
+      // binary garbage. Save a helpful placeholder instead so the user can re-convert later.
+      const binaryOnlyTypes = ["docx", "xlsx", "pptx", "pdf"];
+      if (binaryOnlyTypes.includes(ext)) {
+        conversionMethod = "failed";
+        text =
+          "[Conversion failed for \u201c" +
+          file.name +
+          "\u201d]\n\n" +
+          "The document could not be converted to text. The original file is preserved \u2014 " +
+          "use the \u27f3 Re-convert button on the document card after fixing the issue.\n\n" +
+          "To enable .docx / .xlsx / .pptx / .pdf conversion:\n" +
+          '  1. Run:  pip install "markitdown[all]"\n' +
+          "  2. Restart the SourceDesk server (npm run serve)\n" +
+          "  3. Click \u27f3 on this document card to re-convert.";
+        _setUploadStatus(
+          "\u26a0 Could not convert " +
+            file.name +
+            ' \u2014 run: pip install "markitdown[all]" then re-convert',
+          "var(--danger)",
+        );
+      } else {
+        if (!statusEl || statusEl.style.display === "none") {
+          _setUploadStatus("Loading " + file.name + "\u2026");
+        }
+        text = await readFileAsText(file);
+        if (conversionMethod === "text") {
+          _setUploadStatus("\u2713 " + file.name + " loaded (text extraction)");
+        }
       }
     }
 
@@ -269,11 +292,17 @@ async function handleDocUpload(event) {
   event.target.value = "";
   await renderRightPanel();
 
-  // Auto-hide status after a short delay
+  // Auto-hide status — longer delay when showing an error/warning
   if (statusEl && statusEl.style.display !== "none") {
-    setTimeout(function () {
-      statusEl.style.display = "none";
-    }, 4000);
+    const isError =
+      statusEl.style.color === "var(--danger)" ||
+      statusEl.style.color === "var(--accent)";
+    setTimeout(
+      function () {
+        statusEl.style.display = "none";
+      },
+      isError ? 12000 : 4000,
+    );
   }
 }
 
@@ -331,7 +360,10 @@ async function openDocEditor(docId) {
         markitdown: "MarkItDown",
         drive: "Google Drive",
         text: "Text extraction",
-      }[doc.conversionMethod] || "\u2014";
+        failed: "\u26a0 Conversion Failed \u2014 use \u27f3 to retry",
+      }[doc.conversionMethod] ||
+      doc.conversionMethod ||
+      "Unknown";
     const size = doc.content
       ? Math.round(doc.content.length / 1024) + " KB"
       : "0 KB";

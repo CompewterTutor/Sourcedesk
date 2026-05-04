@@ -516,12 +516,19 @@ async function testMarkitdownServer() {
     if (!resp.ok) throw new Error("HTTP " + resp.status);
     const json = await resp.json();
     if (statusEl) {
-      statusEl.textContent = json.markitdownAvailable
-        ? "\u2713 Server online \u00b7 markitdown ready \u2014 .docx, .xlsx, .pptx, .pdf conversion enabled"
-        : "\u26a0 Server online but markitdown not found \u2014 run: pip install markitdown, then restart server";
-      statusEl.style.color = json.markitdownAvailable
-        ? "var(--success)"
-        : "var(--accent)";
+      if (json.markitdownAvailable && json.docxAvailable) {
+        statusEl.textContent =
+          "\u2713 Server online \u00b7 markitdown ready \u2014 .docx, .xlsx, .pptx, .pdf conversion enabled";
+        statusEl.style.color = "var(--success)";
+      } else if (json.markitdownAvailable && !json.docxAvailable) {
+        statusEl.textContent =
+          '\u26a0 Server online \u00b7 markitdown installed but missing optional format support \u2014 run: pip install "markitdown[all]" then restart server';
+        statusEl.style.color = "var(--accent)";
+      } else {
+        statusEl.textContent =
+          '\u26a0 Server online but markitdown not found \u2014 run: pip install "markitdown[all]" then restart server';
+        statusEl.style.color = "var(--accent)";
+      }
     }
   } catch (e) {
     if (statusEl) {

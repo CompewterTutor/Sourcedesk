@@ -22,6 +22,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Local provider API key not loaded on boot** (`src/boot.js`, `src/state.js`) — `apiKey_local` was written to IndexedDB by `saveSettings()` but never read back on page load. `state.settings.localKey` was always `""` after a refresh, causing chat completions to omit the `Authorization` header and the Settings modal to show a blank API key field for the local provider. Fixed by loading `apiKey_local` → `state.settings.localKey` in `boot()` and initialising `localKey: ""` in the state object.
 - **Misleading "check URL & CORS" error for all model-detection failures** (`src/settings.js`) — `fetchLocalModels` previously showed the same generic message for every failure including HTTP 401 and empty model lists. The catch block now surfaces the actual error. A 401 specifically shows "HTTP 401 — enter the API key in the field above". An empty model list shows "Empty model list — load a model in LM Studio first (response keys: …)". Models returned but with unrecognised ID fields shows the first model's actual key names to aid diagnosis.
 
+### Fixed (continued)
+- **`.docx` / `.xlsx` / `.pptx` conversion silently falling back to binary garbage** (`server.js`, `src/panel.js`) — `markitdown` was installed without its optional format-support extras (`mammoth` for docx, `openpyxl` for xlsx, `python-pptx` for pptx). The `/health` check only verified that the `markitdown` command existed (via `--help`), so the Settings Test button incorrectly showed "✓ markitdown ready" even though actual conversions failed. Fixed by:
+  - Running `pip install "markitdown[all]"` to install all optional format dependencies.
+  - Adding `_testDocxConversion()` in `server.js` — writes a tiny embedded test `.docx` to a temp file and runs markitdown on it; only passes if the output contains the known test string. `checkMarkitdown` now runs this as a second step after the basic `--help` check.
+  - `/health` now returns a new `docxAvailable` boolean that reflects whether the real docx conversion test passed.
+  - The Settings "Test" button for MarkItDown now shows three distinct states: ✓ fully ready / ⚠ installed but missing format deps (with exact `pip install` hint) / ✗ not found.
+  - Error messages from `/convert` are now truncated to 400 characters (first-line extraction) so long Python tracebacks don't overflow the status bar.
+  - For binary-only file types (`.docx`, `.xlsx`, `.pptx`, `.pdf`), the upload fallback no longer calls `readFileAsText()` which produced unreadable binary garbage. Instead a human-readable placeholder is stored (with recovery instructions and the ⟳ re-convert hint), and `conversionMethod` is set to `"failed"`. The doc card badge now shows `⚠ Failed` in red for these records.
+  - The upload status auto-hides after **12 seconds** for errors/warnings vs 4 seconds for success, giving users time to read actionable messages.
+  - The server startup log now correctly distinguishes between markitdown-not-found, markitdown-installed-but-no-docx-support, and fully-functional.
+
 ### Build
 - `build.js`: adds `openDocEditor`, `saveDocContent`, `downloadDocOriginal`, `downloadDocMarkdown`, `reconvertDoc` to `mangle.reserved`
 - `server.js`: adds `POST /proxy` endpoint; requires `https` module; startup log now includes the proxy URL
