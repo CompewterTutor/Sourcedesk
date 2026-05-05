@@ -140,3 +140,12 @@ vite.config.ts.timestamI'd like you to scan the repository and write up an archi
 
 #private Documents
 .private-documents/
+
+# SQLite database files
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Server-side backups
+backups/

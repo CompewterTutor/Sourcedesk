@@ -1,18 +1,23 @@
 {
-    "name": "sourcedesk",
-    "version": "0.6.0",
-    "description": "In-browser RAG and project management system for Claude. Single-file, IndexedDB-backed.",
-    "private": true,
-    "scripts": {
-        "build": "node build.js",
-        "dev": "node build.js --dev",
-        "watch": "node build.js --watch",
-        "serve": "node server.js"
-    },
-    "devDependencies": {
-        "terser": "^5.37.0"
-    },
-    "engines": {
-        "node": ">=18"
-    }
+  "name": "sourcedesk",
+  "version": "0.6.0",
+  "description": "In-browser RAG and project management system for Claude. Single-file, IndexedDB-backed.",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --dev",
+    "watch": "node build.js --watch",
+    "serve": "node server.js",
+    "migrate": "node scripts/migrate.js"
+  },
+  "devDependencies": {
+    "terser": "^5.37.0"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^9.6.0",
+    "pg": "^8.13.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }

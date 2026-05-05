@@ -19,3 +19,6 @@
 - if a task that's in the analysis that has already had "create task" clicked, we need to mark it created and maybe have a jump to task and open the task panel with the task selected.
 - same with templates/template creation
 - need to have an unload model button, i tried to select a new model between analysis runs and it failed trying to load the new model without unloading the old one.
+---
+5-4-2026 mark 2
+- f

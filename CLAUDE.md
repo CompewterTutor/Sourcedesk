@@ -84,14 +84,27 @@ Sourcedesk/
 ├── tests/
 │   └── test.html           ← Self-contained browser test runner (no server needed, file:// works)
 ├── build.js                ← Node build script; SRC_FILES order; terser mangle.reserved list
-├── server.js               ← Optional local server for env injection / local LLM defaults
-├── package.json            ← npm project; devDep: terser ^5.37.0
+├── server.js               ← Local server: env injection, markitdown, proxy, email ingest API
+├── server/
+│   ├── db.js               ← DB abstraction (SQLite via better-sqlite3 / PostgreSQL via pg)
+│   └── llm.js              ← Server-side non-streaming LLM helper (no npm deps)
+├── migrations/
+│   └── 001_initial.sql     ← Initial schema (SQLite + PostgreSQL compatible)
+├── scripts/
+│   ├── generate_api_token.js ← CLI: generate tokens (file + DB)
+│   └── migrate.js          ← CLI: run pending DB migrations
+├── data/                   ← SQLite db files (gitignored; created on first server start)
+├── package.json            ← npm project; devDep: terser; optionalDep: better-sqlite3, pg
 ├── package-lock.json
+├── Makefile                ← Common build/run targets
+├── Dockerfile              ← Multi-stage builder + runtime; includes native module build tools
+├── docker-compose.yml      ← SQLite by default; pgvector Postgres service commented in
+├── .env.example            ← All configurable env variables documented
 ├── SourceDesk.html         ← Compiled output (committed; this is what users open)
-├── CHANGELOG.md            ← Versioned changelog; 🗄️ marks DB schema changes
+├── CHANGELOG.md            ← Versioned changelog; 🗄️ marks IndexedDB changes; 🖥️ marks server additions
 ├── README.md               ← User-facing docs; roadmap as checkboxes
 ├── CLAUDE.md               ← This file
-└── .gitignore              ← node_modules/, etc.
+└── .gitignore              ← node_modules/, data/, backups/, .env, etc.
 ```
 
 **Never edit `SourceDesk.html` directly.** Edit `src/` files and rebuild.
@@ -374,7 +387,8 @@ backupToServer, openCrossSearch, runCrossSearch,
 analyzeThisGuideline, selectGuidelineAnalysis, deleteGuidelineAnalysis,
 openCreateMasterAnalysis, runCreateMaster,
 openGAVersionHistory, restoreGAVersion, deleteGAVersion,
-openGADiff, _gaStartLabelEdit, _gaSaveLabel, _gaSaveAnalysisLabel, _openGACompareModal
+openGADiff, _gaStartLabelEdit, _gaSaveLabel, _gaSaveAnalysisLabel, _openGACompareModal,
+openTemplateVarsModal, _tvAddConstantRow, _tvDeleteConstantRow, _tvSaveConstants, _tvInsertVar
 ```
 
 **When you add a new function called from HTML, add it to this list or the minified build will silently break.**
@@ -456,9 +470,29 @@ When adding a new object store or index:
 
 ## Current State (as of last commit)
 
-**Current version: v0.8.0** (`src/flags.js`) — build output: `SourceDesk.html` committed at HEAD `db6fab2`
+**Current version: v0.8.0** (`src/flags.js`) — build output: `SourceDesk.html` committed at HEAD
 
 > **Note:** `package.json` still shows `0.6.0` — needs to be bumped to `0.8.0` to stay in sync.
+
+> **Session note (latest — server DB + LLM email pipeline + Template Variable popup):**
+> All features below are complete and committed.
+>
+> 1. **Server-side DB abstraction** (`server/db.js`) — `createDb(url)` factory supporting SQLite (`better-sqlite3`) and PostgreSQL (`pg`), both optional. Unified async interface: `run/get/all/exec/close/type/runMigrations`. SQLite uses synchronous `better-sqlite3` wrapped in Promises; Postgres uses `pg` Pool with `?`→`$N` conversion.
+>
+> 2. **Initial DB schema** (`migrations/001_initial.sql`) — seven tables: `schema_migrations`, `users`, `api_tokens`, `email_ingests`, `email_threads`, `email_messages`, `email_summaries`. Migration runner in `scripts/migrate.js` (`npm run migrate`). Migrations also auto-run on server startup.
+>
+> 3. **Server-side LLM helper** (`server/llm.js`) — non-streaming Anthropic / OpenAI-compat calls using only Node.js built-in `https`/`http`. Configured via `.env`: `LLM_PROVIDER`, `LLM_MODEL`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`.
+>
+> 4. **Async LLM email summarization** (`server.js` — `_summarizeIngest()`) — fire-and-forget after HTTP response is sent. Per-thread incremental updates (only new messages since last run). Project-level executive summary. Stored in `email_summaries` with version counter.
+>
+> 5. **New server endpoints** — `GET /api/email-summaries?token&projectId` (fetch stored summaries), `POST /api/token-revoke` (revoke tokens from file + DB). Updated `/api/email-ingest` to persist threads/messages to DB and return `llmSummarizing` flag. Updated `/health` to report `db` type. Updated startup logs.
+>
+> 6. **DB-aware token generator** (`scripts/generate_api_token.js`) — if `DATABASE_URL` is set, creates user + token records in DB; always writes file fallback.
+>
+> 7. **Template Variable popup** (`src/index.html`, `src/templates.js`) — `📖 Variables` button in template editor. Two sections: built-in auto-vars with live current values (click to insert at cursor), and editable constants table (add/delete/edit rows, 💾 Save). Functions: `openTemplateVarsModal`, `_tvAddConstantRow`, `_tvDeleteConstantRow`, `_tvSaveConstants`, `_tvInsertVar` — all in `mangle.reserved`.
+>
+> 8. **DevOps** — Dockerfile updated (build tools for native modules, runtime `npm ci`, copies `server/` + `migrations/`). `docker-compose.yml` uses SQLite by default (`data` volume), `pgvector` Postgres commented in. `.env.example` fully documented. `package.json`: `migrate` script, `better-sqlite3` + `pg` as `optionalDependencies`. `.gitignore`: `data/`, `*.db*`, `backups/`.
+
 
 > **Session note (2025-07-20):**
 > All features below are complete in `src/` and rebuilt into `SourceDesk.html`.

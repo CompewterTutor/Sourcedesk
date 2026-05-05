@@ -352,6 +352,11 @@ async function build() {
           "openCrossSearch",
           "runCrossSearch",
           "unloadLocalModel",
+          "openTemplateVarsModal",
+          "_tvAddConstantRow",
+          "_tvDeleteConstantRow",
+          "_tvSaveConstants",
+          "_tvInsertVar",
         ],
       },
       format: {

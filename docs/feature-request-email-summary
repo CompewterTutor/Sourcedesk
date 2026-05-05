@@ -1,0 +1,27 @@
+# Requested Features
+- Server-side database support
+    - initially postgresql, sqlite
+    - start with sqlite
+    - create migration scripts for both db types
+    - design how we'll do rag with pgvector
+    - secrets are in .env create variables in .env.example and commands to generate secrets and llm choices for embeddings and summarization
+    - add ability to create indices for larger files using the headers and an llm to generate section summaries and possibly line numbers
+    - create folder for uploads for larger files
+    - create folder for generated files
+    - user has own id, database
+    - loads config from server database and merges with localdb in a smart way
+    - any conflicts - ask, with preference to newest data, perhaps show diff if it's documents/etc
+- New feature - Email Summary
+    - user can generate a uuid in the settings so that they use that to send eith api requests along with a token
+    - cli command to generate a valid token
+    - server adds an api that can be used to http post a blob with a list of emails to run a prompt on that by default will summarize the threads one by one and also give a total summary with at minimum the following information:
+        - user's api token will map to a specific user in the database so we know who is importing data
+        - this will allow users to http post information directly to sourcedeck from stuff like powerautomate in order to import data from ms 365 stuff
+        - the first enpoint will be for ingesting email threads that are associated with a project by name or id, after storing with a date, we run an analysis and if it's a first time we just do an analysis, after that we only analyze the new information and write updates for what's been learned since last push, then give an updated final summary with the information we usually give in a summary, draft any documents or responses that we expect as new versions
+- Template Variable popup for editing
+    - show global built-ins
+    - show local custom variables with edit functionality
+    - show global constants
+
+- containerize the server for docker/podman with a docker compose and dockerfile
+    - add an optional postgresql with pgvector support for rag

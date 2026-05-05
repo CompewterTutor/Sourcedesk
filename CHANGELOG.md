@@ -9,6 +9,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] 🖥️
+
+### Added
+- **Server-side DB backend** (`server/db.js`) — new module supporting SQLite (`better-sqlite3`) and PostgreSQL (`pg`). Both packages are optional `optionalDependencies`; the server falls back to file-only storage when `DATABASE_URL` is not set. Unified async API: `createDb(url)` → `{ run, get, all, exec, close, type, runMigrations }`. SQLite uses the synchronous `better-sqlite3` API wrapped in Promises; PostgreSQL uses `pg` Pool with `?` → `$N` placeholder conversion. `runMigrations(dir)` reads all `.sql` files in the `migrations/` directory in alphabetical order, skipping already-applied ones tracked in `schema_migrations`.
+- **Initial DB schema** (`migrations/001_initial.sql`) — SQLite/PostgreSQL-compatible: `schema_migrations`, `users`, `api_tokens` (with `revoked` and `expires_at` columns), `email_ingests`, `email_threads` (upserted per-project, email_count accumulates), `email_messages` (deduplicated by composite `message_key`), `email_summaries` (one per project+user, updated incrementally with `version` counter and `per_thread_json`). All tables use `TEXT PRIMARY KEY` IDs (same `uid()` pattern as the client).
+- **Migration runner CLI** (`scripts/migrate.js`) — `npm run migrate` or `DATABASE_URL=… node scripts/migrate.js`; reads `DATABASE_URL` from `.env` or environment; reports newly-applied files; graceful error if DB module is not installed. Migrations also run automatically on server startup.
+- **Server-side LLM helper** (`server/llm.js`) — non-streaming LLM calls using only Node.js built-in `https`/`http`. Supports `anthropic` (direct API), `openai` (OpenAI-compat), and `local` (OpenAI-compat at `LOCAL_LLM_URL`). Configured via `.env`: `LLM_PROVIDER`, `LLM_MODEL`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`. 120-second request timeout.
+- **Async LLM email summarization pipeline** (`server.js` — `_summarizeIngest()`) — fire-and-forget function called after the HTTP response is sent. Per-thread: if a previous summary exists for that thread key, only NEW messages are sent to the LLM with an incremental-update instruction (avoids re-processing the full history on every ingest). After all threads are summarized, a second LLM call produces a project-level executive summary (action items, deadlines, vendor contacts, next steps). Results stored in `email_summaries` table with `version` counter, `per_thread_json`, `model`, and `provider` fields.
+- **`GET /api/email-summaries`** — new endpoint; query params: `token`, `projectId`. Returns the stored LLM summary for a project including parsed `per_thread_json` and `draft_documents`. Returns 503 if DB is not configured.
+- **`POST /api/token-revoke`** — new endpoint; body: `{ adminToken, revokeToken }`. Removes the token from the file-based store and marks it `revoked = 1` in DB (both paths attempted). Returns which stores were updated.
+- **DB persistence in `/api/email-ingest`** — when DB is configured, ingest records, thread upserts, and individual messages (deduplicated) are persisted asynchronously after the HTTP response is sent. The response now includes a `llmSummarizing: bool` flag.
+- **Token generator now DB-aware** (`scripts/generate_api_token.js`) — if `DATABASE_URL` is set, also creates a `users` record (idempotent — finds existing user by email) and an `api_tokens` record. File-based `.private-documents/api_tokens.json` always written regardless.
+- **`📖 Variables` button in Template editor modal** (`src/index.html`) — opens the new Template Variables popup from the template editor footer.
+- **Template Variables popup modal** (`#modal-template-vars`, `src/templates.js`, `src/index.html`) — two-section modal:
+  - *Built-in Variables* — live table showing all auto-computed variables (`{{PROJECT_NAME}}`, `{{TODAY}}`, date arithmetic examples) with their current values; click any row or its Insert button to insert the `{{VARIABLE}}` reference at the cursor position in the template editor.
+  - *Your Constants* — inline-editable table of `KEY=value` pairs from `state.settings.constants`; add rows, delete rows, edit keys/values inline, then 💾 Save to persist back to IndexedDB and sync to the Settings modal textarea.
+- **`.env.example`** — fully documented with all variables: `PORT`, `ENVIRONMENT`, `LOCAL_LLM_URL`, `LOCAL_LLM_DEFAULT_MODEL`, `MARKITDOWN_URL`, `DATABASE_URL` (both SQLite and PostgreSQL examples), `LLM_PROVIDER`, `LLM_MODEL`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `JWT_SECRET`, `SUGGESTION_WEBHOOK_URL`.
+
+### Changed
+- **`server.js` startup logs** — now show `DB: <type: url>` and `Server LLM: <provider / model>` lines (masked passwords in URLs); also prints `Email ingest:` endpoint URL. DB init errors reported at startup.
+- **`GET /health`** — now returns `db` (type string or null) and `dbError` (string or undefined) fields alongside existing `markitdownAvailable` and `docxAvailable`.
+- **`Dockerfile`** — adds `python3 make g++` in both builder and runtime stages for native module compilation (`better-sqlite3`); runtime stage now runs `npm ci --omit=dev` to install optional DB packages; copies `server/` and `migrations/` directories; creates `/app/data` and `/app/backups` directories.
+- **`docker-compose.yml`** — default `DATABASE_URL` is now `sqlite:./data/sourcedesk.db` with a `data` named volume; Postgres service replaced with `pgvector/pgvector:pg16` (commented out) for future RAG support; LLM env vars (`LLM_PROVIDER`, `LLM_MODEL`, `ANTHROPIC_API_KEY`) added.
+- **`.gitignore`** — added `data/` (SQLite db files), `*.db`, `*.db-wal`, `*.db-shm`, `backups/`.
+
+### Build
+- `package.json`: adds `"migrate": "node scripts/migrate.js"` script; adds `optionalDependencies`: `better-sqlite3 ^9.6.0`, `pg ^8.13.0`.
+- `build.js`: adds `openTemplateVarsModal`, `_tvAddConstantRow`, `_tvDeleteConstantRow`, `_tvSaveConstants`, `_tvInsertVar` to `mangle.reserved`.
+
+---
+
 ## [Unreleased]
 
 ### Fixed
@@ -19,7 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased] 🗄️
 
 ### Fixed
-- **Guidelines preview truncation** (`src/guidelines.js`) — the guideline detail panel previously showed only a 300-character teaser of the converted document's content. The preview limit has been raised to 2 000 characters, rendered in a scrollable box, with a **✎ View / Edit** button always visible so the full content is reachable via the doc editor modal without leaving the Guidelines view.
+- **Guidelines preview truncation** (`src/guidelines.js`) — the guideline detail panel previously showed only a 300-character teaser of the converted document’s content. The preview limit has been raised to 2 000 characters, rendered in a scrollable box, with a **✎ View / Edit** button always visible so the full content is reachable via the doc editor modal without leaving the Guidelines view.
 - **Non-streaming request body silently ignored through local LLM proxy** (`src/guidelines.js`, `src/evaluation.js`) — when routing local LLM requests through the server-side `/proxy` endpoint, `buildApiCall()` wraps the real request body in a proxy envelope: `{ url, method, headers, body: "<inner-JSON-string>" }`. Both the Guidelines analyser and the Proposal Evaluation candidate scorer attempted to disable streaming by calling `JSON.parse(apiCall.body)` and setting `bodyObj.stream = false` — but `apiCall.body` in the proxy case is the *outer* envelope object, not the inner body string. The LLM therefore still received `stream: true`, returned an SSE text response, and the subsequent `resp.json()` call failed with `Unexpected token 'd', "data: {\"id\"...is not valid JSON"`. Fixed in both files by detecting the proxy envelope shape (`typeof apiCall.body === 'string'` vs. `typeof apiCall.body === 'object'`) and patching `stream: false` inside the serialised inner body before re-stringifying the envelope.
 
 ### Added

@@ -1,0 +1,64 @@
+version: "3.8"
+
+# SourceDesk Docker Compose
+#
+# Default: SQLite + web service only.
+# Uncomment the 'db' service and change DATABASE_URL for PostgreSQL.
+#
+# Quick start:
+#   docker-compose up -d --build
+#   docker-compose exec web node scripts/generate_api_token.js --user you@example.com
+
+services:
+  web:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      # SQLite (default — stored in the 'data' named volume)
+      DATABASE_URL: "sqlite:./data/sourcedesk.db"
+      # PostgreSQL alternative (uncomment + uncomment 'db' service below):
+      # DATABASE_URL: "postgres://sourcedesk:sourcedeskpass@db:5432/sourcedesk"
+
+      # Server-side LLM for email summarization
+      LLM_PROVIDER: "${LLM_PROVIDER:-anthropic}"
+      LLM_MODEL: "${LLM_MODEL:-claude-sonnet-4-6}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+
+      # Local LLM (injected into the browser app)
+      LOCAL_LLM_URL: "${LOCAL_LLM_URL:-http://localhost:11434/v1}"
+      LOCAL_LLM_DEFAULT_MODEL: "${LOCAL_LLM_DEFAULT_MODEL:-}"
+    volumes:
+      # SQLite database persistence
+      - data:/app/data
+      # API tokens and email ingest files
+      - ./.private-documents:/app/.private-documents
+      # Server-side backups
+      - ./backups:/app/backups
+    # Uncomment to wait for Postgres readiness:
+    # depends_on:
+    #   db:
+    #     condition: service_healthy
+
+  # ─── Optional PostgreSQL service ─────────────────────────────────────────────
+  # Uncomment the block below and change DATABASE_URL above to use Postgres.
+  # db:
+  #   image: pgvector/pgvector:pg16   # pgvector included for future RAG support
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: sourcedesk
+  #     POSTGRES_PASSWORD: sourcedeskpass
+  #     POSTGRES_DB: sourcedesk
+  #   volumes:
+  #     - db_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U sourcedesk"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  data:
+  # db_data:   # uncomment if using the Postgres service

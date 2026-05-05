@@ -16,6 +16,7 @@
 //                          Body: JSON { filename: string, data: string (base64) }
 //                          Response: text/plain Markdown
 //   POST /proxy        → proxies requests to local LLM servers (avoids browser CORS)
+//   POST /api/email-ingest → ingest a batch of email threads (token-authenticated)
 
 "use strict";
 
@@ -28,7 +29,7 @@ const { execFile } = require("child_process");
 
 // Base64-encoded minimal .docx for capability testing
 const TINY_TEST_DOCX_B64 =
-  "UEsDBBQAAAAAAO2+o1x5bjPXrQEAAK0BAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbDw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9IlVURi04IiBzdGFuZGFsb25lPSJ5ZXMiPz48VHlwZXMgeG1sbnM9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9wYWNrYWdlLzIwMDYvY29udGVudC10eXBlcyI+PERlZmF1bHQgRXh0ZW5zaW9uPSJyZWxzIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLXBhY2thZ2UucmVsYXRpb25zaGlwcyt4bWwiLz48RGVmYXVsdCBFeHRlbnNpb249InhtbCIgQ29udGVudFR5cGU9ImFwcGxpY2F0aW9uL3htbCIvPjxPdmVycmlkZSBQYXJ0TmFtZT0iL3dvcmQvZG9jdW1lbnQueG1sIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLW9mZmljZWRvY3VtZW50LndvcmRwcm9jZXNzaW5nbWwuZG9jdW1lbnQubWFpbit4bWwiLz48L1R5cGVzPlBLAwQUAAAAAADtvqNcm/036ikBAAApAQAACwAAAF9yZWxzLy5yZWxzPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxSZWxhdGlvbnNoaXBzIHhtbG5zPSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvcGFja2FnZS8yMDA2L3JlbGF0aW9uc2hpcHMiPjxSZWxhdGlvbnNoaXAgSWQ9InJJZDEiIFR5cGU9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9vZmZpY2VEb2N1bWVudC8yMDA2L3JlbGF0aW9uc2hpcHMvb2ZmaWNlRG9jdW1lbnQiIFRhcmdldD0id29yZC9kb2N1bWVudC54bWwiLz48L1JlbGF0aW9uc2hpcHM+UEsDBBQAAAAAAO2+o1wS4lEtsQEAALEBAAARAAAAd29yZC9kb2N1bWVudC54bWw8P3htbCB2ZXJzaW9uPSIxLjAiIGVuY29kaW5nPSJVVEYtOCIgc3RhbmRhbG9uZT0ieWVzIj8+PHc6ZG9jdW1lbnQgeG1sbnM6d3BjPSJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL29mZmljZS93b3JkLzIwMTAvd29yZHByb2Nlc3NpbmdDYW52YXMiIHhtbG5zOnc9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy93b3JkcHJvY2Vzc2luZ21sLzIwMDYvbWFpbiI+PHc6Ym9keT48dzpwPjx3OnI+PHc6dD5UaGlzIGlzIGEgdGVzdCBkb2N1bWVudC4gSGVsbG8gV29ybGQuIFByb2N1cmVtZW50IGRldGFpbHMgaGVyZS48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnI+PHc6dD5TZWNvbmQgcGFyYWdyYXBoIHdpdGggbW9yZSBpbmZvcm1hdGlvbiBhYm91dCB0aGUgcHJvamVjdC48L3c6dD48L3c6cj48L3c6cD48L3c6Ym9keT48L3c6ZG9jdW1lbnQ+UEsDBBQAAAAAAO2+o1zp+cGTmwAAAJsAAAAcAAAAd29yZC9fcmVscy9kb2N1bWVudC54bWwucmVsczw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9IlVURi04IiBzdGFuZGFsb25lPSJ5ZXMiPz48UmVsYXRpb25zaGlwcyB4bWxucz0iaHR0cDovL3NjaGVtYXMub3BlbnhtbGZvcm1hdHMub3JnL3BhY2thZ2UvMjAwNi9yZWxhdGlvbnNoaXBzIj48L1JlbGF0aW9uc2hpcHM+UEsBAhQDFAAAAAAA7b6jXHluM9etAQAArQEAABMAAAAAAAAAAAAAAIABAAAAAFtDb250ZW50X1R5cGVzXS54bWxQSwECFAMUAAAAAADtvqNcm/036ikBAAApAQAACwAAAAAAAAAAAAAAgAHeAQAAX3JlbHMvLnJlbHNQSwECFAMUAAAAAADtvqNcEuJRLbEBAACxAQAAEQAAAAAAAAAAAAAAgAEwAwAAd29yZC9kb2N1bWVudC54bWxQSwECFAMUAAAAAADtvqNc6fnBk5sAAACbAAAAHAAAAAAAAAAAAAAAgAEQBQAAd29yZC9fcmVscy9kb2N1bWVudC54bWwucmVsc1BLBQYAAAAABAAEAAMBAADlBQAAAAA=";
+  "UEsDBBQAAAAAAO2+o1x5bjPXrQEAAK0BAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbDw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9IlVURi04IiBzdGFuZGFsb25lPSJ5ZXMiPz48VHlwZXMgeG1sbnM9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9wYWNrYWdlLzIwMDYvY29udGVudC10eXBlcyI+PERlZmF1bHQgRXh0ZW5zaW9uPSJyZWxzIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLXBhY2thZ2UucmVsYXRpb25zaGlwcyt4bWwiLz48RGVmYXVsdCBFeHRlbnNpb249InhtbCIgQ29udGVudFR5cGU9ImFwcGxpY2F0aW9uL3htbCIvPjxPdmVycmlkZSBQYXJ0TmFtZT0iL3dvcmQvZG9jdW1lbnQueG1sIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm9wZW54bWxmb3JtYXRzLW9mZmljZWRvY3VtZW50LndvcmRwcm9jZXNzaW5nbWwuZG9jdW1lbnQubWFpbit4bWwiLz48L1R5cGVzPlBLAwQUAAAAAADtvqNcm/036ikBAAApAQAACwAAAF9yZWxzLy5yZWxzPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/PjxSZWxhdGlvbnNoaXBzIHhtbG5zPSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvcGFja2FnZS8yMDA2L3JlbGF0aW9uc2hpcHMiPjxSZWxhdGlvbnNoaXAgSWQ9InJJZDEiIFR5cGU9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy9vZmZpY2VEb2N1bWVudC8yMDA2L3JlbGF0aW9uc2hpcHMvb2ZmaWNlRG9jdW1lbnQiIFRhcmdldD0id29yZC9kb2N1bWVudC54bWwiLz48L1JlbGF0aW9uc2hpcHM+UEsDBBQAAAAAAO2+o1wS4lEtsQEAALEBAAARAAAAd29yZC9kb2N1bWVudC54bWw8P3htbCB2ZXJzaW9uPSIxLjAiIGVuY29kaW5nPSJVVEYtOCIgc3RhbmRhbG9uZT0ieWVzIj8+PHc6ZG9jdW1lbnQgeG1sbnM6d3BjPSJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL29mZmljZS93b3JkLzIwMTAvd29yZHByb2Nlc3NpbmdDYW52YXMiIHhtbG5zOnc9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy93b3JkcHJvY2Vzc2luZ21sLzIwMDYvbWFpbiI+PHc6Ym9keT48dzpwPjx3OnI+PHc6dD5UaGlzIGlzIGEgdGVzdCBkb2N1bWVudC4gSGVsbG8gV29ybGQuIFByb2N1cmVtZW50IGRldGFpbHMgaGVyZS48L3c6dD48L3c6cj48L3c6cD48dzpwPjx3OnI+PHc6dD5TZWNvbmQgcGFyYWdyYXBoIHdpdGggbW9yZSBpbmZvcm1hdGlvbiBhYm91dCB0aGUgcHJvamVjdC48L3c6dD48L3c6cj48L3c6cD48L3c6Ym9keT48L3c6ZG9jdW1lbnQ+UEsBAhQDFAAAAAAA7b6jXHluM9etAQAArQEAABMAAAAAAAAAAAAAAIABAAAAAFtDb250ZW50X1R5cGVzXS54bWxQSwECFAMUAAAAAADtvqNcm/036ikBAAApAQAACwAAAAAAAAAAAAAAgAHeAQAAX3JlbHMvLnJlbHNQSwECFAMUAAAAAADtvqNcEuJRLbEBAACxAQAAEQAAAAAAAAAAAAAAgAEwAwAAd29yZC9kb2N1bWVudC54bWxQSwECFAMUAAAAAADtvqNc6fnBk5sAAACbAAAAHAAAAAAAAAAAAAAAgAEQBQAAd29yZC9fcmVscy9kb2N1bWVudC54bWwucmVsc1BLBQYAAAAABAAEAAMBAADlBQAAAAA=";
 
 // ─── .env parser ──────────────────────────────────────────────────────────────
 function loadEnv(envPath) {
@@ -58,6 +59,197 @@ const env = loadEnv(ENV_FILE);
 
 const PORT = parseInt(env.PORT || process.env.PORT || "3000", 10);
 const HTML_SRC = path.join(__dirname, "SourceDesk.html");
+
+// ─── API token storage (simple file-backed mapping for homelab use) ───────────
+// Tokens are stored in `.private-documents/api_tokens.json` as a simple mapping
+// { "<token>": { user: "alice@example.com", label: "Alice", createdAt: "..." }, ... }
+// This is intentionally lightweight. For production / multi-user deployments
+// you'll want a proper database table, migrations, and an admin UI.
+const TOKENS_FILE = path.join(
+  __dirname,
+  ".private-documents",
+  "api_tokens.json",
+);
+
+function loadTokens() {
+  try {
+    const raw = fs.readFileSync(TOKENS_FILE, "utf8");
+    const obj = JSON.parse(raw);
+    return obj || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+// ─── DB + LLM (optional — graceful no-op if DATABASE_URL not set) ─────────────
+let _db = null;
+let _dbInitError = null;
+
+const DATABASE_URL = env.DATABASE_URL || process.env.DATABASE_URL || "";
+if (DATABASE_URL) {
+  try {
+    const { createDb } = require("./server/db");
+    _db = createDb(DATABASE_URL);
+    // Run any pending migrations asynchronously (don't block server startup)
+    const migrationsDir = path.join(__dirname, "migrations");
+    _db
+      .runMigrations(migrationsDir)
+      .then(function (applied) {
+        if (applied.length > 0)
+          console.log("  Migrations applied: " + applied.join(", "));
+      })
+      .catch(function (e) {
+        console.error("  Migration error:", e.message);
+      });
+  } catch (e) {
+    _dbInitError = e.message;
+    console.error("  DB init failed:", e.message);
+  }
+}
+
+// Short unique ID helper (same pattern as client-side uid())
+function _uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// Async LLM summarization — fire-and-forget after the HTTP response is sent.
+// Groups emails by thread, calls the configured LLM per-thread then overall,
+// and persists the result to the email_summaries table.
+async function _summarizeIngest(db, ingestId, projectId, userId, threadsMap) {
+  const provider = env.LLM_PROVIDER || process.env.LLM_PROVIDER || "";
+  const hasKey =
+    env.ANTHROPIC_API_KEY ||
+    env.OPENAI_API_KEY ||
+    process.env.ANTHROPIC_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    env.LOCAL_LLM_URL;
+  if (!provider || !hasKey) return; // LLM not configured — skip silently
+
+  try {
+    const { callLlm } = require("./server/llm");
+    const projKey = projectId || "__global__";
+
+    // Existing summary for incremental updates
+    const existing = await db.get(
+      "SELECT * FROM email_summaries WHERE project_id = ? AND user_id = ?",
+      [projKey, userId],
+    );
+    const prevThreadData = existing
+      ? JSON.parse(existing.per_thread_json || "{}")
+      : {};
+
+    const perThreadResults = Object.assign({}, prevThreadData);
+
+    for (const [threadKey, messages] of Object.entries(threadsMap)) {
+      const msgText = messages
+        .map(function (m) {
+          return (
+            "From: " +
+            (m.from || "unknown") +
+            "\nDate: " +
+            (m.date || "unknown") +
+            "\nSubject: " +
+            (m.subject || "(no subject)") +
+            "\n\n" +
+            (m.body || "")
+          );
+        })
+        .join("\n\n---\n\n");
+
+      const systemPrompt =
+        "You are an expert assistant summarizing procurement-related email threads. " +
+        "Be concise and factual. Focus on: key decisions, action items, deadlines, vendor info, and open questions. " +
+        "Format your response as: ## Summary\n(2-4 sentences)\n\n## Action Items\n- item\n\n## Key Details\n- detail";
+
+      const isUpdate = !!prevThreadData[threadKey];
+      const userMsg = isUpdate
+        ? "UPDATE: New messages have arrived for this thread since the last summary below. " +
+          "Analyze only what is NEW and update the summary.\n" +
+          "Previous summary:\n" +
+          (prevThreadData[threadKey].summary || "") +
+          "\n\nNew messages:\n" +
+          msgText
+        : "Summarize this email thread.\n\nThread: " +
+          (messages[0] ? messages[0].subject || threadKey : threadKey) +
+          "\n\n" +
+          msgText;
+
+      const summary = await callLlm(systemPrompt, userMsg, { env });
+      perThreadResults[threadKey] = {
+        summary,
+        subject:
+          messages[0] && messages[0].subject ? messages[0].subject : threadKey,
+        processedAt: new Date().toISOString(),
+        messageCount: messages.length,
+      };
+    }
+
+    // Overall project summary
+    const threadSummariesText = Object.values(perThreadResults)
+      .map(function (t) {
+        return "Thread: " + (t.subject || "?") + "\n" + (t.summary || "");
+      })
+      .join("\n\n---\n\n");
+
+    const overallSystem =
+      "You are an expert procurement assistant. Create a consolidated project summary from email thread summaries. " +
+      "Include: executive summary (2-3 sentences), key vendors/contacts, open action items, upcoming deadlines, recommended next steps.";
+
+    const overallSummary = await callLlm(
+      overallSystem,
+      "Create a project-level summary from these thread summaries:\n\n" +
+        threadSummariesText,
+      { env },
+    );
+
+    const now = new Date().toISOString();
+    const provider2 = env.LLM_PROVIDER || "unknown";
+    const model = env.LLM_MODEL || "unknown";
+
+    if (existing) {
+      await db.run(
+        "UPDATE email_summaries SET summary_text=?, per_thread_json=?, last_processed_at=?, version=version+1, model=?, provider=?, updated_at=? WHERE id=?",
+        [
+          overallSummary,
+          JSON.stringify(perThreadResults),
+          now,
+          model,
+          provider2,
+          now,
+          existing.id,
+        ],
+      );
+    } else {
+      await db.run(
+        "INSERT INTO email_summaries (id, project_id, user_id, summary_text, per_thread_json, last_processed_at, model, provider, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        [
+          _uid(),
+          projKey,
+          userId,
+          overallSummary,
+          JSON.stringify(perThreadResults),
+          now,
+          model,
+          provider2,
+          now,
+          now,
+        ],
+      );
+    }
+
+    console.log(
+      "  Email summary updated for project " +
+        projKey +
+        " (" +
+        Object.keys(perThreadResults).length +
+        " threads, provider: " +
+        provider2 +
+        ")",
+    );
+  } catch (e) {
+    console.error("  LLM summarization failed:", e.message);
+  }
+}
 
 // ─── markitdown availability & execution ─────────────────────────────────────
 // Cached availability: null = unchecked, true/false = result
@@ -188,14 +380,14 @@ function _cleanMarkdown(markdown) {
   );
 }
 
-// ─── CORS headers ────────────────────────────────────────────────────────────
+// ─── CORS headers ───────────────────────────────────────────────────────────
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-// ─── Env injection ────────────────────────────────────────────────────────────
+// ─── Env injection ──────────────────────────────────────────────────────────
 // Builds the <script> block injected at the top of <head>.
 function buildEnvScript() {
   const obj = {
@@ -232,6 +424,8 @@ function handler(req, res) {
           status: "ok",
           markitdownAvailable: available,
           docxAvailable: !!docxAvailable,
+          db: _db ? _db.type : null,
+          dbError: _dbInitError || undefined,
         }),
       );
     });
@@ -343,6 +537,409 @@ function handler(req, res) {
       try {
         res.writeHead(500, { "Content-Type": "text/plain" });
         res.end("Request error");
+      } catch (_) {}
+    });
+    return;
+  }
+
+  // ─── Email summaries (GET) ────────────────────────────────────────────────
+  // Returns LLM-generated summaries for a project.
+  // Query params: token=<api_token>&projectId=<id>
+  if (url.startsWith("/api/email-summaries") && req.method === "GET") {
+    const qs = new URLSearchParams(req.url.split("?")[1] || "");
+    const qToken = qs.get("token") || "";
+    const qProjectId = qs.get("projectId") || "";
+
+    if (!qToken) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing token query parameter" }));
+      return;
+    }
+
+    const tokens = loadTokens();
+    if (!tokens[qToken]) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid API token" }));
+      return;
+    }
+
+    if (!_db) {
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          error:
+            "Database not configured. Set DATABASE_URL in .env to enable summaries.",
+        }),
+      );
+      return;
+    }
+
+    (async function () {
+      try {
+        const owner = tokens[qToken].user || tokens[qToken].label || "unknown";
+        const projKey = qProjectId || "__global__";
+        const summary = await _db.get(
+          "SELECT * FROM email_summaries WHERE project_id = ? AND user_id = ?",
+          [projKey, owner],
+        );
+        if (!summary) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({ error: "No summaries found for this project" }),
+          );
+          return;
+        }
+        // Parse stored JSON fields
+        const out = Object.assign({}, summary);
+        try {
+          out.per_thread_json = JSON.parse(out.per_thread_json || "{}");
+        } catch (_) {}
+        try {
+          out.draft_documents = JSON.parse(out.draft_documents || "[]");
+        } catch (_) {}
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "ok", summary: out }));
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "DB error", message: e.message }));
+      }
+    })();
+    return;
+  }
+
+  // ─── Token revoke (POST) ──────────────────────────────────────────────────
+  // Body: { adminToken: string, revokeToken: string }
+  // The adminToken must be a valid token (any valid token can revoke others).
+  if (url === "/api/token-revoke" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", async () => {
+      let payload;
+      try {
+        payload = JSON.parse(body);
+      } catch {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON" }));
+        return;
+      }
+      const { adminToken, revokeToken } = payload || {};
+      if (!adminToken || !revokeToken) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing adminToken or revokeToken" }));
+        return;
+      }
+      const tokens = loadTokens();
+      if (!tokens[adminToken]) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid adminToken" }));
+        return;
+      }
+      // Remove from file-based store
+      let revokedFromFile = false;
+      if (tokens[revokeToken]) {
+        delete tokens[revokeToken];
+        fs.mkdirSync(path.dirname(TOKENS_FILE), { recursive: true });
+        fs.writeFileSync(TOKENS_FILE, JSON.stringify(tokens, null, 2), "utf8");
+        revokedFromFile = true;
+      }
+      // Mark revoked in DB if available
+      let revokedFromDb = false;
+      if (_db) {
+        try {
+          const r = await _db.run(
+            "UPDATE api_tokens SET revoked = 1 WHERE token = ?",
+            [revokeToken],
+          );
+          if (r.changes > 0) revokedFromDb = true;
+        } catch (e) {
+          console.error("  Token revoke DB error:", e.message);
+        }
+      }
+      if (!revokedFromFile && !revokedFromDb) {
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Token not found" }));
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "ok", revokedFromFile, revokedFromDb }));
+    });
+    req.on("error", () => {
+      try {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Request error" }));
+      } catch (_) {}
+    });
+    return;
+  }
+
+  // ─── Email ingest API (homelab token-based) ─────────────────────────────
+  // Accepts JSON: { token: string, projectId?: string, emails: [ { subject, from, to, date, body, threadId? } ] }
+  // Stores the raw payload to .private-documents/email_ingests/ and returns a lightweight summary.
+  if (url === "/api/email-ingest" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", () => {
+      let payload;
+      try {
+        payload = JSON.parse(body);
+      } catch (e) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON body" }));
+        return;
+      }
+
+      const { token, projectId, emails } = payload || {};
+      if (!token || !emails || !Array.isArray(emails)) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing token or emails array" }));
+        return;
+      }
+
+      const tokens = loadTokens();
+      if (!tokens[token]) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid API token" }));
+        return;
+      }
+
+      const owner = tokens[token].user || tokens[token].label || "unknown";
+
+      try {
+        const ingestsDir = path.join(
+          __dirname,
+          ".private-documents",
+          "email_ingests",
+        );
+        fs.mkdirSync(ingestsDir, { recursive: true });
+        const nowTs = new Date().toISOString().replace(/[:.]/g, "-");
+        const filename = `ingest-${nowTs}-${Math.random().toString(36).slice(2, 8)}.json`;
+        const fullPath = path.join(ingestsDir, filename);
+        const record = {
+          token,
+          owner,
+          projectId: projectId || null,
+          receivedAt: new Date().toISOString(),
+          emails,
+        };
+        fs.writeFileSync(fullPath, JSON.stringify(record, null, 2), "utf8");
+
+        // Lightweight summary (placeholder for a proper LLM-based analysis pipeline)
+        const emailCount = emails.length;
+        const threadsMap = new Map();
+        for (const e of emails) {
+          const key = (e.threadId || e.subject || "")
+            .toString()
+            .trim()
+            .toLowerCase();
+          const k = key || `__no-subject-${Math.floor(Math.random() * 100000)}`;
+          if (!threadsMap.has(k)) threadsMap.set(k, []);
+          threadsMap.get(k).push(e);
+        }
+
+        const threadSummaries = [];
+        for (const [k, arr] of threadsMap.entries()) {
+          const senders = Array.from(
+            new Set(arr.map((x) => x.from || "").filter(Boolean)),
+          );
+          const dates = arr
+            .map((a) => a.date)
+            .filter(Boolean)
+            .sort();
+          threadSummaries.push({
+            subject: arr[0] && arr[0].subject ? arr[0].subject : k,
+            emails: arr.length,
+            senders,
+            earliest: dates[0] || null,
+            latest: dates[dates.length - 1] || null,
+          });
+        }
+
+        // Determine if previous ingests exist for this owner + projectId
+        const existingFiles = fs
+          .readdirSync(ingestsDir)
+          .filter((n) => n.startsWith("ingest-"));
+        let previousCount = 0;
+        for (const f of existingFiles) {
+          try {
+            const p = path.join(ingestsDir, f);
+            const r = JSON.parse(fs.readFileSync(p, "utf8"));
+            if (
+              r &&
+              r.owner === owner &&
+              String(r.projectId || "") === String(projectId || "")
+            )
+              previousCount++;
+          } catch (_) {}
+        }
+
+        const summary = {
+          firstTime: previousCount === 0,
+          previousIngests: previousCount,
+          emailCount,
+          threadCount: threadSummaries.length,
+          threads: threadSummaries,
+        };
+
+        const processedDir = path.join(ingestsDir, "processed");
+        fs.mkdirSync(processedDir, { recursive: true });
+        const processedPath = path.join(processedDir, `summary-${filename}`);
+        fs.writeFileSync(
+          processedPath,
+          JSON.stringify(
+            {
+              stored: filename,
+              summary,
+              processedAt: new Date().toISOString(),
+            },
+            null,
+            2,
+          ),
+          "utf8",
+        );
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            status: "ok",
+            stored: filename,
+            summary,
+            llmSummarizing: !!(
+              _db &&
+              (env.LLM_PROVIDER || process.env.LLM_PROVIDER)
+            ),
+          }),
+        );
+
+        // ── DB persistence + async LLM — fire-and-forget (response already sent) ──
+        if (_db) {
+          const nowTs2 = new Date().toISOString();
+          const projKey = projectId || "__global__";
+          const ingestId = _uid();
+
+          (async function () {
+            try {
+              // Persist ingest record
+              await _db.run(
+                "INSERT INTO email_ingests (id, user_id, project_id, received_at, email_count, filename) VALUES (?,?,?,?,?,?)",
+                [
+                  ingestId,
+                  owner,
+                  projectId || null,
+                  nowTs2,
+                  emails.length,
+                  filename,
+                ],
+              );
+
+              // Upsert threads and persist messages
+              for (const [k, arr] of threadsMap.entries()) {
+                const sndrs = Array.from(
+                  new Set(arr.map((x) => x.from || "").filter(Boolean)),
+                );
+                const dts = arr
+                  .map((a) => a.date)
+                  .filter(Boolean)
+                  .sort();
+
+                // Upsert thread (find-or-create)
+                let threadRow = await _db.get(
+                  "SELECT id FROM email_threads WHERE project_id = ? AND user_id = ? AND thread_key = ?",
+                  [projKey, owner, k],
+                );
+                if (!threadRow) {
+                  const threadId = _uid();
+                  await _db.run(
+                    "INSERT INTO email_threads (id, project_id, user_id, thread_key, subject, email_count, senders, earliest, latest, last_ingest_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    [
+                      threadId,
+                      projKey,
+                      owner,
+                      k,
+                      arr[0] && arr[0].subject ? arr[0].subject : k,
+                      arr.length,
+                      JSON.stringify(sndrs),
+                      dts[0] || null,
+                      dts[dts.length - 1] || null,
+                      ingestId,
+                      nowTs2,
+                      nowTs2,
+                    ],
+                  );
+                  threadRow = { id: threadId };
+                } else {
+                  await _db.run(
+                    "UPDATE email_threads SET email_count=email_count+?, senders=?, latest=?, last_ingest_id=?, updated_at=? WHERE id=?",
+                    [
+                      arr.length,
+                      JSON.stringify(sndrs),
+                      dts[dts.length - 1] || null,
+                      ingestId,
+                      nowTs2,
+                      threadRow.id,
+                    ],
+                  );
+                }
+
+                // Persist messages (skip duplicates)
+                for (const msg of arr) {
+                  const msgKey =
+                    k +
+                    "|" +
+                    (msg.from || "") +
+                    "|" +
+                    (msg.date || "") +
+                    "|" +
+                    (msg.messageId || msg.subject || "").slice(0, 50);
+                  const exists = await _db.get(
+                    "SELECT id FROM email_messages WHERE thread_id = ? AND message_key = ?",
+                    [threadRow.id, msgKey],
+                  );
+                  if (!exists) {
+                    await _db.run(
+                      "INSERT INTO email_messages (id, thread_id, ingest_id, subject, from_addr, to_addr, date, body, message_key) VALUES (?,?,?,?,?,?,?,?,?)",
+                      [
+                        _uid(),
+                        threadRow.id,
+                        ingestId,
+                        msg.subject || null,
+                        msg.from || null,
+                        msg.to || null,
+                        msg.date || null,
+                        msg.body || null,
+                        msgKey,
+                      ],
+                    );
+                  }
+                }
+              }
+            } catch (dbErr) {
+              console.error("  Email ingest DB error:", dbErr.message);
+            }
+
+            // Build plain-object version of threadsMap for _summarizeIngest
+            const threadsObj = {};
+            for (const [k, arr] of threadsMap.entries()) {
+              threadsObj[k] = arr;
+            }
+            await _summarizeIngest(_db, ingestId, projectId, owner, threadsObj);
+          })();
+        }
+
+        return;
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Ingest failed", message: e.message }));
+        return;
+      }
+    });
+    req.on("error", () => {
+      try {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Request error" }));
       } catch (_) {}
     });
     return;
@@ -492,7 +1089,9 @@ function handler(req, res) {
 
   // Anything else → 404
   res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-  res.end(`Not found: ${url}\nAvailable endpoints: / /health /convert /backup`);
+  res.end(
+    `Not found: ${url}\nAvailable endpoints: / /health /convert /backup /proxy /api/email-ingest /api/email-summaries /api/token-revoke`,
+  );
 }
 
 // ─── Start ────────────────────────────────────────────────────────────────────
@@ -502,6 +1101,14 @@ server.listen(PORT, "0.0.0.0", () => {
   const envLabel = env.ENVIRONMENT || "hosted";
   const llmUrl = env.LOCAL_LLM_URL || "http://localhost:11434/v1";
   const model = env.LOCAL_LLM_DEFAULT_MODEL || "(not set)";
+  const dbStatus = _db
+    ? _db.type + ": " + DATABASE_URL.replace(/:([^:@]+)@/, ":***@")
+    : _dbInitError
+      ? "error: " + _dbInitError
+      : "(not configured — set DATABASE_URL in .env)";
+  const llmStatus = env.LLM_PROVIDER
+    ? env.LLM_PROVIDER + " / " + (env.LLM_MODEL || "(no model set)")
+    : "(not configured)";
 
   console.log("");
   console.log("  SourceDesk");
@@ -510,12 +1117,15 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`  Environment:   ${envLabel}`);
   console.log(`  Local LLM:     ${llmUrl}`);
   console.log(`  Default model: ${model}`);
+  console.log(`  DB:            ${dbStatus}`);
+  console.log(`  Server LLM:    ${llmStatus}`);
   console.log(
     `  Convert API:   http://localhost:${PORT}/convert  (markitdown)`,
   );
   console.log(
     `  Proxy:         http://localhost:${PORT}/proxy  (local LLM CORS bypass)`,
   );
+  console.log(`  Email ingest:  http://localhost:${PORT}/api/email-ingest`);
   console.log("  ──────────────────────────────────────────");
   console.log("  Ctrl+C to stop");
   console.log("");
