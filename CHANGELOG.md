@@ -9,6 +9,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Docs
+- **`docs/hindsight-integration-plan.md`** — new comprehensive integration plan for the Hindsight biomimetic memory system (v0.9.0 → v1.0.0). Covers architecture, per-user isolation strategy, procurement-domain bank configuration, all five version phases with exact file inventories, new API endpoints, browser state additions, mangle reserved additions, environment variables, a skill usage guide, and an integration gotcha list. Planning-only — no source files changed.
+- **`CLAUDE.md`** — added `## Skills & Reference Docs` section documenting the `skills/hindsight-docs/` skill with a per-file reference table so future sessions know exactly which docs to read before writing Hindsight code. Added session note for this planning pass and restructured `## Next Steps` with the v0.9.0–v1.0.0 roadmap at the top.
+
+---
+
 ## [Unreleased] 🖥️
 
 ### Changed

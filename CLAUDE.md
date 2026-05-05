@@ -483,9 +483,59 @@ When adding a new object store or index:
 
 ---
 
+## Skills & Reference Docs
+
+### `skills/hindsight-docs/` — Hindsight Memory System
+
+This skill contains complete offline documentation for [Hindsight](https://github.com/vectorize-io/hindsight) — the biomimetic agent memory system integrated in v0.9.1+. **Always read from this skill before writing Hindsight integration code.** Never fetch from the internet when this skill has the answer.
+
+Key files to read for Hindsight work:
+
+| File | When to read it |
+|------|-----------------|
+| `skills/hindsight-docs/references/best-practices.md` | Before any integration work — missions, tags, anti-patterns |
+| `skills/hindsight-docs/references/faq.md` | Per-user isolation, recall vs reflect, conversation format |
+| `skills/hindsight-docs/references/developer/api/retain.md` | Retain params, document_id upsert, tagging |
+| `skills/hindsight-docs/references/developer/api/recall.md` | Recall params, budget, tag filtering (use any_strict!) |
+| `skills/hindsight-docs/references/developer/api/memory-banks.md` | Bank config, entity labels, dispositions |
+| `skills/hindsight-docs/references/sdks/nodejs.md` | HindsightClient TypeScript/JS API |
+| `skills/hindsight-docs/references/sdks/hindsight-all-npm.md` | Embedded daemon (Node.js) if needed |
+| `skills/hindsight-docs/references/developer/configuration.md` | All HINDSIGHT_API_* env vars |
+| `skills/hindsight-docs/references/developer/installation.md` | Docker, pip, bare-metal setup |
+
+**SKILL.md index** is at `skills/hindsight-docs/SKILL.md` — read it first for orientation.
+
+---
+
 ## Current State (as of last commit)
 
 **Current version: v0.8.0** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
+
+> **Session note (current — Hindsight integration planning):**
+> Planning-only session; no source files or build output changed.
+>
+> 1. **Read all docs** — `docs/email_ingest_progress.md`, `docs/feature-request-hindsight.md`, all `skills/hindsight-docs/references/` documentation.
+>
+> 2. **Confirmed email summary server work is done** — `server/db.js`, `server/llm.js`, `migrations/001_initial.sql`, `scripts/migrate.js`, full ingest + async LLM summarisation pipeline, `GET /api/email-summaries`, token auth, `POST /api/token-revoke` all shipped. What remains is the **frontend** only (v0.9.0).
+>
+> 3. **Wrote `docs/hindsight-integration-plan.md`** — comprehensive 5-phase plan:
+>    - v0.9.0: Email summary frontend + token management UI (closes the email pipeline loop)
+>    - v0.9.1: Hindsight infrastructure (`server/hindsight.js`, optional `HINDSIGHT_API_URL`, docker-compose service, Settings status row)
+>    - v0.9.2: Chat memory (retain sessions after save, recall before sendMessage, inject `## Relevant Memories`)
+>    - v0.9.3: Deep content integration (notes, SQ answers, working doc, email summaries, research)
+>    - v0.9.4: Memory UI (Settings memory tab, in-chat citations, clear/export bank)
+>    - v1.0.0: Production hardening
+>
+> 4. **Architecture decisions locked:**
+>    - Per-user isolation: `bank_id = userId` (one bank per SourceDesk `users.id`)
+>    - Hindsight DB is SEPARATE from SourceDesk app DB (same Postgres server, different database: `sourcedesk_hindsight`)
+>    - All Hindsight is optional — `HINDSIGHT_API_URL` not set means no-ops everywhere, zero regression
+>    - Browser never calls Hindsight directly — goes through `server.js` `/api/hindsight/*` endpoints
+>    - Node.js SDK: `@vectorize-io/hindsight-client` (optionalDependency)
+>    - Docker image: `ghcr.io/vectorize-io/hindsight:latest-slim` (~500 MB, not the 9 GB full image)
+>    - Procurement-domain bank config defined (retain_mission, observations_mission, reflect_mission, entity_labels)
+>
+> 5. **Updated `CLAUDE.md`** — added `## Skills & Reference Docs` section for Hindsight skill; updated session notes and Next Steps.
 
 > **Session note (current — PostgreSQL existing-database docs):**
 > Docs-only change; no source files or build output changed.
@@ -860,6 +910,39 @@ When adding a new object store or index:
 ---
 
 ## Next Steps (Ordered for Next Session)
+
+**Current roadmap: v0.9.0 → v1.0.0 (Hindsight integration). Full spec in `docs/hindsight-integration-plan.md`.**
+
+### Next: v0.9.0 — Email Summary Frontend + Token Management
+
+- Email Summary UI panel (fetch summaries, import to Notes, create Tasks from action items)
+- Token Management UI in Settings (list/generate/revoke tokens)
+- Token expiry support in `generate_api_token.js` and `loadTokens()`
+- Message-ID deduplication field in email ingest schema
+- New endpoints: `GET /api/token-list`, `POST /api/token-generate`
+- Mangle reserved: `openEmailSummaries`, `importSummaryToNotes`, `createTasksFromSummary`, `openTokenManager`, `generateApiToken`, `revokeApiToken`
+
+### Then: v0.9.1 — Hindsight Foundation
+- `server/hindsight.js` adapter; `HINDSIGHT_API_URL` env gate; docker-compose service (commented in)
+- Bank auto-creation with procurement domain config; `GET /api/hindsight/status`
+- Settings: Hindsight status row; `testHindsightConnection()`
+
+### Then: v0.9.2 — Chat Memory
+- Retain chat sessions after save (fire-and-forget); recall before sendMessage
+- `POST /api/hindsight/retain` + `POST /api/hindsight/recall` endpoints
+- `state.settings.serverToken`, `serverUrl`, `hindsightEnabled`
+
+### Then: v0.9.3 — Deep Content Integration
+- Retain notes, SQ answers, working doc versions, email summaries, research items
+
+### Then: v0.9.4 — Memory UI
+- Settings memory tab; in-chat citations; clear/export bank
+
+### Then: v1.0.0 — Production release
+
+---
+
+### Legacy checklist (all done)
 
 1. ~~**`npm run build`**~~ ✅ — completed; `SourceDesk.html` committed at HEAD `db6fab2`
 2. ~~**Version labels**~~ ✅ — inline-edit a snapshot's label from the History modal (✎ button per row, Enter saves, Esc cancels)
