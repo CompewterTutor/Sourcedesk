@@ -129,8 +129,20 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
       systemPrompt += `\nNotes: ${state.activeProject.notes}`;
     if (state.activeProject.instructions)
       systemPrompt += `\n\n## Project Instructions\n${state.activeProject.instructions}`;
-    if (state.activeProject.workingContent)
+    // Working document: read from workingDocs store (multi-doc support)
+    if (state.activeWorkingDocId) {
+      try {
+        const _wdoc = await dbGet("workingDocs", state.activeWorkingDocId);
+        if (_wdoc && _wdoc.content && _wdoc.content.trim())
+          systemPrompt += `\n\n## Working Document (current draft)\n${_wdoc.content}`;
+      } catch (_) {
+        // Fallback: legacy field
+        if (state.activeProject.workingContent)
+          systemPrompt += `\n\n## Working Document (current draft)\n${state.activeProject.workingContent}`;
+      }
+    } else if (state.activeProject.workingContent) {
       systemPrompt += `\n\n## Working Document (current draft)\n${state.activeProject.workingContent}`;
+    }
   }
   if (
     state.currentNote &&
@@ -201,6 +213,16 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
     } catch (e) {
       // research store may not exist on older DBs — ignore
     }
+  }
+
+  // Inject writing style profile when enabled
+  if (
+    state.settings.writingStyleEnabled &&
+    state.settings.writingStyleProfile
+  ) {
+    systemPrompt +=
+      "\n\n## Writing Style\nAdapt your responses to match this user's communication style:\n\n" +
+      state.settings.writingStyleProfile;
   }
 
   if (context)

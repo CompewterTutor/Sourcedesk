@@ -2310,7 +2310,50 @@
                 <!-- Working Document View -->
                 <div id="working-doc-view">
                     <div class="view-header">
-                        <div class="view-title">Working Document</div>
+                        <div class="view-title">Working Doc</div>
+                        <select
+                            id="working-doc-selector"
+                            onchange="selectWorkingDoc(this.value)"
+                            title="Switch working document"
+                            style="
+                                font-size: 12px;
+                                background: var(--surface2);
+                                border: 1px solid var(--border);
+                                border-radius: var(--radius);
+                                color: var(--text);
+                                padding: 3px 8px;
+                                max-width: 160px;
+                            "
+                        ></select>
+                        <button
+                            onclick="openNewWorkingDoc()"
+                            class="btn-ghost"
+                            title="New working document"
+                            style="font-size: 12px; padding: 3px 8px"
+                        >
+                            +
+                        </button>
+                        <button
+                            id="working-doc-delete-btn"
+                            onclick="deleteWorkingDoc()"
+                            class="btn-ghost"
+                            title="Delete current document"
+                            style="
+                                font-size: 12px;
+                                padding: 3px 8px;
+                                display: none;
+                            "
+                        >
+                            ✕
+                        </button>
+                        <button
+                            onclick="renameWorkingDoc()"
+                            class="btn-ghost"
+                            title="Rename current document"
+                            style="font-size: 12px; padding: 3px 8px"
+                        >
+                            ✏
+                        </button>
                         <button class="btn-icon" onclick="showView('chat')">
                             ← Back
                         </button>
@@ -5595,6 +5638,32 @@
                     />
                 </div>
                 <div class="form-row">
+                    <label class="form-label"
+                        >✍ Writing Style
+                        <span style="color: var(--text-muted); font-size: 10px"
+                            >— AI will match your communication style</span
+                        ></label
+                    >
+                    <div style="display: flex; align-items: center; gap: 8px">
+                        <span
+                            id="writing-style-settings-status"
+                            style="
+                                font-size: 12px;
+                                color: var(--text-muted);
+                                flex: 1;
+                            "
+                            >— Not configured</span
+                        >
+                        <button
+                            class="btn-ghost"
+                            style="font-size: 12px; padding: 3px 10px"
+                            onclick="openWritingStyleModal()"
+                        >
+                            Configure
+                        </button>
+                    </div>
+                </div>
+                <div class="form-row">
                     <label class="form-label">Model</label>
                     <select class="form-select" id="settings-model"></select>
                 </div>
@@ -5748,6 +5817,160 @@
                         Cancel
                     </button>
                     <button class="btn-primary" onclick="saveSettings()">
+                        Save
+                    </button>
+                </div>
+            </div>
+
+            <!-- Writing Style Modal -->
+            <div
+                id="modal-writing-style"
+                class="modal hidden"
+                style="max-width: 700px; width: 96%"
+            >
+                <div class="modal-title">✍ Writing Style Capture</div>
+                <div class="modal-subtitle">
+                    Upload or paste writing samples to generate a style profile.
+                    When enabled, the profile is injected into every chat prompt
+                    so AI responses sound more like you.
+                </div>
+
+                <!-- Samples section -->
+                <div
+                    style="
+                        font-size: 11px;
+                        font-weight: 600;
+                        color: var(--text-muted);
+                        text-transform: uppercase;
+                        letter-spacing: 0.06em;
+                        margin: 8px 0 6px;
+                    "
+                >
+                    Communication Samples
+                </div>
+                <div
+                    style="
+                        font-size: 11px;
+                        color: var(--text-muted);
+                        margin-bottom: 6px;
+                    "
+                >
+                    Paste emails, reports, messages, or any text that represents
+                    your natural writing style. Samples are not stored.
+                </div>
+                <textarea
+                    id="writing-style-samples-input"
+                    class="form-textarea"
+                    oninput="_updateWritingStyleCharCount()"
+                    style="min-height: 140px"
+                    placeholder="Paste writing samples here&hellip;
+
+Example: emails you've written, project updates, messages to colleagues &mdash; anything that represents your natural voice."
+                ></textarea>
+                <div
+                    style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        margin-top: 6px;
+                    "
+                >
+                    <button
+                        class="btn-ghost"
+                        style="font-size: 12px"
+                        onclick="
+                            document
+                                .getElementById('writing-style-file-input')
+                                .click()
+                        "
+                    >
+                        📎 Add Files (.txt, .md)
+                    </button>
+                    <input
+                        type="file"
+                        id="writing-style-file-input"
+                        accept=".txt,.md,.text"
+                        multiple
+                        style="display: none"
+                        onchange="_addWritingStyleFiles()"
+                    />
+                    <span
+                        id="writing-style-char-count"
+                        style="font-size: 11px; color: var(--text-muted)"
+                    ></span>
+                    <button
+                        id="writing-style-analyze-btn"
+                        class="btn-primary"
+                        style="margin-left: auto"
+                        onclick="analyzeWritingStyle()"
+                    >
+                        ✨ Generate Profile
+                    </button>
+                </div>
+
+                <!-- Profile section -->
+                <div
+                    style="
+                        font-size: 11px;
+                        font-weight: 600;
+                        color: var(--text-muted);
+                        text-transform: uppercase;
+                        letter-spacing: 0.06em;
+                        margin: 14px 0 6px;
+                    "
+                >
+                    Style Profile
+                </div>
+                <textarea
+                    id="writing-style-profile-input"
+                    class="form-textarea"
+                    style="min-height: 140px"
+                    placeholder="Your writing style profile will appear here after analysis. You can also write or edit it manually."
+                ></textarea>
+                <div
+                    style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        margin-top: 6px;
+                    "
+                >
+                    <span
+                        id="writing-style-status"
+                        style="
+                            font-size: 11px;
+                            color: var(--text-muted);
+                            flex: 1;
+                        "
+                    ></span>
+                    <button
+                        class="btn-ghost"
+                        style="font-size: 12px"
+                        onclick="clearWritingStyleProfile()"
+                    >
+                        Clear Profile
+                    </button>
+                </div>
+
+                <div class="modal-actions">
+                    <label
+                        style="
+                            cursor: pointer;
+                            font-size: 13px;
+                            color: var(--text-dim);
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                            margin-right: auto;
+                        "
+                    >
+                        <input type="checkbox" id="writing-style-apply" />
+                        Apply to AI responses
+                    </label>
+                    <button class="btn-secondary" onclick="closeModal()">
+                        Cancel
+                    </button>
+                    <button class="btn-primary" onclick="saveWritingStyle()">
                         Save
                     </button>
                 </div>

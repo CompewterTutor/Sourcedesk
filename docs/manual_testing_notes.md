@@ -26,4 +26,5 @@
 - make sure that hindsight is set up to use the same model that is loaded by the local llm for sourcedesk so we don't try to load 2 models and run out of memory
 - default docker compose to use postgresql now that we have hindsight
 - default to using hindsight
--
+- create multiple docker-compose files for each database type (sqlite, pgsql container, pgsql-local) and choose which we use with make functions maybe?
+- last big feature before 1.0 adds onto the memory feature which is going to be "capture writing style" where we have the ai ingest a bunch of old communications like emails or chats that we can upload or post to api and run analysis on them to generate a writing style summary that we can use to improve the ai's responses to sound more like the user with careful prompting.

@@ -1,6 +1,6 @@
 // ─── IndexedDB ────────────────────────────────────────────────────────────────
 const DB_NAME = "sourcedesk",
-  DB_VERSION = 12;
+  DB_VERSION = 13;
 let db;
 
 function openDB() {
@@ -114,6 +114,11 @@ function openDB() {
       if (!d.objectStoreNames.contains("guidelineAnalyses")) {
         const ga = d.createObjectStore("guidelineAnalyses", { keyPath: "id" });
         ga.createIndex("projectId", "projectId", { unique: false });
+      }
+      // workingDocs store — multiple named working documents per project (DB v13)
+      if (!d.objectStoreNames.contains("workingDocs")) {
+        const wd = d.createObjectStore("workingDocs", { keyPath: "id" });
+        wd.createIndex("projectId", "projectId", { unique: false });
       }
     };
     req.onsuccess = (e) => {

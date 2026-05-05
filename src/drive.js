@@ -521,6 +521,7 @@ async function backupToDrive() {
       "evalCandidates",
       "evalScores",
       "guidelineAnalyses",
+      "workingDocs",
     ];
     const data = {
       version: DB_VERSION,
@@ -1031,7 +1032,17 @@ async function exportWorkingDocToDoc() {
     alert("Connect to Google Drive first.");
     return;
   }
-  const content = state.activeProject.workingContent || "";
+  let content = "";
+  if (state.activeWorkingDocId) {
+    try {
+      const wdoc = await dbGet("workingDocs", state.activeWorkingDocId);
+      content = (wdoc && wdoc.content) || "";
+    } catch (_) {
+      content = state.activeProject.workingContent || "";
+    }
+  } else {
+    content = state.activeProject.workingContent || "";
+  }
   if (!content.trim()) {
     alert("The working doc is empty.");
     return;
@@ -1106,6 +1117,7 @@ async function importDatabase(file) {
     "evalCandidates",
     "evalScores",
     "guidelineAnalyses",
+    "workingDocs",
   ];
   for (const s of stores) {
     const items = await dbGetAll(s);

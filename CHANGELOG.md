@@ -11,6 +11,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Multiple Working Documents** 🗄️ **DB_VERSION 13** — each project can now hold multiple named working documents. A dropdown selector in the Working Doc view header lets you switch between documents, create new ones (+), rename (✏), and delete (✕) them. Existing `projects.workingContent` is auto-migrated to a "Working Document" entry in the new `workingDocs` store on first load. Version history is scoped per document. `workingDocs` included in export / import / backup / cascade-delete flows.
+- **Writing Style Capture** (`src/style.js`, Settings modal) — new ✍ Writing Style row in Settings with a **Configure** modal. Paste or upload old communications (emails, reports, messages); click **✨ Generate Profile** to run them through the active LLM and extract a compact style profile. When "Apply to AI responses" is checked, the profile is injected into every chat system prompt as `## Writing Style`. Profile is stored in IndexedDB; samples are transient (not stored).
+- **Multiple Docker Compose variants + Makefile targets** — `docker-compose.sqlite.yml` (SQLite only, no db/Hindsight services) and `docker-compose.pgsql-local.yml` (connect to an existing/host PostgreSQL, optional Hindsight). `Makefile` gains `compose-up-sqlite`, `compose-down-sqlite`, `compose-up-pgsql-local`, `compose-down-pgsql-local`. `make help` now shows a structured multi-section output.
+- **Hindsight LLM/embedding env-var substitution** (`docker-compose.yml`) — Hindsight's provider, API key, model, and base URL are now controlled via env vars (`HINDSIGHT_LLM_*` / `HINDSIGHT_EMBEDDINGS_*`). To share the same local Ollama/LM Studio model with SourceDesk, set `HINDSIGHT_LLM_PROVIDER=openai`, `HINDSIGHT_LLM_MODEL=<your-model>`, and `HINDSIGHT_LLM_BASE_URL=http://host.docker.internal:11434/v1` in `.env` — no container rebuild required.
+
 ---
 
 ## [1.0.0-rc.1] — 2025-07-22 🖥️

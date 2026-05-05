@@ -47,6 +47,8 @@ Sourcedesk/
 │   │                          openWorkingDoc(), saveWorkingDoc(), exportDatabase(),
 │   │                          importDatabase(), clearAllData(), topbarModelChange(),
 │   │                          refreshTopbarModels(), syncTopbarModelSelect()
+│   ├── style.js            ← Writing Style Capture; openWritingStyleModal(), analyzeWritingStyle(),
+│   │                          saveWritingStyle(), clearWritingStyleProfile(), _updateWritingStyleSettingsStatus()
 │   ├── drive.js            ← Google Drive connector (openDriveModal, verifyDriveToken,
 │   │                          listDriveFiles, importFromDrive, backupToDrive, disconnectDrive)
 │   ├── notes.js            ← Notes view CRUD, renderNotesList(), filterNotes(),
@@ -100,6 +102,8 @@ Sourcedesk/
 ├── Makefile                ← Common build/run targets
 ├── Dockerfile              ← Multi-stage builder + runtime; includes native module build tools
 ├── docker-compose.yml      ← SQLite by default; pgvector Postgres service commented in
+├── docker-compose.sqlite.yml  ← SQLite-only variant (no db or hindsight services)
+├── docker-compose.pgsql-local.yml ← Connect to existing/host PostgreSQL
 ├── .env.example            ← All configurable env variables documented
 ├── SourceDesk.html         ← Compiled output (committed; this is what users open)
 ├── CHANGELOG.md            ← Versioned changelog; 🗄️ marks IndexedDB changes; 🖥️ marks server additions
@@ -157,7 +161,7 @@ Before wrapping up any coding session, always complete the following steps **in 
 
 ## Architecture
 
-### IndexedDB Stores (current schema: `DB_VERSION = 12`)
+### IndexedDB Stores (current schema: `DB_VERSION = 13`)
 
 | Store | keyPath | Indexes | Shape |
 |---|---|---|---|
@@ -179,6 +183,7 @@ Before wrapping up any coding session, always complete the following steps **in 
 | `evalCandidates` | `id` | `projectId` | `{id, projectId, name, sourceDocIds[]}` |
 | `evalScores` | `id` | `projectId, candidateId, criterionId` | `{id, projectId, candidateId, criterionId, score, justification, evaluator}` |
 | `guidelineAnalyses` | `id` | `projectId` | `{id, projectId, label, provider, model, docIds[], docNames[], results, isMaster, sourceIds[], versions: [{id, results, savedAt, label}], createdAt, updatedAt}` |
+| `workingDocs` | `id` | `projectId` | `{id, projectId, name, content, isDefault, createdAt, updatedAt}` |
 
 ### DB Helper Pattern
 All DB access goes through five helpers: `dbGet(store, key)`, `dbPut(store, val)`, `dbDelete(store, key)`, `dbGetAll(store)`, `dbGetByIndex(store, index, val)`. All return Promises. Always await them.
@@ -213,6 +218,7 @@ let state = {
   activeOtherProjects: new Set(), // other project IDs whose docs are pulled in
   messages: [],           // current chat session's messages
   activeChatId: null,     // id of the currently loaded chats record; null = unsaved new session
+  activeWorkingDocId: null,  // id of the currently active working doc in workingDocs store; null = no project or fresh project
   streaming: false,       // true while SSE stream is open
   rightPanelOpen: true,
   editingTemplateId: null,
@@ -319,7 +325,7 @@ Check provider docs before adding new models — IDs change frequently.
 ```js
 const DEBUG       = window.__SOURCEDESK_DEBUG__ || false;
 const TEST        = window.__SOURCEDESK_TEST__  || false;
-const APP_VERSION = '0.8.0';
+const APP_VERSION = '1.1.0';
 function log(...args) { if (DEBUG) console.log('[SD]', ...args); }
 ```
 
@@ -408,7 +414,9 @@ openGADiff, _gaStartLabelEdit, _gaSaveLabel, _gaSaveAnalysisLabel, _openGACompar
 openTemplateVarsModal, _tvAddConstantRow, _tvDeleteConstantRow, _tvSaveConstants, _tvInsertVar,
 copyProjectId,
 openEmailSummaries, importSummaryToNotes, createTasksFromSummary,
-openTokenManager, generateApiToken, revokeApiToken
+openTokenManager, generateApiToken, revokeApiToken,
+openWritingStyleModal, analyzeWritingStyle, saveWritingStyle, clearWritingStyleProfile,
+openNewWorkingDoc, selectWorkingDoc, deleteWorkingDoc, renameWorkingDoc
 ```
 
 **When you add a new function called from HTML, add it to this list or the minified build will silently break.**
@@ -515,9 +523,22 @@ Key files to read for Hindsight work:
 
 ## Current State (as of last commit)
 
-**Current version: v1.0.0-rc.1** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
+**Current version: v1.1.0** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
 
-> **Session note (current — v1.0.0-rc.1: Production Release Candidate):**
+> **Session note (current — v1.1.0: Multiple Working Docs + Writing Style + Docker variants):**
+> All changes below are complete, documented, and built into `SourceDesk.html`.
+>
+> 1. **Multiple Working Documents** (`src/db.js` DB_VERSION 13, `src/settings.js`, `src/versioning.js`, `src/boot.js`, `src/projects.js`, `src/drive.js`, `src/index.html`, `build.js`) — new `workingDocs` store (`{id, projectId, name, content, isDefault, createdAt, updatedAt}`). Each project can hold multiple named working docs. Header selector dropdown + +/✏/✕ controls. Existing `projects.workingContent` auto-migrated to first working doc on load (with docVersions back-filled). Version history scoped per working doc. `workingDocs` included in all export/import/backup/cascade-delete flows. `state.activeWorkingDocId` tracks current doc.
+>
+> 2. **Writing Style Capture** (`src/style.js`) — new ✍ Writing Style row in Settings. Modal: paste/upload communication samples → **✨ Generate Profile** calls active LLM (non-streaming, proxy-aware) → compact style profile (≤300 words) stored in `settings` store. "Apply to AI responses" checkbox; when enabled, profile injected into chat system prompt as `## Writing Style`. Profile is editable; samples are transient. `state.settings.writingStyleProfile` + `state.settings.writingStyleEnabled`.
+>
+> 3. **Docker Compose variants** (`docker-compose.sqlite.yml`, `docker-compose.pgsql-local.yml`) — SQLite-only variant and external-PostgreSQL variant. Updated Makefile with `compose-up-sqlite`, `compose-down-sqlite`, `compose-up-pgsql-local`, `compose-down-pgsql-local` + improved `make help` output.
+>
+> 4. **Hindsight LLM env-var substitution** (`docker-compose.yml`) — Hindsight's LLM/embedding provider, key, model, and base URL are now `${HINDSIGHT_LLM_*}` env vars. To share the local Ollama/LM Studio model: set `HINDSIGHT_LLM_PROVIDER=openai`, `HINDSIGHT_LLM_MODEL=<model>`, `HINDSIGHT_LLM_BASE_URL=http://host.docker.internal:11434/v1` in `.env`.
+>
+> 5. **`APP_VERSION = '1.1.0'`** in `src/flags.js` and `package.json`.
+
+> **Session note (v1.0.0-rc.1: Production Release Candidate):**
 > All changes below are complete, documented, and built into `SourceDesk.html`.
 >
 > 1. **Exponential backoff retry for Hindsight retain** (`server/hindsight.js`) — `retainContent()` retries failed calls up to 3 times with exponential backoff (1 s → 2 s → 4 s). Handles transient network errors and brief Hindsight server restarts without dropping memory. Always fails silently.
@@ -527,6 +548,12 @@ Key files to read for Hindsight work:
 > 3. **Hindsight setup guide in README** — new `### AI Memory (Hindsight)` section before `### Running with Docker`: what gets remembered (6-row table), Docker Compose quick-start, bare-metal pip install, single-container Docker run, app-side enable steps, image size table, rate limit reference.
 >
 > 4. **`APP_VERSION = '1.0.0-rc.1'`** in `src/flags.js` and `package.json`.
+>
+> 5. **Auto-create required server directories** (`server.js`) — `.private-documents/`, `.private-documents/email_ingests/`, `backups/`, `data/` created at startup if missing.
+>
+> 6. **docker-compose defaults to PostgreSQL + Hindsight** (`docker-compose.yml`) — `db` (pgvector/pg16) and `hindsight` services active by default; `DATABASE_URL` points to Postgres; `HINDSIGHT_API_URL` set; `depends_on` healthcheck wired. SQLite documented as a commented-out alternative.
+>
+> 7. **Hindsight enabled by default** (`src/state.js`) — `hindsightEnabled` default changed `false` → `true`; silently no-ops when server not configured.
 
 > **Session note (v0.9.4: Memory UI):**
 > All changes below are complete, documented, and built into `SourceDesk.html`.
@@ -992,6 +1019,7 @@ Key files to read for Hindsight work:
 - ❌ `package.json` version (`0.6.0`) out of sync with `src/flags.js` APP_VERSION (`0.8.0`) — needs a bump
 - ❌ Proposal Evaluation: annotation semantics (value-add / deduction / disqualifier highlights) not yet implemented — numeric scores only currently
 - ❌ Multi-agent parallel evaluation (multiple LLMs simultaneously) not yet implemented
+- ❌ Writing style capture: samples uploaded to the modal are transient (not stored) — users must re-paste samples each time they want to regenerate the profile
 
 ---
 

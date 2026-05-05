@@ -6,6 +6,7 @@ async function saveDocVersion(content) {
   await dbPut("docVersions", {
     id: uid(),
     projectId: state.activeProject.id,
+    workingDocId: state.activeWorkingDocId || null,
     content,
     savedAt: now,
     label: "",
@@ -15,7 +16,7 @@ async function saveDocVersion(content) {
     const _pid = state.activeProject.id;
     const _pname = state.activeProject.name || "";
     _hindsightRetainItem(
-      "wdoc:" + _pid + ":latest",
+      "wdoc:" + _pid + ":" + (state.activeWorkingDocId || "legacy"),
       "# Working Document: " + _pname + "\n\n" + content,
       ["project:" + _pid, "type:working-doc"],
       "project:" + _pid + " working document",
@@ -33,6 +34,15 @@ async function openVersionHistory() {
     "projectId",
     state.activeProject.id,
   );
+
+  // Filter to versions for the current working doc.
+  // Legacy versions (no workingDocId) are always shown for backwards compat.
+  const activeWdocId = state.activeWorkingDocId;
+  if (activeWdocId) {
+    versions = versions.filter(
+      (v) => v.workingDocId === activeWdocId || v.workingDocId == null,
+    );
+  }
   versions.sort((a, b) => b.savedAt - a.savedAt);
 
   overlay.innerHTML = _renderVersionHistoryModal(versions);
@@ -163,12 +173,28 @@ async function restoreDocVersion(versionId) {
     )
   )
     return;
-  // Save current as a version first
-  const current = state.activeProject.workingContent || "";
+  // Save current content as a version first
+  let current = "";
+  if (state.activeWorkingDocId) {
+    const currentWdoc = await dbGet("workingDocs", state.activeWorkingDocId);
+    current = (currentWdoc && currentWdoc.content) || "";
+  } else {
+    current = state.activeProject.workingContent || "";
+  }
   if (current.trim()) await saveDocVersion(current);
-  // Apply restored content
-  state.activeProject.workingContent = v.content;
-  await dbPut("projects", state.activeProject);
+  // Apply restored content to active working doc
+  if (state.activeWorkingDocId) {
+    const wdoc = await dbGet("workingDocs", state.activeWorkingDocId);
+    if (wdoc) {
+      wdoc.content = v.content;
+      wdoc.updatedAt = Date.now();
+      await dbPut("workingDocs", wdoc);
+    }
+  } else {
+    // Fallback: legacy path
+    state.activeProject.workingContent = v.content;
+    await dbPut("projects", state.activeProject);
+  }
   // Update editor if visible
   const editor = document.getElementById("working-doc-editor");
   if (editor) editor.value = v.content;
@@ -200,12 +226,29 @@ async function openVersionDiff(versionId, compareToId) {
     otherLabel,
     otherId = compareToId || "__current__";
   if (otherId === "__current__") {
-    other = { content: state.activeProject.workingContent || "" };
+    let currentContent = "";
+    if (state.activeWorkingDocId) {
+      const currentWdoc = await dbGet("workingDocs", state.activeWorkingDocId);
+      currentContent = (currentWdoc && currentWdoc.content) || "";
+    } else {
+      currentContent = state.activeProject.workingContent || "";
+    }
+    other = { content: currentContent };
     otherLabel = "Current working document";
   } else {
     other = versions.find((x) => x.id === otherId);
     if (!other) {
-      other = { content: state.activeProject.workingContent || "" };
+      let currentContent = "";
+      if (state.activeWorkingDocId) {
+        const currentWdoc = await dbGet(
+          "workingDocs",
+          state.activeWorkingDocId,
+        );
+        currentContent = (currentWdoc && currentWdoc.content) || "";
+      } else {
+        currentContent = state.activeProject.workingContent || "";
+      }
+      other = { content: currentContent };
       otherId = "__current__";
       otherLabel = "Current working document";
     } else {

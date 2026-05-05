@@ -3,11 +3,29 @@ IMAGE := sourcedesk
 TAG := latest
 PORT ?= 3000
 
-.PHONY: help build docker-build docker-run compose-up compose-down serve dev gen-token logs clean
+.PHONY: help build docker-build docker-run compose-up compose-down compose-up-sqlite compose-down-sqlite compose-up-pgsql-local compose-down-pgsql-local serve dev gen-token logs clean
 
 help:
 	@echo "SourceDesk Makefile"
-	@echo "Targets: build, docker-build, docker-run, compose-up, compose-down, serve, dev, gen-token, logs, clean"
+	@echo ""
+	@echo "Build:"
+	@echo "  build               Build SourceDesk.html (minified)"
+	@echo "  dev                 Dev build (unminified)"
+	@echo "  docker-build        Build Docker image"
+	@echo ""
+	@echo "Compose variants:"
+	@echo "  compose-up          Default: PostgreSQL + Hindsight (recommended)"
+	@echo "  compose-up-sqlite   SQLite only (simple local dev)"
+	@echo "  compose-up-pgsql-local  External/host PostgreSQL"
+	@echo "  compose-down        Stop default stack"
+	@echo "  compose-down-sqlite Stop SQLite stack"
+	@echo "  compose-down-pgsql-local  Stop external-PG stack"
+	@echo ""
+	@echo "Utilities:"
+	@echo "  serve               Run local Node server"
+	@echo "  gen-token           Generate API token (USER=email)"
+	@echo "  logs                Tail container logs"
+	@echo "  clean               Remove build artifacts"
 
 # Build the single-file static output (SourceDesk.html)
 build:
@@ -23,12 +41,26 @@ docker-build: build
 docker-run: docker-build
 	docker run --rm -it -p $(PORT):3000 -e PORT=3000 -v $$(pwd)/.private-documents:/app/.private-documents $(IMAGE):$(TAG)
 
-# Bring up a development stack (Postgres + web)
+# Bring up the default stack (PostgreSQL + Hindsight)
 compose-up:
 	docker-compose up -d --build
 
 compose-down:
 	docker-compose down
+
+# SQLite variant (no Postgres, no Hindsight)
+compose-up-sqlite:
+	docker-compose -f docker-compose.sqlite.yml up -d --build
+
+compose-down-sqlite:
+	docker-compose -f docker-compose.sqlite.yml down
+
+# External/host PostgreSQL variant
+compose-up-pgsql-local:
+	docker-compose -f docker-compose.pgsql-local.yml up -d --build
+
+compose-down-pgsql-local:
+	docker-compose -f docker-compose.pgsql-local.yml down
 
 # Run the local server (node)
 serve:

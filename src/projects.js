@@ -76,6 +76,19 @@ async function saveProject() {
       createdAt: Date.now(),
     };
     await dbPut("projects", proj);
+    // If there's initial content (from template), create the first working doc record
+    if (proj.workingContent) {
+      const firstDoc = {
+        id: uid(),
+        projectId: proj.id,
+        name: "Working Document",
+        content: proj.workingContent,
+        isDefault: true,
+        createdAt: proj.createdAt,
+        updatedAt: proj.createdAt,
+      };
+      await dbPut("workingDocs", firstDoc);
+    }
     state.projects.push(proj);
     closeModal();
     renderSidebar();
@@ -173,6 +186,10 @@ async function deleteProject(id) {
     for (const ga of guidelineAnalyses)
       await dbDelete("guidelineAnalyses", ga.id);
   } catch (e) {}
+  try {
+    const wdocs = await dbGetByIndex("workingDocs", "projectId", id);
+    for (const w of wdocs) await dbDelete("workingDocs", w.id);
+  } catch (e) {}
   await dbDelete("projects", id);
   state.projects = state.projects.filter((p) => p.id !== id);
   if (state.activeProject?.id === id) {
@@ -181,6 +198,7 @@ async function deleteProject(id) {
     state.activeDocs = new Set();
     state.activeOtherProjects = new Set();
     state.currentNote = null;
+    state.activeWorkingDocId = null;
     document.getElementById("welcome-screen").classList.remove("hidden");
     document.getElementById("chat-messages").classList.add("hidden");
     document.getElementById("chat-input-area").classList.add("hidden");

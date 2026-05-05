@@ -126,6 +126,9 @@ function openSettings() {
     openTokenManager();
   }
   updateApiKeyStatus(!!getCurrentProviderKey());
+  // Refresh writing style status badge
+  if (typeof _updateWritingStyleSettingsStatus === "function")
+    _updateWritingStyleSettingsStatus();
   showModal("modal-settings");
   // Sync topbar model selector in case it's stale
   if ((state.settings.provider || "anthropic") === "local")
@@ -411,6 +414,7 @@ async function clearAllData() {
     "evalCandidates",
     "evalScores",
     "guidelineAnalyses",
+    "workingDocs",
   ];
   for (const s of stores) {
     const items = await dbGetAll(s);
@@ -556,45 +560,201 @@ async function testCrawl4aiEndpoint() {
 }
 
 // ─── WORKING DOCUMENT ────────────────────────────────────────────
-function _fillWorkingDocEditor() {
-  const ta = document.getElementById("working-doc-editor");
-  if (ta && state.activeProject)
-    ta.value = state.activeProject.workingContent || "";
-  if (typeof refreshRichEditor === "function" && ta) refreshRichEditor(ta);
+async function _loadWorkingDocView() {
+  if (!state.activeProject) return;
+  // Render doc selector in header
+  await _renderWorkingDocSelector();
+  // Fill editor
+  await _fillWorkingDocEditor();
 }
 
-function openWorkingDoc() {
+async function _fillWorkingDocEditor() {
+  const ta = document.getElementById("working-doc-editor");
+  if (!ta) return;
+  let content = "";
+  if (state.activeWorkingDocId) {
+    const wdoc = await dbGet("workingDocs", state.activeWorkingDocId);
+    content = (wdoc && wdoc.content) || "";
+  }
+  ta.value = content;
+  if (typeof refreshRichEditor === "function") refreshRichEditor(ta);
+}
+
+async function openWorkingDoc() {
   if (!state.activeProject) return;
   showView("working-doc");
 }
 
-async function saveWorkingDoc(opts) {
+async function saveWorkingDoc(silent, skipSnapshot) {
   if (!state.activeProject) return;
   const ta = document.getElementById("working-doc-editor");
-  if (!ta) return;
-  const silent = !!(opts && opts.silent);
-  const skipSnapshot = !!(opts && opts.skipSnapshot);
-  state.activeProject.workingContent = ta.value;
-  await dbPut("projects", state.activeProject);
-  if (!skipSnapshot) await saveDocVersion(ta.value);
-  if (silent) return;
-  // brief visual feedback
-  const btn = document.getElementById("working-doc-save-btn");
-  if (btn) {
-    btn.textContent = "Saved ✓";
-    setTimeout(() => {
-      btn.textContent = "Save";
-    }, 1500);
+  const content = ta
+    ? ta._rteMode === "rendered" && typeof ta._rteGetMarkdown === "function"
+      ? ta._rteGetMarkdown()
+      : ta.value
+    : "";
+
+  if (!state.activeWorkingDocId) {
+    // No working doc yet — create one
+    const wdoc = {
+      id: uid(),
+      projectId: state.activeProject.id,
+      name: "Working Document",
+      content,
+      isDefault: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    await dbPut("workingDocs", wdoc);
+    state.activeWorkingDocId = wdoc.id;
+    await _renderWorkingDocSelector();
+  } else {
+    const wdoc = await dbGet("workingDocs", state.activeWorkingDocId);
+    if (!wdoc) return;
+    wdoc.content = content;
+    wdoc.updatedAt = Date.now();
+    await dbPut("workingDocs", wdoc);
+  }
+
+  if (!skipSnapshot) await saveDocVersion(content);
+  if (!silent) {
+    const btn = document.getElementById("working-doc-save-btn");
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = "✓ Saved";
+      setTimeout(() => {
+        btn.textContent = orig;
+      }, 1200);
+    }
   }
 }
 
 // Autosave for the Working Document. Snapshots are NOT created on every
-// keystroke — autosave only persists `workingContent`. Explicit Save (or
+// keystroke — autosave only persists content. Explicit Save (or
 // History modal entries) still produce snapshots via saveDocVersion().
 function scheduleWorkingDocAutosave() {
-  scheduleAutosave("workingDoc", async function () {
-    await saveWorkingDoc({ silent: true, skipSnapshot: true });
-  });
+  scheduleAutosave("workingDoc", () => saveWorkingDoc(true, true));
+}
+
+async function _renderWorkingDocSelector() {
+  if (!state.activeProject) return;
+  const wdocs = await dbGetByIndex(
+    "workingDocs",
+    "projectId",
+    state.activeProject.id,
+  );
+  wdocs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+  const sel = document.getElementById("working-doc-selector");
+  if (!sel) return; // selector element must exist in HTML
+
+  sel.innerHTML = "";
+  if (wdocs.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "Working Document";
+    sel.appendChild(opt);
+  } else {
+    wdocs.forEach((w) => {
+      const opt = document.createElement("option");
+      opt.value = w.id;
+      opt.textContent = w.name || "Untitled";
+      if (w.id === state.activeWorkingDocId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  // Show/hide delete button (only visible when >1 doc)
+  const delBtn = document.getElementById("working-doc-delete-btn");
+  if (delBtn) delBtn.style.display = wdocs.length > 1 ? "" : "none";
+}
+
+async function openNewWorkingDoc() {
+  if (!state.activeProject) return;
+  // Save current doc first
+  await saveWorkingDoc(true, true);
+  const name = prompt(
+    "Name for new working document:",
+    "Working Document " + Date.now().toString(36),
+  );
+  if (!name) return;
+  const wdoc = {
+    id: uid(),
+    projectId: state.activeProject.id,
+    name: name.trim() || "Untitled",
+    content: "",
+    isDefault: false,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  await dbPut("workingDocs", wdoc);
+  state.activeWorkingDocId = wdoc.id;
+  await _renderWorkingDocSelector();
+  await _fillWorkingDocEditor();
+}
+
+async function selectWorkingDoc(id) {
+  if (!id || id === state.activeWorkingDocId) return;
+  // Save current doc before switching
+  await saveWorkingDoc(true, true);
+  state.activeWorkingDocId = id;
+  await _fillWorkingDocEditor();
+}
+
+async function deleteWorkingDoc() {
+  if (!state.activeProject || !state.activeWorkingDocId) return;
+  const wdocs = await dbGetByIndex(
+    "workingDocs",
+    "projectId",
+    state.activeProject.id,
+  );
+  if (wdocs.length <= 1) {
+    alert(
+      "You cannot delete the only working document. Create a new one first.",
+    );
+    return;
+  }
+  const current = wdocs.find((w) => w.id === state.activeWorkingDocId);
+  if (
+    !confirm(
+      'Delete "' +
+        (current ? current.name : "this document") +
+        '"? All version history for this document will also be deleted.',
+    )
+  )
+    return;
+  // Delete versions belonging to this working doc
+  try {
+    const versions = await dbGetByIndex(
+      "docVersions",
+      "projectId",
+      state.activeProject.id,
+    );
+    for (const v of versions) {
+      if (v.workingDocId === state.activeWorkingDocId)
+        await dbDelete("docVersions", v.id);
+    }
+  } catch (_) {}
+  await dbDelete("workingDocs", state.activeWorkingDocId);
+  // Switch to another doc
+  const remaining = wdocs.filter((w) => w.id !== state.activeWorkingDocId);
+  state.activeWorkingDocId = (
+    remaining.find((w) => w.isDefault) || remaining[0]
+  ).id;
+  await _renderWorkingDocSelector();
+  await _fillWorkingDocEditor();
+}
+
+async function renameWorkingDoc() {
+  if (!state.activeWorkingDocId) return;
+  const wdoc = await dbGet("workingDocs", state.activeWorkingDocId);
+  if (!wdoc) return;
+  const newName = prompt("Rename working document:", wdoc.name || "");
+  if (!newName || !newName.trim()) return;
+  wdoc.name = newName.trim();
+  wdoc.updatedAt = Date.now();
+  await dbPut("workingDocs", wdoc);
+  await _renderWorkingDocSelector();
 }
 
 // ─── CLEAR CHAT ───────────────────────────────────────────────────────────────
@@ -673,6 +833,7 @@ async function exportDatabase() {
     "evalCandidates",
     "evalScores",
     "guidelineAnalyses",
+    "workingDocs",
   ];
   const data = {
     version: DB_VERSION,
@@ -711,6 +872,7 @@ async function backupToServer() {
     "contacts",
     "suggestions",
     "research",
+    "workingDocs",
   ];
   const data = {
     version: DB_VERSION,

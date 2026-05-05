@@ -66,6 +66,12 @@ async function boot() {
     const hindsightEnabled = await dbGet("settings", "hindsightEnabled");
     if (hindsightEnabled)
       state.settings.hindsightEnabled = !!hindsightEnabled.value;
+    const writingStyleProfile = await dbGet("settings", "writingStyleProfile");
+    if (writingStyleProfile)
+      state.settings.writingStyleProfile = writingStyleProfile.value || "";
+    const writingStyleEnabled = await dbGet("settings", "writingStyleEnabled");
+    if (writingStyleEnabled)
+      state.settings.writingStyleEnabled = !!writingStyleEnabled.value;
     // Apply .env defaults injected by server.js (only if DB has no saved value)
     const _senv = window.__SOURCEDESK_ENV__ || {};
     if (!state.settings.localLlmUrl && _senv.localLlmUrl) {
@@ -155,7 +161,7 @@ function showView(v) {
   }
   if (v === "templates") renderTemplatesGrid();
   if (v === "notes") loadNotes();
-  if (v === "working-doc") _fillWorkingDocEditor();
+  if (v === "working-doc") _loadWorkingDocView();
   if (v === "sq") loadSupplierQuestions();
   if (v === "tasks") loadTasks();
   if (v === "contacts") loadContacts();
@@ -225,6 +231,39 @@ async function loadProject(id) {
   docs.forEach((d) => {
     if (d.docType !== "guideline") state.activeDocs.add(d.id);
   });
+
+  // Load working docs; migrate legacy workingContent if needed
+  const wdocs = await dbGetByIndex("workingDocs", "projectId", id);
+  if (wdocs.length === 0 && (proj.workingContent || "").trim()) {
+    // Migrate: create first working doc from legacy workingContent
+    const firstDoc = {
+      id: uid(),
+      projectId: id,
+      name: "Working Document",
+      content: proj.workingContent,
+      isDefault: true,
+      createdAt: proj.createdAt || Date.now(),
+      updatedAt: Date.now(),
+    };
+    await dbPut("workingDocs", firstDoc);
+    // Migrate existing docVersions to belong to this working doc
+    try {
+      const versions = await dbGetByIndex("docVersions", "projectId", id);
+      for (const v of versions) {
+        if (!v.workingDocId) {
+          v.workingDocId = firstDoc.id;
+          await dbPut("docVersions", v);
+        }
+      }
+    } catch (_) {}
+    state.activeWorkingDocId = firstDoc.id;
+  } else if (wdocs.length > 0) {
+    // Find default doc or use first
+    const defaultDoc = wdocs.find((w) => w.isDefault) || wdocs[0];
+    state.activeWorkingDocId = defaultDoc.id;
+  } else {
+    state.activeWorkingDocId = null;
+  }
 
   document.getElementById("welcome-screen").classList.add("hidden");
   document.getElementById("chat-messages").classList.remove("hidden");

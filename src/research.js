@@ -896,19 +896,43 @@ async function _buildAgentReport(topic, queries, items) {
 
 async function _appendToWorkingDoc(markdown) {
   if (!state.activeProject) return;
-  const prev = state.activeProject.workingContent || "";
-  state.activeProject.workingContent = prev + markdown;
-  await dbPut("projects", state.activeProject);
+  let newContent = "";
+  if (state.activeWorkingDocId) {
+    // Multi-doc path: read from workingDocs store
+    let wdoc = await dbGet("workingDocs", state.activeWorkingDocId);
+    if (!wdoc) {
+      // No doc yet — create one
+      wdoc = {
+        id: state.activeWorkingDocId,
+        projectId: state.activeProject.id,
+        name: "Working Document",
+        content: "",
+        isDefault: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+    }
+    wdoc.content = (wdoc.content || "") + markdown;
+    wdoc.updatedAt = Date.now();
+    await dbPut("workingDocs", wdoc);
+    newContent = wdoc.content;
+  } else {
+    // Legacy path
+    const prev = state.activeProject.workingContent || "";
+    state.activeProject.workingContent = prev + markdown;
+    await dbPut("projects", state.activeProject);
+    newContent = state.activeProject.workingContent;
+  }
   // If the working doc editor is open, sync the textarea + rich editor.
   const ed = document.getElementById("working-doc-editor");
   if (ed) {
-    ed.value = state.activeProject.workingContent;
+    ed.value = newContent;
     if (typeof refreshRichEditor === "function") refreshRichEditor(ed);
   }
   // Save a version snapshot so the append is recoverable.
   if (typeof saveDocVersion === "function") {
     try {
-      await saveDocVersion(state.activeProject.workingContent);
+      await saveDocVersion(newContent);
     } catch {}
   }
 }

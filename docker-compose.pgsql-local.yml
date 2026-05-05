@@ -1,0 +1,38 @@
+version: "3.8"
+# SourceDesk — External PostgreSQL variant
+#
+# Use this when you already have a PostgreSQL server running outside Docker
+# (on the host, another container, or a cloud provider like Supabase / Railway).
+#
+# Required: set DATABASE_URL in your .env file before running.
+# Example:
+#   DATABASE_URL=postgres://user:pass@host.docker.internal:5432/sourcedesk
+#
+# Usage: docker-compose -f docker-compose.pgsql-local.yml up -d --build
+#        (or: make compose-up-pgsql-local)
+#
+# Linux note: add DOCKER_EXTRA_HOSTS=host.docker.internal:host-gateway to .env
+# if your host Postgres is on localhost.
+
+services:
+  web:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      DATABASE_URL: "${DATABASE_URL}"
+      LLM_PROVIDER: "${LLM_PROVIDER:-anthropic}"
+      LLM_MODEL: "${LLM_MODEL:-claude-sonnet-4-6}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      LOCAL_LLM_URL: "${LOCAL_LLM_URL:-http://localhost:11434/v1}"
+      LOCAL_LLM_DEFAULT_MODEL: "${LOCAL_LLM_DEFAULT_MODEL:-}"
+      # Optional: point at a Hindsight instance running separately
+      HINDSIGHT_API_URL: "${HINDSIGHT_API_URL:-}"
+    volumes:
+      - ./.private-documents:/app/.private-documents
+      - ./backups:/app/backups
+    extra_hosts:
+      # Linux: allows host.docker.internal to resolve to the host machine
+      - "host.docker.internal:host-gateway"

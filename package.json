@@ -1,6 +1,6 @@
 {
   "name": "sourcedesk",
-  "version": "1.0.0-rc.1",
+  "version": "1.1.0",
   "description": "In-browser RAG and project management system for Claude. Single-file, IndexedDB-backed.",
   "private": true,
   "scripts": {

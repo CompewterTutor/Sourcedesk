@@ -73,6 +73,19 @@ const TOKENS_FILE = path.join(
   "api_tokens.json",
 );
 
+// ─── Ensure required directories exist at startup ─────────────────────────────
+// Creates them silently if missing; no-op if they already exist.
+[
+  path.join(__dirname, ".private-documents"),
+  path.join(__dirname, ".private-documents", "email_ingests"),
+  path.join(__dirname, "backups"),
+  path.join(__dirname, "data"),
+].forEach((dir) => {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch (_) {}
+});
+
 function loadTokens() {
   try {
     const raw = fs.readFileSync(TOKENS_FILE, "utf8");

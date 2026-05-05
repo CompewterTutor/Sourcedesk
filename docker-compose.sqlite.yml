@@ -1,0 +1,26 @@
+version: "3.8"
+# SourceDesk — SQLite variant (no external database or memory services)
+# Usage: docker-compose -f docker-compose.sqlite.yml up -d --build
+#        (or: make compose-up-sqlite)
+
+services:
+  web:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      DATABASE_URL: "sqlite:./data/sourcedesk.db"
+      LLM_PROVIDER: "${LLM_PROVIDER:-anthropic}"
+      LLM_MODEL: "${LLM_MODEL:-claude-sonnet-4-6}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      LOCAL_LLM_URL: "${LOCAL_LLM_URL:-http://localhost:11434/v1}"
+      LOCAL_LLM_DEFAULT_MODEL: "${LOCAL_LLM_DEFAULT_MODEL:-}"
+    volumes:
+      - data:/app/data
+      - ./.private-documents:/app/.private-documents
+      - ./backups:/app/backups
+
+volumes:
+  data:
