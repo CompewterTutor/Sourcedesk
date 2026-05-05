@@ -515,7 +515,30 @@ Key files to read for Hindsight work:
 
 ## Current State (as of last commit)
 
-**Current version: v0.9.3** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
+**Current version: v0.9.4** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
+
+> **Session note (current — v0.9.4: Memory UI):**
+> All changes below are complete, documented, and built into `SourceDesk.html`.
+>
+> 1. **Memory Browser modal** (`src/settings.js`, `src/index.html`) — new "Browse" button in Settings → 🧠 Memory row. Opens `#modal-memory-browser` with:
+>    - Search input (calls `GET /api/hindsight/memories?q=...` server-side)
+>    - Paginated list (20/page, Load More button)
+>    - Per-memory badges: type chip + source document-ID chip
+>    - Hover-reveal 🗑 delete per row (`_memBrowseDeleteDoc` → `DELETE /api/hindsight/memory`)
+>    - **⬇ Export** downloads `sourcedesk-memories.json` (`GET /api/hindsight/export`)
+>    - **🗑 Clear All** empties the entire bank (`DELETE /api/hindsight/memories`, confirmed twice)
+>
+> 2. **In-chat memory citations** (`src/messages.js`, `src/chat.js`) — recalled memories now produce a **🧠 N memories recalled** collapsible pill below assistant bubbles, styled with a teal accent (vs gold for BM25 sources). `memories` field added to `state.messages` entries and replayed via `renderMessages()`.
+>
+> 3. **4 new server endpoints** (`server.js`) — all token-authenticated, all graceful no-ops when Hindsight is absent:
+>    - `GET /api/hindsight/memories` — paginated list with optional `q` search
+>    - `GET /api/hindsight/export` — full download as JSON attachment
+>    - `DELETE /api/hindsight/memory` — delete one document by `documentId`
+>    - `DELETE /api/hindsight/memories` — clear entire bank; returns `{ok, deleted: N}`
+>
+> 4. **4 new server adapter methods** (`server/hindsight.js`) — `listMemories`, `listDocuments`, `deleteDocument`, `clearAll`. `module.exports` updated to include all new exports.
+>
+> 5. **`APP_VERSION = '0.9.4'`** in `src/flags.js` and `package.json`; `build.js` mangle.reserved updated.
 
 > **Session note (current — v0.9.3: Deep Content Integration):**
 > All changes below are complete, documented, and built into `SourceDesk.html`.
@@ -981,8 +1004,8 @@ Key files to read for Hindsight work:
 - Retain notes, SQ answers, working doc versions, email summaries, research items
 - `src/hindsight.js` shared `_hindsightRetainItem()` helper; all browser-side retains centralised
 
-### Next: v0.9.4 — Memory UI
-- Settings memory tab; in-chat citations; clear/export bank
+### ~~v0.9.4 — Memory UI~~ ✅ DONE
+- Settings memory browser modal; in-chat citations; clear/export bank
 
 ### Then: v1.0.0 — Production release
 

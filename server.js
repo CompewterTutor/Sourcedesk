@@ -736,6 +736,218 @@ function handler(req, res) {
     return;
   }
 
+  // ─── Hindsight list memories (GET) ─────────────────────────────────────────
+  // Query params: token=X, q=Y (optional), limit=N (default 20), offset=M (default 0)
+  // Returns: { memories: [{id,text,type,tags,documentId,context,createdAt}], count, total }
+  if (url.startsWith("/api/hindsight/memories") && req.method === "GET") {
+    const qs = new URLSearchParams(req.url.split("?")[1] || "");
+    const qToken = qs.get("token") || "";
+    const qQuery = qs.get("q") || "";
+    const qLimit = parseInt(qs.get("limit") || "20", 10);
+    const qOffset = parseInt(qs.get("offset") || "0", 10);
+    if (!qToken) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing token" }));
+      return;
+    }
+    const tokens = loadTokens();
+    if (!tokens[qToken]) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid API token" }));
+      return;
+    }
+    if (!_hindsight) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ memories: [], count: 0, total: 0 }));
+      return;
+    }
+    (async function () {
+      try {
+        const owner = tokens[qToken].user || tokens[qToken].label || "unknown";
+        const result = await _hindsight.listMemories(owner, {
+          q: qQuery || undefined,
+          limit: qLimit,
+          offset: qOffset,
+        });
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result));
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error: e.message,
+            memories: [],
+            count: 0,
+            total: 0,
+          }),
+        );
+      }
+    })();
+    return;
+  }
+
+  // ─── Hindsight export memories (GET) ───────────────────────────────────────
+  // Query params: token=X
+  // Returns: JSON attachment with full memory list (all pages)
+  if (url.startsWith("/api/hindsight/export") && req.method === "GET") {
+    const qs = new URLSearchParams(req.url.split("?")[1] || "");
+    const qToken = qs.get("token") || "";
+    if (!qToken) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing token" }));
+      return;
+    }
+    const tokens = loadTokens();
+    if (!tokens[qToken]) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid API token" }));
+      return;
+    }
+    if (!_hindsight) {
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Content-Disposition": 'attachment; filename="memory-export.json"',
+      });
+      res.end(
+        JSON.stringify({ memories: [], exportedAt: new Date().toISOString() }),
+      );
+      return;
+    }
+    (async function () {
+      try {
+        const owner = tokens[qToken].user || tokens[qToken].label || "unknown";
+        const allMemories = [];
+        let offset = 0;
+        const limit = 100;
+        while (true) {
+          const batch = await _hindsight.listMemories(owner, { limit, offset });
+          allMemories.push(...(batch.memories || []));
+          if ((batch.memories || []).length < limit) break;
+          offset += limit;
+        }
+        const payload = JSON.stringify(
+          {
+            exportedAt: new Date().toISOString(),
+            count: allMemories.length,
+            memories: allMemories,
+          },
+          null,
+          2,
+        );
+        res.writeHead(200, {
+          "Content-Type": "application/json",
+          "Content-Disposition":
+            'attachment; filename="sourcedesk-memories.json"',
+        });
+        res.end(payload);
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    })();
+    return;
+  }
+
+  // ─── Hindsight delete document (DELETE) ────────────────────────────────────
+  // Body: { token, documentId }
+  // Returns: { ok: true }
+  if (url === "/api/hindsight/memory" && req.method === "DELETE") {
+    let body = "";
+    req.on("data", (d) => {
+      body += d;
+    });
+    req.on("end", () => {
+      let payload;
+      try {
+        payload = JSON.parse(body || "{}");
+      } catch (_) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON body" }));
+        return;
+      }
+      const { token: reqToken, documentId } = payload;
+      if (!reqToken || !documentId) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing token or documentId" }));
+        return;
+      }
+      const tokens = loadTokens();
+      if (!tokens[reqToken]) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid API token" }));
+        return;
+      }
+      if (!_hindsight) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, skipped: true }));
+        return;
+      }
+      (async function () {
+        try {
+          const owner =
+            tokens[reqToken].user || tokens[reqToken].label || "unknown";
+          await _hindsight.deleteDocument(owner, documentId);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      })();
+    });
+    return;
+  }
+
+  // ─── Hindsight clear all (DELETE) ──────────────────────────────────────────
+  // Body: { token }
+  // Returns: { ok: true, deleted: N }
+  if (url === "/api/hindsight/memories" && req.method === "DELETE") {
+    let body = "";
+    req.on("data", (d) => {
+      body += d;
+    });
+    req.on("end", () => {
+      let payload;
+      try {
+        payload = JSON.parse(body || "{}");
+      } catch (_) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON body" }));
+        return;
+      }
+      const { token: reqToken } = payload;
+      if (!reqToken) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing token" }));
+        return;
+      }
+      const tokens = loadTokens();
+      if (!tokens[reqToken]) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid API token" }));
+        return;
+      }
+      if (!_hindsight) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, deleted: 0, skipped: true }));
+        return;
+      }
+      (async function () {
+        try {
+          const owner =
+            tokens[reqToken].user || tokens[reqToken].label || "unknown";
+          const deleted = await _hindsight.clearAll(owner);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true, deleted }));
+        } catch (e) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      })();
+    });
+    return;
+  }
+
   // ─── Email summaries (GET) ──────────────────────────────────────────────────
   // Returns LLM-generated summaries for a project.
   // Query params: token=<api_token>&projectId=<id>
@@ -1438,7 +1650,7 @@ function handler(req, res) {
   // Anything else → 404
   res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
   res.end(
-    `Not found: ${url}\nAvailable endpoints: / /health /convert /backup /proxy /api/email-ingest /api/email-summaries /api/token-revoke /api/hindsight/status /api/hindsight/retain /api/hindsight/recall`,
+    `Not found: ${url}\nAvailable endpoints: / /health /convert /backup /proxy /api/email-ingest /api/email-summaries /api/token-revoke /api/hindsight/status /api/hindsight/retain /api/hindsight/recall /api/hindsight/memories /api/hindsight/memory /api/hindsight/export`,
   );
 }
 

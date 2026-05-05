@@ -13,7 +13,7 @@
 //   const { memories } = await hindsight.recallForQuery(userId, { query, projectId });
 //   const status = await hindsight.getStatus(userId);
 
-'use strict';
+"use strict";
 
 // ─── Optional SDK load ────────────────────────────────────────────────────────
 // @vectorize-io/hindsight-client is declared as an optionalDependency.
@@ -22,9 +22,9 @@
 let HindsightClient = null;
 try {
   // Prefer the named export; fall back to the module default if needed.
-  const pkg = require('@vectorize-io/hindsight-client');
+  const pkg = require("@vectorize-io/hindsight-client");
   HindsightClient = pkg.HindsightClient || pkg.default || pkg;
-  if (typeof HindsightClient !== 'function') HindsightClient = null;
+  if (typeof HindsightClient !== "function") HindsightClient = null;
 } catch (_) {
   // SDK not installed — silently degrade
 }
@@ -35,42 +35,43 @@ try {
 
 var PROCUREMENT_BANK_CONFIG = {
   retainMission:
-    'Extract procurement decisions, vendor facts, pricing data, deadlines, ' +
-    'key contacts, action items, commitments, and compliance requirements. ' +
-    'Ignore greetings, small talk, and scheduling logistics.',
+    "Extract procurement decisions, vendor facts, pricing data, deadlines, " +
+    "key contacts, action items, commitments, and compliance requirements. " +
+    "Ignore greetings, small talk, and scheduling logistics.",
   observationsMission:
-    'Identify recurring vendor patterns, budget trends, deadline patterns, and ' +
-    'relationship dynamics. Flag when a vendor\'s reliability or pricing ' +
-    'contradicts prior observations.',
+    "Identify recurring vendor patterns, budget trends, deadline patterns, and " +
+    "relationship dynamics. Flag when a vendor's reliability or pricing " +
+    "contradicts prior observations.",
   reflectMission:
-    'You are an experienced procurement analyst with full context of this ' +
-    'user\'s project history. Reference past decisions, vendor relationships, ' +
-    'deadlines, and commitments when relevant. Be direct and concise.',
+    "You are an experienced procurement analyst with full context of this " +
+    "user's project history. Reference past decisions, vendor relationships, " +
+    "deadlines, and commitments when relevant. Be direct and concise.",
   dispositionSkepticism: 3,
   dispositionLiteralism: 4,
-  dispositionEmpathy:    2,
+  dispositionEmpathy: 2,
   entityLabels: [
     {
-      key:         'vendor',
-      type:        'text',
-      description: 'A vendor, supplier, or contractor mentioned in the conversation',
+      key: "vendor",
+      type: "text",
+      description:
+        "A vendor, supplier, or contractor mentioned in the conversation",
     },
     {
-      key:    'project_type',
-      type:   'value',
-      tag:    true,
+      key: "project_type",
+      type: "value",
+      tag: true,
       values: [
-        { value: 'rfp',      description: 'Request for Proposal'    },
-        { value: 'rfi',      description: 'Request for Information'  },
-        { value: 'vendor_q', description: 'Vendor Questionnaire'     },
-        { value: 'contract', description: 'Contract or agreement'    },
-        { value: 'research', description: 'Research or analysis'     },
+        { value: "rfp", description: "Request for Proposal" },
+        { value: "rfi", description: "Request for Information" },
+        { value: "vendor_q", description: "Vendor Questionnaire" },
+        { value: "contract", description: "Contract or agreement" },
+        { value: "research", description: "Research or analysis" },
       ],
     },
     {
-      key:         'deadline',
-      type:        'text',
-      description: 'A date, deadline, or timeline mentioned',
+      key: "deadline",
+      type: "text",
+      description: "A date, deadline, or timeline mentioned",
     },
   ],
 };
@@ -78,7 +79,7 @@ var PROCUREMENT_BANK_CONFIG = {
 // ─── Internal client cache ────────────────────────────────────────────────────
 // One HindsightClient instance per process; re-created if HINDSIGHT_API_URL changes.
 
-var _client  = null;
+var _client = null;
 var _baseUrl = null;
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
@@ -98,7 +99,7 @@ function getClient() {
     try {
       _client = new HindsightClient({ baseUrl: url });
     } catch (e) {
-      console.warn('  [Hindsight] Failed to instantiate client:', e.message);
+      console.warn("  [Hindsight] Failed to instantiate client:", e.message);
       _client = null;
     }
   }
@@ -125,9 +126,14 @@ async function ensureBank(userId) {
   } catch (e) {
     var is409 =
       (e && (e.status === 409 || e.statusCode === 409)) ||
-      (e && typeof e.message === 'string' && /409|already exists/i.test(e.message));
+      (e &&
+        typeof e.message === "string" &&
+        /409|already exists/i.test(e.message));
     if (!is409) {
-      console.warn('  [Hindsight] createBank failed for user ' + userId + ':', e.message);
+      console.warn(
+        "  [Hindsight] createBank failed for user " + userId + ":",
+        e.message,
+      );
     }
     // 409 → fall through and still apply config in case it was partially set up
   }
@@ -136,7 +142,10 @@ async function ensureBank(userId) {
   try {
     await client.updateBankConfig(userId, PROCUREMENT_BANK_CONFIG);
   } catch (e) {
-    console.warn('  [Hindsight] updateBankConfig failed for user ' + userId + ':', e.message);
+    console.warn(
+      "  [Hindsight] updateBankConfig failed for user " + userId + ":",
+      e.message,
+    );
   }
 }
 
@@ -153,17 +162,20 @@ async function retainContent(userId, opts) {
   if (!client || !userId) return;
 
   var content = opts && opts.content;
-  if (!content || typeof content !== 'string' || !content.trim()) return;
+  if (!content || typeof content !== "string" || !content.trim()) return;
 
   var retainOpts = { async: true };
-  if (opts.documentId)                               retainOpts.documentId = opts.documentId;
-  if (opts.context)                                  retainOpts.context    = opts.context;
-  if (Array.isArray(opts.tags) && opts.tags.length)  retainOpts.tags       = opts.tags;
+  if (opts.documentId) retainOpts.documentId = opts.documentId;
+  if (opts.context) retainOpts.context = opts.context;
+  if (Array.isArray(opts.tags) && opts.tags.length) retainOpts.tags = opts.tags;
 
   try {
     await client.retain(userId, content, retainOpts);
   } catch (e) {
-    console.warn('  [Hindsight] retain failed for user ' + userId + ':', e.message);
+    console.warn(
+      "  [Hindsight] retain failed for user " + userId + ":",
+      e.message,
+    );
   }
 }
 
@@ -183,30 +195,37 @@ async function recallForQuery(userId, opts) {
   if (!client || !userId) return null;
 
   var query = opts && opts.query;
-  if (!query || typeof query !== 'string' || !query.trim()) return null;
+  if (!query || typeof query !== "string" || !query.trim()) return null;
 
   var budget = (opts && opts.budget) || 2000;
 
   var recallOpts = {
-    budget:    budget,
+    budget: budget,
     maxTokens: budget,
   };
 
   // Project-scoped recall: any_strict ensures untagged memories are excluded
   if (opts && opts.projectId) {
-    recallOpts.tags      = ['project:' + opts.projectId];
-    recallOpts.tagsMatch = 'any_strict';
+    recallOpts.tags = ["project:" + opts.projectId];
+    recallOpts.tagsMatch = "any_strict";
   }
 
   try {
     var result = await client.recall(userId, query, recallOpts);
-    var items  = (result && result.results) || [];
+    var items = (result && result.results) || [];
     var memories = items
-      .map(function(item) { return item && (item.text || item.content || ''); })
-      .filter(function(t) { return typeof t === 'string' && t.trim().length > 0; });
+      .map(function (item) {
+        return item && (item.text || item.content || "");
+      })
+      .filter(function (t) {
+        return typeof t === "string" && t.trim().length > 0;
+      });
     return { memories: memories, raw: items };
   } catch (e) {
-    console.warn('  [Hindsight] recall failed for user ' + userId + ':', e.message);
+    console.warn(
+      "  [Hindsight] recall failed for user " + userId + ":",
+      e.message,
+    );
     return null;
   }
 }
@@ -227,27 +246,157 @@ async function getStatus(userId) {
   var configured = !!(process.env.HINDSIGHT_API_URL && HindsightClient);
 
   if (!configured) {
-    return { available: false, configured: false, bankExists: false, memoryCount: null };
+    return {
+      available: false,
+      configured: false,
+      bankExists: false,
+      memoryCount: null,
+    };
   }
 
   var client = getClient();
   if (!client) {
-    return { available: false, configured: true, bankExists: false, memoryCount: null };
+    return {
+      available: false,
+      configured: true,
+      bankExists: false,
+      memoryCount: null,
+    };
   }
 
   try {
     await client.listMemories(userId, { limit: 1 });
-    return { available: true, configured: true, bankExists: true, memoryCount: null };
+    return {
+      available: true,
+      configured: true,
+      bankExists: true,
+      memoryCount: null,
+    };
   } catch (e) {
     var is404 =
       (e && (e.status === 404 || e.statusCode === 404)) ||
-      (e && typeof e.message === 'string' && /404|not found/i.test(e.message));
+      (e && typeof e.message === "string" && /404|not found/i.test(e.message));
     if (is404) {
-      return { available: true, configured: true, bankExists: false, memoryCount: null };
+      return {
+        available: true,
+        configured: true,
+        bankExists: false,
+        memoryCount: null,
+      };
     }
-    console.warn('  [Hindsight] listMemories probe failed for user ' + userId + ':', e.message);
-    return { available: false, configured: true, bankExists: false, memoryCount: null };
+    console.warn(
+      "  [Hindsight] listMemories probe failed for user " + userId + ":",
+      e.message,
+    );
+    return {
+      available: false,
+      configured: true,
+      bankExists: false,
+      memoryCount: null,
+    };
   }
 }
 
-module.exports = { getClient, ensureBank, retainContent, recallForQuery, getStatus };
+async function listMemories(userId, opts) {
+  var client = getClient();
+  if (!client || !userId) return { memories: [], count: 0, total: 0 };
+  try {
+    var result = await client.listMemories(userId, {
+      q: (opts && opts.q) || undefined,
+      limit: (opts && opts.limit) || 20,
+      offset: (opts && opts.offset) || 0,
+    });
+    var items = (result && result.results) || [];
+    var memories = items.map(function (item) {
+      return {
+        id: item.id || "",
+        text: item.text || item.content || "",
+        type: item.type || "",
+        tags: item.tags || [],
+        documentId: item.document_id || item.documentId || "",
+        context: item.context || "",
+        createdAt: item.occurred_start || item.mentioned_at || "",
+      };
+    });
+    return {
+      memories: memories,
+      count: memories.length,
+      total: (result && result.total) || memories.length,
+    };
+  } catch (e) {
+    console.warn(
+      "  [Hindsight] listMemories failed for user " + userId + ":",
+      e.message,
+    );
+    return { memories: [], count: 0, total: 0 };
+  }
+}
+
+async function listDocuments(userId, opts) {
+  var client = getClient();
+  if (!client || !userId) return { documents: [], count: 0, total: 0 };
+  try {
+    var result = await client.listDocuments(userId, {
+      limit: (opts && opts.limit) || 50,
+      offset: (opts && opts.offset) || 0,
+    });
+    var docs = (result && result.results) || [];
+    return {
+      documents: docs,
+      count: docs.length,
+      total: (result && result.total) || docs.length,
+    };
+  } catch (e) {
+    console.warn(
+      "  [Hindsight] listDocuments failed for user " + userId + ":",
+      e.message,
+    );
+    return { documents: [], count: 0, total: 0 };
+  }
+}
+
+async function deleteDocument(userId, documentId) {
+  var client = getClient();
+  if (!client || !userId || !documentId) return;
+  await client.deleteDocument(userId, documentId);
+}
+
+async function clearAll(userId) {
+  var client = getClient();
+  if (!client || !userId) return 0;
+  var deleted = 0;
+  var offset = 0;
+  var limit = 50;
+  while (true) {
+    var result = await client.listDocuments(userId, {
+      limit: limit,
+      offset: offset,
+    });
+    var docs = (result && result.results) || [];
+    if (docs.length === 0) break;
+    for (var i = 0; i < docs.length; i++) {
+      var docId = docs[i].document_id || docs[i].documentId || docs[i].id;
+      if (docId) {
+        try {
+          await client.deleteDocument(userId, docId);
+          deleted++;
+        } catch (_) {}
+      }
+    }
+    if (docs.length < limit) break;
+    offset += limit;
+  }
+  return deleted;
+}
+
+module.exports = {
+  getClient,
+  ensureBank,
+  retainContent,
+  recallForQuery,
+  getStatus,
+  listMemories,
+  listDocuments,
+  deleteDocument,
+  clearAll,
+};

@@ -350,11 +350,39 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
         "</div>";
       msgDiv.appendChild(src);
     }
+    if (_memories && _memories.length) {
+      const memItemsHtml = _memories
+        .map((m) => {
+          const snippet = (m || "").slice(0, 140);
+          return (
+            '<div class="chunk-item"><span class="chunk-item-snippet">' +
+            snippet +
+            (snippet.length >= 140 ? "\u2026" : "") +
+            "</span></div>"
+          );
+        })
+        .join("");
+      const memEl = document.createElement("div");
+      memEl.className = "chunk-used mem-used";
+      memEl.innerHTML =
+        "<span class=\"chunk-toggle\" onclick=\"this.closest('.chunk-used').classList.toggle('expanded')\">" +
+        "\uD83E\uDDE0 " +
+        _memories.length +
+        " memor" +
+        (_memories.length === 1 ? "y" : "ies") +
+        " recalled" +
+        "</span>" +
+        '<div class="chunk-details">' +
+        memItemsHtml +
+        "</div>";
+      msgDiv.appendChild(memEl);
+    }
     state.messages.push({
       role: "assistant",
       content: fullText,
       sources,
       chunks,
+      memories: _memories && _memories.length ? _memories : null,
     });
     await saveChat();
   } catch (e) {

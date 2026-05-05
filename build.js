@@ -367,6 +367,11 @@ async function build() {
           "revokeApiToken",
           "testHindsightConnection",
           "toggleHindsight",
+          "openMemoryBrowser",
+          "_memBrowseLoad",
+          "_memBrowseClear",
+          "_memBrowseExport",
+          "_memBrowseDeleteDoc",
         ],
       },
       format: {

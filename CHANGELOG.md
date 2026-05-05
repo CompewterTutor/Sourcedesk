@@ -11,6 +11,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — v0.9.4 🖥️
+- **Memory Browser** (`src/settings.js`, `src/index.html`) — new "Browse" button in Settings → 🧠 Memory row opens `#modal-memory-browser`. The modal shows all retained memories for the current user with:
+  - Search input (filters server-side via Hindsight `listMemories` `q` param)
+  - Paginated list — 20 per page, **Load More** for subsequent pages
+  - Per-item badges: memory type (fact, observation, …) and source document ID
+  - Hover-reveal 🗑 delete button per row — removes all memories for that document ID via `DELETE /api/hindsight/memory`
+  - **⬇ Export** — downloads the full bank as `sourcedesk-memories.json` via `GET /api/hindsight/export`
+  - **🗑 Clear All** — clears the entire bank via `DELETE /api/hindsight/memories` (with double-confirm)
+- **In-chat memory citations** (`src/messages.js`, `src/chat.js`) — when Hindsight memories are recalled before a response, a **🧠 N memories recalled** collapsible pill is shown below the assistant bubble (same expand/collapse pattern as sources, but with a teal accent to distinguish from BM25 sources). `memories` is saved on the message object and replayed on `renderMessages()`.
+- **4 new server endpoints** (`server.js`) — all token-authenticated, all gracefully no-op when Hindsight is not configured:
+  - `GET /api/hindsight/memories?token&q&limit&offset` — paginated memory list
+  - `GET /api/hindsight/export?token` — full export download (all pages, `Content-Disposition: attachment`)
+  - `DELETE /api/hindsight/memory` (body `{token, documentId}`) — delete one document's memories
+  - `DELETE /api/hindsight/memories` (body `{token}`) — clear all; returns `{ok, deleted: N}`
+- **4 new server adapter methods** (`server/hindsight.js`) — `listMemories(userId, opts)`, `listDocuments(userId, opts)`, `deleteDocument(userId, documentId)`, `clearAll(userId)` (paginated deletion loop).
+
+### Changed — v0.9.4
+- **`APP_VERSION`** bumped to `0.9.4` in `src/flags.js` and `package.json`.
+- **`build.js` `mangle.reserved`** — added `openMemoryBrowser`, `_memBrowseLoad`, `_memBrowseClear`, `_memBrowseExport`, `_memBrowseDeleteDoc`.
+
+---
+
 ### Added — v0.9.3 🖥️
 - **`src/hindsight.js`** — new shared `_hindsightRetainItem(documentId, content, tags, context)` helper. All browser-side retain calls now go through this single function. Guard checks (`serverUrl`, `serverToken`, `hindsightEnabled`, `activeProject`) are centralised here; calling code is concise and consistent. Content is truncated to 4 000 chars before sending.
 - **Notes retain** (`src/notes.js`) — `_hindsightRetainItem()` is called from three note-save paths: `_autoSaveCurrentNote()`, `saveCurrentNote()`, and `toggleNoteInContext()`. Only notes with `includeInContext = true` are retained, using `documentId: "note:<id>"` and tag `type:note`. Toggling include-in-context ON immediately retains the note.

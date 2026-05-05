@@ -1700,6 +1700,81 @@
             .tv-const-del:hover {
                 color: var(--danger);
             }
+            /* ─── Memory Browser ────────────────────────────────────────────── */
+            .mem-browse-item {
+                position: relative;
+                padding: 8px 32px 8px 10px;
+                border-bottom: 1px solid var(--border);
+                transition: background 0.12s;
+            }
+            .mem-browse-item:last-child {
+                border-bottom: none;
+            }
+            .mem-browse-item:hover {
+                background: var(--surface);
+            }
+            .mem-browse-text {
+                font-size: 12px;
+                color: var(--text);
+                line-height: 1.5;
+                margin-bottom: 4px;
+            }
+            .mem-browse-meta {
+                display: flex;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .mem-type-badge {
+                font-family: var(--font-mono);
+                font-size: 10px;
+                padding: 1px 6px;
+                border-radius: 10px;
+                background: var(--accent-glow);
+                color: var(--accent);
+                border: 1px solid var(--accent-dim);
+            }
+            .mem-doc-badge {
+                font-family: var(--font-mono);
+                font-size: 10px;
+                padding: 1px 6px;
+                border-radius: 10px;
+                background: var(--surface);
+                color: var(--text-muted);
+                border: 1px solid var(--border);
+                max-width: 260px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .mem-browse-del {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-size: 13px;
+                opacity: 0;
+                transition: opacity 0.15s;
+                color: var(--text-muted);
+                padding: 2px 4px;
+            }
+            .mem-browse-item:hover .mem-browse-del {
+                opacity: 1;
+            }
+            .mem-browse-del:hover {
+                color: var(--danger);
+            }
+            /* Memory pill in chat — subtle teal tint vs sources gold */
+            .mem-used .chunk-item {
+                border-left-color: rgba(100, 180, 220, 0.5);
+            }
+            .mem-used .chunk-toggle {
+                color: rgba(100, 180, 220, 0.65);
+            }
+            .mem-used.expanded .chunk-toggle {
+                color: rgba(100, 180, 220, 0.9);
+            }
         </style>
     </head>
     <body>
@@ -5348,6 +5423,14 @@
                         >
                             Test
                         </button>
+                        <button
+                            class="btn-secondary"
+                            style="flex-shrink: 0"
+                            onclick="openMemoryBrowser()"
+                            title="Browse, search and manage your memory bank"
+                        >
+                            Browse
+                        </button>
                     </div>
                 </div>
 
@@ -6344,6 +6427,124 @@ Or paste numbered / blank-line separated questions…"
                     ></div>
                 </div>
 
+                <div style="margin-top: 16px; text-align: right">
+                    <button class="btn-secondary" onclick="closeModal()">
+                        Close
+                    </button>
+                </div>
+            </div>
+
+            <!-- Memory Browser Modal -->
+            <div
+                id="modal-memory-browser"
+                class="modal hidden"
+                style="max-width: 640px; width: 95vw"
+            >
+                <div class="modal-title">&#x1F9E0; Memory Bank</div>
+                <div class="modal-subtitle">
+                    Browse, search, and manage AI memories retained from your
+                    work. Memories are recalled automatically during chats when
+                    Hindsight is enabled.
+                </div>
+                <!-- Search + actions row -->
+                <div
+                    style="
+                        display: flex;
+                        gap: 8px;
+                        align-items: center;
+                        flex-wrap: wrap;
+                        margin-bottom: 10px;
+                    "
+                >
+                    <input
+                        type="text"
+                        class="form-input"
+                        id="mem-browse-search"
+                        placeholder="Search memories&hellip;"
+                        style="flex: 1; min-width: 140px"
+                        onkeydown="
+                            if (event.key === 'Enter') {
+                                _memBrowseQuery = this.value;
+                                _memBrowseOffset = 0;
+                                _memBrowseLoad(this.value, 0);
+                            }
+                        "
+                    />
+                    <button
+                        class="btn-secondary"
+                        onclick="
+                            _memBrowseQuery =
+                                document.getElementById(
+                                    'mem-browse-search',
+                                ).value;
+                            _memBrowseOffset = 0;
+                            _memBrowseLoad(_memBrowseQuery, 0);
+                        "
+                    >
+                        Search
+                    </button>
+                    <button
+                        class="btn-secondary"
+                        onclick="_memBrowseExport()"
+                        title="Download all memories as JSON"
+                    >
+                        &#x2B07; Export
+                    </button>
+                    <button
+                        class="btn-danger"
+                        onclick="_memBrowseClear()"
+                        style="font-size: 12px; padding: 6px 12px"
+                        title="Clear all memories &mdash; irreversible"
+                    >
+                        &#x1F5D1; Clear All
+                    </button>
+                </div>
+                <!-- Status line -->
+                <div
+                    id="mem-browse-status"
+                    style="
+                        font-size: 11px;
+                        color: var(--text-muted);
+                        margin-bottom: 8px;
+                        font-family: var(--font-mono);
+                        min-height: 16px;
+                    "
+                ></div>
+                <!-- Memory list -->
+                <div
+                    id="mem-browse-list"
+                    style="
+                        max-height: 360px;
+                        overflow-y: auto;
+                        border: 1px solid var(--border);
+                        border-radius: var(--radius);
+                        background: var(--surface2);
+                    "
+                >
+                    <div
+                        style="
+                            color: var(--text-muted);
+                            font-size: 12px;
+                            padding: 20px;
+                            text-align: center;
+                        "
+                    >
+                        Loading&hellip;
+                    </div>
+                </div>
+                <!-- Load more -->
+                <button
+                    id="mem-browse-load-more"
+                    class="btn-secondary"
+                    style="
+                        display: none;
+                        margin-top: 8px;
+                        font-size: 12px;
+                        width: 100%;
+                    "
+                >
+                    Load More
+                </button>
                 <div style="margin-top: 16px; text-align: right">
                     <button class="btn-secondary" onclick="closeModal()">
                         Close

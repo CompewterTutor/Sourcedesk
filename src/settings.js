@@ -1143,3 +1143,219 @@ async function testHindsightConnection() {
     statusEl.style.color = "var(--danger)";
   }
 }
+
+// ─── MEMORY BROWSER ──────────────────────────────────────────────────────────
+let _memBrowseOffset = 0;
+let _memBrowseQuery = "";
+const _MEM_BROWSE_PAGE = 20;
+
+async function openMemoryBrowser() {
+  const serverUrl = state.settings.serverUrl;
+  const serverToken = state.settings.serverToken;
+  if (!serverUrl || !serverToken) {
+    alert("Configure Server URL and API Token in Settings first.");
+    return;
+  }
+  _memBrowseOffset = 0;
+  _memBrowseQuery = "";
+  const searchEl = document.getElementById("mem-browse-search");
+  if (searchEl) searchEl.value = "";
+  showModal("modal-memory-browser");
+  await _memBrowseLoad("", 0);
+}
+
+async function _memBrowseLoad(query, offset) {
+  const serverUrl = (state.settings.serverUrl || "").replace(/\/$/, "");
+  const serverToken = state.settings.serverToken || "";
+  const statusEl = document.getElementById("mem-browse-status");
+  const listEl = document.getElementById("mem-browse-list");
+  const loadMoreBtn = document.getElementById("mem-browse-load-more");
+  if (!statusEl || !listEl) return;
+
+  statusEl.textContent = "Loading\u2026";
+  if (offset === 0) {
+    listEl.innerHTML =
+      '<div style="color:var(--text-muted);font-size:12px;padding:20px;text-align:center">Loading\u2026</div>';
+  }
+
+  try {
+    const params = new URLSearchParams({
+      token: serverToken,
+      limit: _MEM_BROWSE_PAGE,
+      offset: offset,
+    });
+    if (query) params.set("q", query);
+    const resp = await fetch(
+      serverUrl + "/api/hindsight/memories?" + params.toString(),
+    );
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const data = await resp.json();
+    const memories = data.memories || [];
+    const total =
+      data.total != null ? data.total : data.count || memories.length;
+
+    if (offset === 0) listEl.innerHTML = "";
+
+    if (memories.length === 0 && offset === 0) {
+      listEl.innerHTML =
+        '<div style="color:var(--text-muted);font-size:12px;padding:20px;text-align:center">' +
+        "No memories yet. Use the app and they'll appear here.</div>";
+      statusEl.textContent = "0 memories";
+      if (loadMoreBtn) loadMoreBtn.style.display = "none";
+      return;
+    }
+
+    memories.forEach(function (mem) {
+      const el = document.createElement("div");
+      el.className = "mem-browse-item";
+      const rawText = (mem.text || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      const typeLabel = mem.type
+        ? '<span class="mem-type-badge">' + mem.type + "</span>"
+        : "";
+      const docId = mem.documentId || "";
+      const docLabel = docId
+        ? '<span class="mem-doc-badge" title="' +
+          docId +
+          '">' +
+          docId +
+          "</span>"
+        : "";
+      el.innerHTML =
+        '<div class="mem-browse-text">' +
+        rawText +
+        "</div>" +
+        '<div class="mem-browse-meta">' +
+        typeLabel +
+        docLabel +
+        "</div>";
+      if (docId) {
+        const delBtn = document.createElement("button");
+        delBtn.className = "mem-browse-del";
+        delBtn.title = "Remove memories for this document";
+        delBtn.textContent = "\uD83D\uDDD1";
+        delBtn.dataset.docId = docId;
+        delBtn.addEventListener("click", function () {
+          _memBrowseDeleteDoc(docId);
+        });
+        el.appendChild(delBtn);
+      }
+      listEl.appendChild(el);
+    });
+
+    const showing = offset + memories.length;
+    statusEl.textContent =
+      showing +
+      (total > showing ? " of ~" + total : "") +
+      " memor" +
+      (total === 1 ? "y" : "ies");
+
+    if (loadMoreBtn) {
+      const hasMore = memories.length === _MEM_BROWSE_PAGE;
+      loadMoreBtn.style.display = hasMore ? "inline-block" : "none";
+      if (hasMore) {
+        const nextOffset = offset + _MEM_BROWSE_PAGE;
+        loadMoreBtn.onclick = function () {
+          _memBrowseOffset = nextOffset;
+          _memBrowseLoad(_memBrowseQuery, nextOffset);
+        };
+      }
+    }
+  } catch (e) {
+    statusEl.textContent = "\u2717 Error: " + e.message;
+    if (offset === 0) {
+      listEl.innerHTML =
+        '<div style="color:var(--danger);font-size:12px;padding:12px">' +
+        "Failed to load memories. Check your server URL and token.</div>";
+    }
+  }
+}
+
+async function _memBrowseDeleteDoc(documentId) {
+  const serverUrl = (state.settings.serverUrl || "").replace(/\/$/, "");
+  const serverToken = state.settings.serverToken || "";
+  if (
+    !confirm(
+      'Remove all memories associated with "' +
+        documentId +
+        '"? This cannot be undone.',
+    )
+  )
+    return;
+  try {
+    const resp = await fetch(serverUrl + "/api/hindsight/memory", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: serverToken, documentId: documentId }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      const listEl = document.getElementById("mem-browse-list");
+      if (listEl) {
+        listEl
+          .querySelectorAll('.mem-browse-del[data-doc-id="' + documentId + '"]')
+          .forEach(function (btn) {
+            btn.closest(".mem-browse-item").remove();
+          });
+      }
+      const statusEl = document.getElementById("mem-browse-status");
+      if (statusEl)
+        statusEl.textContent = '\u2713 Deleted "' + documentId + '"';
+    } else {
+      alert("Delete failed: " + (data.error || "unknown error"));
+    }
+  } catch (e) {
+    alert("Delete failed: " + e.message);
+  }
+}
+
+async function _memBrowseClear() {
+  const serverUrl = (state.settings.serverUrl || "").replace(/\/$/, "");
+  const serverToken = state.settings.serverToken || "";
+  if (
+    !confirm(
+      "Clear ALL memories from your bank? This permanently erases every memory and cannot be undone.",
+    )
+  )
+    return;
+  const statusEl = document.getElementById("mem-browse-status");
+  if (statusEl) statusEl.textContent = "Clearing\u2026";
+  try {
+    const resp = await fetch(serverUrl + "/api/hindsight/memories", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: serverToken }),
+    });
+    const data = await resp.json();
+    if (statusEl)
+      statusEl.textContent =
+        "\u2713 Cleared " + (data.deleted || 0) + " document(s)";
+    const listEl = document.getElementById("mem-browse-list");
+    if (listEl) {
+      listEl.innerHTML =
+        '<div style="color:var(--text-muted);font-size:12px;padding:20px;text-align:center">Memory bank cleared.</div>';
+    }
+    const loadMoreBtn = document.getElementById("mem-browse-load-more");
+    if (loadMoreBtn) loadMoreBtn.style.display = "none";
+  } catch (e) {
+    if (statusEl) statusEl.textContent = "\u2717 Error: " + e.message;
+  }
+}
+
+function _memBrowseExport() {
+  const serverUrl = (state.settings.serverUrl || "").replace(/\/$/, "");
+  const serverToken = state.settings.serverToken || "";
+  if (!serverUrl || !serverToken) {
+    alert("Configure Server URL and API Token first.");
+    return;
+  }
+  const a = document.createElement("a");
+  a.href =
+    serverUrl +
+    "/api/hindsight/export?token=" +
+    encodeURIComponent(serverToken);
+  a.download = "sourcedesk-memories.json";
+  a.click();
+}
