@@ -16,6 +16,8 @@
 //                          Body: JSON { filename: string, data: string (base64) }
 //                          Response: text/plain Markdown
 //   POST /proxy        → proxies requests to local LLM servers (avoids browser CORS)
+//   GET  /api/email-summaries → LLM-generated email summaries (token-authenticated)
+//   GET  /api/hindsight/status → Hindsight memory service status (token-authenticated)
 //   POST /api/email-ingest → ingest a batch of email threads (token-authenticated)
 
 "use strict";
@@ -117,6 +119,15 @@ if (DATABASE_URL) {
 function _uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
+
+// ─── Hindsight (optional — no-op if HINDSIGHT_API_URL not set) ───────────────────────
+const _hindsight = (() => {
+  try {
+    return require("./server/hindsight");
+  } catch (e) {
+    return null;
+  }
+})();
 
 // Async LLM summarization — fire-and-forget after the HTTP response is sent.
 // Groups emails by thread, calls the configured LLM per-thread then overall,
@@ -548,7 +559,50 @@ function handler(req, res) {
     return;
   }
 
-  // ─── Email summaries (GET) ────────────────────────────────────────────────
+  // ─── Hindsight status (GET) ────────────────────────────────────────────
+  // Query params: token=<api_token>
+  // Returns: { available, configured, bankExists, memoryCount }
+  if (url === "/api/hindsight/status" && req.method === "GET") {
+    const qs = new URLSearchParams(req.url.split("?")[1] || "");
+    const qToken = qs.get("token") || "";
+    if (!qToken) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing token query parameter" }));
+      return;
+    }
+    const tokens = loadTokens();
+    if (!tokens[qToken]) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid API token" }));
+      return;
+    }
+    if (!_hindsight) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          available: false,
+          configured: false,
+          bankExists: false,
+          memoryCount: null,
+        }),
+      );
+      return;
+    }
+    (async function () {
+      try {
+        const owner = tokens[qToken].user || tokens[qToken].label || "unknown";
+        const status = await _hindsight.getStatus(owner);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(status));
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    })();
+    return;
+  }
+
+  // ─── Email summaries (GET) ──────────────────────────────────────────────────
   // Returns LLM-generated summaries for a project.
   // Query params: token=<api_token>&projectId=<id>
   if (url.startsWith("/api/email-summaries") && req.method === "GET") {
@@ -1286,6 +1340,11 @@ server.listen(PORT, "0.0.0.0", () => {
     `  Proxy:         http://localhost:${PORT}/proxy  (local LLM CORS bypass)`,
   );
   console.log(`  Email ingest:  http://localhost:${PORT}/api/email-ingest`);
+  const hindsightUrl =
+    env.HINDSIGHT_API_URL || process.env.HINDSIGHT_API_URL || "";
+  console.log(
+    `  Memory:        ${hindsightUrl ? "http://localhost:" + PORT + "/api/hindsight/status  (Hindsight at " + hindsightUrl + ")" : "(not configured — set HINDSIGHT_API_URL in .env)"}`,
+  );
   console.log("  ──────────────────────────────────────────");
   console.log("  Ctrl+C to stop");
   console.log("");

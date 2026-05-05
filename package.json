@@ -1,6 +1,6 @@
 {
   "name": "sourcedesk",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "In-browser RAG and project management system for Claude. Single-file, IndexedDB-backed.",
   "private": true,
   "scripts": {
@@ -15,7 +15,8 @@
   },
   "optionalDependencies": {
     "better-sqlite3": "^9.6.0",
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "@vectorize-io/hindsight-client": "^0.1.0"
   },
   "engines": {
     "node": ">=18"

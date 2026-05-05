@@ -364,6 +364,7 @@ async function build() {
           "openTokenManager",
           "generateApiToken",
           "revokeApiToken",
+          "testHindsightConnection",
         ],
       },
       format: {

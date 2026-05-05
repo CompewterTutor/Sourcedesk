@@ -11,7 +11,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Added — v0.9.0 🖥️
+### Added — v0.9.1 🖥️
+- **`server/hindsight.js`** — new Hindsight memory adapter module. Wraps `@vectorize-io/hindsight-client` with full graceful degradation: if `HINDSIGHT_API_URL` is not set or the SDK is not installed, all exports are safe no-ops that return `null`/empty arrays. Exports: `getClient()`, `ensureBank(userId)`, `retainContent(userId, opts)`, `recallForQuery(userId, opts)`, `getStatus(userId)`. Bank auto-creation applies a procurement-domain config (retain/observations/reflect missions, disposition traits, entity labels for vendor, project_type, deadline) via `updateBankConfig`. Bank ID = userId (one bank per SourceDesk user). `retainContent` always uses `async: true` (fire-and-forget). `recallForQuery` uses `tagsMatch: 'any_strict'` for project-scoped recall to prevent cross-project memory bleed.
+- **`migrations/002_hindsight_settings.sql`** — new `user_hindsight` table tracking per-user bank ID and enabled flag; compatible with SQLite and PostgreSQL.
+- **`GET /api/hindsight/status`** (`server.js`) — new token-authenticated endpoint; returns `{ available, configured, bankExists, memoryCount }`. If `HINDSIGHT_API_URL` is not set or the adapter failed to load, returns `{ available: false, configured: false, ... }` with HTTP 200 (not an error — just not configured). Server startup log now shows the Hindsight status line.
+- **🧠 Memory (Hindsight) row in Settings** (`src/index.html`, `src/settings.js`) — read-only status row in Settings → Server Connection section with a **Test** button that calls `testHindsightConnection()`. Status shows `— Not configured` (server URL/token missing), `○ Not connected` (service unreachable), or `● Connected` (green). Requires Server URL + API Token to be configured.
+- **`docker-compose.yml`** — commented-out `hindsight` service block (using `latest-slim` image, ~500 MB) with full environment variable documentation and a matching `# HINDSIGHT_API_URL` entry in the `web` service. Also documents the separate Hindsight database requirement (`sourcedesk_hindsight`).
+- **`@vectorize-io/hindsight-client`** added to `optionalDependencies` in `package.json`.
+
+### Changed — v0.9.1
+- **`APP_VERSION`** bumped to `0.9.1` in `src/flags.js` and `package.json`.
+- **`build.js` `mangle.reserved`** — added `testHindsightConnection`.
+
+---
+
+## [Unreleased — v0.9.0] 🖥️
+
+### Added — v0.9.0
 - **Email Summary UI** (`src/index.html`, `src/settings.js`) — new "📧 Email Summaries" sidebar section (shown when a project is loaded and a Server URL is configured); clicking `→` opens the `#modal-email-summaries` modal which fetches `GET /api/email-summaries?token=X&projectId=Y` from the configured server. Displays an overall LLM-generated summary and a per-thread `<details>` accordion. Two action buttons:
   - **📝 Import to Notes** (`importSummaryToNotes()`) — saves the overall summary text as a new Note in the active project.
   - **✅ Create Tasks** (`createTasksFromSummary()`) — parses bullet/numbered action items from the summary and creates Task records in the active project.

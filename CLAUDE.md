@@ -514,9 +514,26 @@ Key files to read for Hindsight work:
 
 ## Current State (as of last commit)
 
-**Current version: v0.9.0** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
+**Current version: v0.9.1** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
 
-> **Session note (current — v0.9.0: Email Summary frontend + Token Management):**
+> **Session note (current — v0.9.1: Hindsight Foundation):**
+> All changes below are complete, documented, and built into `SourceDesk.html`.
+>
+> 1. **`server/hindsight.js`** — new Hindsight memory adapter module. Gracefully no-ops when `HINDSIGHT_API_URL` is unset or `@vectorize-io/hindsight-client` is not installed. Exports: `getClient()`, `ensureBank(userId)`, `retainContent(userId, opts)`, `recallForQuery(userId, opts)`, `getStatus(userId)`. Bank created with full procurement-domain config (missions, entity labels for vendor/project_type/deadline, disposition traits). `retainContent` always uses `async: true`. `recallForQuery` uses `tagsMatch: 'any_strict'` for project-scoped recall.
+>
+> 2. **`migrations/002_hindsight_settings.sql`** — new `user_hindsight` table (`user_id`, `bank_id`, `enabled`, timestamps). Compatible with SQLite + PostgreSQL.
+>
+> 3. **`GET /api/hindsight/status`** (`server.js`) — token-authenticated endpoint; returns `{ available, configured, bankExists, memoryCount }`. No-op response (`available: false, configured: false`) when adapter not loaded. Server startup log shows Hindsight status line.
+>
+> 4. **🧠 Memory (Hindsight) row in Settings** (`src/index.html`, `src/settings.js`) — read-only status row with **Test** button that calls `testHindsightConnection()`. Shows `— Not configured`, `○ Not connected`, or `● Connected`.
+>
+> 5. **`docker-compose.yml`** — commented-out `hindsight` service block (`latest-slim` image) in correct `services:` section. `# HINDSIGHT_API_URL` entry in web service environment. `# hindsight_data:` in volumes.
+>
+> 6. **`@vectorize-io/hindsight-client`** added to `optionalDependencies` in `package.json`. `testHindsightConnection` added to `build.js` `mangle.reserved`.
+>
+> 7. **`APP_VERSION = '0.9.1'`** in `src/flags.js` and `package.json`.
+
+> **Session note (v0.9.0 — Email Summary frontend + Token Management):**
 > All changes below are complete, documented, and built into `SourceDesk.html`.
 >
 > 1. **Email Summary UI** — new "📧 Email Summaries" sidebar section and `#modal-email-summaries` modal (`src/index.html`, `src/settings.js`). Fetches `GET /api/email-summaries?token=X&projectId=Y`. Displays overall summary + per-thread `<details>` accordion. **Import to Notes** (`importSummaryToNotes()`) and **Create Tasks** (`createTasksFromSummary()`) action buttons.
@@ -909,16 +926,16 @@ Key files to read for Hindsight work:
 
 ## Next Steps (Ordered for Next Session)
 
-**Current roadmap: v0.9.1 → v1.0.0 (Hindsight integration). Full spec in `docs/hindsight-integration-plan.md`.**
+**Current roadmap: v0.9.2 → v1.0.0 (Hindsight integration). Full spec in `docs/hindsight-integration-plan.md`.**
 
 ### ~~v0.9.0 — Email Summary Frontend + Token Management~~ ✅ DONE
 
-### Next: v0.9.1 — Hindsight Foundation
+### ~~v0.9.1 — Hindsight Foundation~~ ✅ DONE
 - `server/hindsight.js` adapter; `HINDSIGHT_API_URL` env gate; docker-compose service (commented in)
 - Bank auto-creation with procurement domain config; `GET /api/hindsight/status`
 - Settings: Hindsight status row; `testHindsightConnection()`
 
-### Then: v0.9.2 — Chat Memory
+### Next: v0.9.2 — Chat Memory
 - Retain chat sessions after save (fire-and-forget); recall before sendMessage
 - `POST /api/hindsight/retain` + `POST /api/hindsight/recall` endpoints
 - `state.settings.serverToken`, `serverUrl`, `hindsightEnabled`

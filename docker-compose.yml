@@ -30,6 +30,9 @@ services:
       # Local LLM (injected into the browser app)
       LOCAL_LLM_URL: "${LOCAL_LLM_URL:-http://localhost:11434/v1}"
       LOCAL_LLM_DEFAULT_MODEL: "${LOCAL_LLM_DEFAULT_MODEL:-}"
+
+      # Hindsight memory service URL (set when the hindsight service is enabled below)
+      # HINDSIGHT_API_URL: "http://hindsight:8888"
     volumes:
       # SQLite database persistence
       - data:/app/data
@@ -59,6 +62,36 @@ services:
   #     timeout: 5s
   #     retries: 5
 
+  # ─── Optional Hindsight memory service ───────────────────────────────────────
+  # Uncomment the block below to enable AI memory (chat history, notes, SQ answers).
+  # Requires the 'db' Postgres service (or an external PostgreSQL with pgvector).
+  # Uses the slim image (~500 MB) — delegates embeddings to your LLM provider.
+  # Also uncomment HINDSIGHT_API_URL in the 'web' service environment above.
+  #
+  # hindsight:
+  #   image: ghcr.io/vectorize-io/hindsight:latest-slim
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8888:8888"   # Hindsight API
+  #     - "9999:9999"   # Hindsight control plane (optional)
+  #   environment:
+  #     # LLM for fact extraction — haiku-class is ideal (fast + cheap)
+  #     HINDSIGHT_API_LLM_PROVIDER: anthropic
+  #     HINDSIGHT_API_LLM_API_KEY: ${ANTHROPIC_API_KEY}
+  #     HINDSIGHT_API_LLM_MODEL: claude-haiku-4-5-20251001
+  #     # Embeddings — use OpenAI's text-embedding-3-small for the slim image
+  #     HINDSIGHT_API_EMBEDDINGS_PROVIDER: openai
+  #     HINDSIGHT_API_EMBEDDINGS_API_KEY: ${OPENAI_API_KEY}
+  #     HINDSIGHT_API_EMBEDDINGS_MODEL: text-embedding-3-small
+  #     # Hindsight manages its OWN database — different DB name from SourceDesk
+  #     HINDSIGHT_API_DATABASE_URL: postgresql://sourcedesk:sourcedeskpass@db:5432/sourcedesk_hindsight
+  #   volumes:
+  #     - hindsight_data:/home/hindsight/.pg0
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+
 volumes:
   data:
-  # db_data:   # uncomment if using the Postgres service
+  # db_data:        # uncomment if using the Postgres service
+  # hindsight_data: # uncomment if using the Hindsight service

@@ -1088,3 +1088,47 @@ async function revokeApiToken(tokenToRevoke) {
     alert("Revoke failed: " + (e.message || e));
   }
 }
+
+async function testHindsightConnection() {
+  const statusEl = document.getElementById("hindsight-status");
+  if (!statusEl) return;
+  const serverUrl = (state.settings.serverUrl || "").replace(/\/$/, "");
+  const serverToken = state.settings.serverToken || "";
+  if (!serverUrl) {
+    statusEl.textContent = "— Server URL not configured";
+    statusEl.style.color = "var(--text-muted)";
+    return;
+  }
+  if (!serverToken) {
+    statusEl.textContent = "— API Token not configured";
+    statusEl.style.color = "var(--text-muted)";
+    return;
+  }
+  statusEl.textContent = "Checking…";
+  statusEl.style.color = "var(--text-muted)";
+  try {
+    const resp = await fetch(
+      `${serverUrl}/api/hindsight/status?token=${encodeURIComponent(serverToken)}`,
+    );
+    const data = await resp.json();
+    if (!data.configured) {
+      statusEl.textContent =
+        "— Not configured on server (set HINDSIGHT_API_URL)";
+      statusEl.style.color = "var(--text-muted)";
+    } else if (!data.available) {
+      statusEl.textContent = "○ Not connected (service unreachable)";
+      statusEl.style.color = "var(--accent)";
+    } else if (!data.bankExists) {
+      statusEl.textContent = "● Connected — no memories yet";
+      statusEl.style.color = "var(--success)";
+    } else {
+      const countStr =
+        data.memoryCount != null ? ` (${data.memoryCount} memories)` : "";
+      statusEl.textContent = `● Connected${countStr}`;
+      statusEl.style.color = "var(--success)";
+    }
+  } catch (e) {
+    statusEl.textContent = `✗ Error: ${e.message}`;
+    statusEl.style.color = "var(--danger)";
+  }
+}

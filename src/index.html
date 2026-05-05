@@ -5298,6 +5298,59 @@
                     />
                 </div>
 
+                <!-- ── Hindsight memory status ── -->
+                <div class="form-row" style="align-items: center">
+                    <label class="form-label" style="margin-bottom: 0"
+                        >🧠 Memory (Hindsight)
+                        <span style="color: var(--text-muted); font-size: 10px"
+                            >— optional AI memory service. Run via
+                            <code
+                                style="
+                                    font-family: var(--font-mono);
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                "
+                                >docker-compose</code
+                            >
+                            (see
+                            <code
+                                style="
+                                    font-family: var(--font-mono);
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                "
+                                >docker-compose.yml</code
+                            >).</span
+                        ></label
+                    >
+                    <div
+                        style="
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                            margin-top: 4px;
+                        "
+                    >
+                        <span
+                            id="hindsight-status"
+                            style="
+                                font-size: 12px;
+                                color: var(--text-muted);
+                                font-family: var(--font-mono);
+                                flex: 1;
+                            "
+                            >— Not configured</span
+                        >
+                        <button
+                            class="btn-secondary"
+                            style="flex-shrink: 0"
+                            onclick="testHindsightConnection()"
+                        >
+                            Test
+                        </button>
+                    </div>
+                </div>
+
                 <!-- ── Token manager ── -->
                 <div
                     style="
