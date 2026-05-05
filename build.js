@@ -357,6 +357,7 @@ async function build() {
           "_tvDeleteConstantRow",
           "_tvSaveConstants",
           "_tvInsertVar",
+          "copyProjectId",
         ],
       },
       format: {

@@ -238,11 +238,141 @@ curl -X POST http://localhost:3000/api/email-ingest \
 
 If `DATABASE_URL` and `LLM_PROVIDER` are configured, the server stores threads and asynchronously generates per-thread and project-level summaries with the configured LLM. Retrieve them with `GET /api/email-summaries?token=<TOKEN>&projectId=my-rfp`.
 
-### Docker / Podman
+### Running with Docker
+
+The fastest way to get the server running is with Docker Compose. SQLite is used by default; see `docker-compose.yml` to enable PostgreSQL.
 
 ```sh
-docker compose up -d --build   # SQLite by default; see docker-compose.yml to enable Postgres
+# Build and start (SQLite, port 3000)
+docker compose up -d --build
+
+# Generate your first API token inside the container
+docker compose exec web node scripts/generate_api_token.js --user you@example.com
+
+# Tail logs
+docker compose logs -f web
+
+# Stop
+docker compose down
 ```
+
+Three directories are bind-mounted from the host so data survives container restarts:
+
+| Host path | Container path | Contents |
+|---|---|---|
+| `data` (named volume) | `/app/data` | SQLite database file |
+| `./.private-documents/` | `/app/.private-documents` | API token store + raw email ingest files |
+| `./backups/` | `/app/backups` | Server-side DB backups |
+
+To switch to PostgreSQL, uncomment the `db` service in `docker-compose.yml` and update `DATABASE_URL` to the Postgres connection string shown in that file.
+
+---
+
+### Running with Podman
+
+[Podman](https://podman.io/) is a daemonless, rootless OCI container engine that is largely Docker-compatible. The same `Dockerfile` and `docker-compose.yml` work without modification.
+
+**Compose support** requires `podman-compose` (Python) or Podman Desktop (ships a built-in compose engine):
+
+```sh
+# macOS (Homebrew)
+brew install podman podman-compose
+podman machine init && podman machine start   # one-time VM setup on macOS
+
+# Debian / Ubuntu
+sudo apt install podman podman-compose
+```
+
+Then use `podman-compose` exactly like `docker compose`:
+
+```sh
+podman-compose up -d --build
+podman-compose exec web node scripts/generate_api_token.js --user you@example.com
+podman-compose logs -f web
+podman-compose down
+```
+
+**Podman notes:**
+- Named volumes (`data:` in `docker-compose.yml`) are managed by Podman's own storage. Run `podman volume ls` to inspect them.
+- The `better-sqlite3` native module is compiled at build time inside the `builder` stage using `python3 / make / g++` (already in the `Dockerfile`). No extra host-side tooling is required.
+- Rootless Podman on some Linux distributions may have trouble binding low-numbered ports. If port 3000 is unreachable, try `--userns=keep-id` or check your system's `net.ipv4.ip_unprivileged_port_start` sysctl.
+
+---
+
+### Running with Apple Container (macOS, Apple Silicon)
+
+[Apple Container](https://github.com/apple/container) is Apple's open-source OCI container runtime for macOS. It uses Apple's Virtualization framework to run Linux containers natively on Apple Silicon (M1/M2/M3/M4) — with lower overhead than Docker Desktop because each container runs directly on the VZ framework without a separate emulation layer.
+
+> **Requirements:** Apple Silicon Mac (M-series chip), macOS 15 Sequoia or later.
+
+**Install:**
+
+```sh
+# Via Homebrew
+brew install --cask container
+
+# Verify
+container --version
+```
+
+Apple Container uses the same Docker Hub images and `Dockerfile` format as Docker. Basic CLI commands map 1-to-1:
+
+| Docker | Apple Container |
+|---|---|
+| `docker build -t sourcedesk .` | `container build -t sourcedesk .` |
+| `docker run -p 3000:3000 sourcedesk` | `container run -p 3000:3000 sourcedesk` |
+| `docker images` | `container images` |
+| `docker ps` | `container ps` |
+
+**Quick start (single container, SQLite):**
+
+```sh
+# Build the image
+container build -t sourcedesk .
+
+# Create local persistence directories
+mkdir -p data .private-documents backups
+
+# Run
+container run -d \
+  --name sourcedesk \
+  -p 3000:3000 \
+  -e DATABASE_URL=sqlite:./data/sourcedesk.db \
+  -e LLM_PROVIDER=anthropic \
+  -e ANTHROPIC_API_KEY=sk-ant-... \
+  -v "$(pwd)/data:/app/data" \
+  -v "$(pwd)/.private-documents:/app/.private-documents" \
+  -v "$(pwd)/backups:/app/backups" \
+  sourcedesk
+
+# Generate a token
+container exec sourcedesk node scripts/generate_api_token.js --user you@example.com
+
+# Tail logs
+container logs -f sourcedesk
+
+# Stop and remove
+container stop sourcedesk && container rm sourcedesk
+```
+
+**Compose support:**
+
+Apple Container ships a `container compose` subcommand that reads the same `docker-compose.yml` format:
+
+```sh
+container compose up -d --build
+container compose exec web node scripts/generate_api_token.js --user you@example.com
+container compose logs -f web
+container compose down
+```
+
+The `docker-compose.yml` in this repo works with `container compose` without modification.
+
+**Apple Container notes:**
+- Runs natively as `linux/arm64` on Apple Silicon — `better-sqlite3` compiles and runs without Rosetta.
+- Volume mounts use the standard `-v host:container` syntax; relative paths work from the project directory.
+- Images and containers are isolated from Docker Desktop — you will need to `container build` separately even if a Docker image already exists locally.
+- Apple Container does not share a daemon with Docker or Podman; `docker ps` and `container ps` show independent sets of containers.
 
 ---
 

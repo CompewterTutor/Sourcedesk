@@ -138,6 +138,20 @@ Open `tests/test.html` in a browser. No server needed. Results render immediatel
 6. Update `CHANGELOG.md` and `README.md` checklist
 7. Commit with a descriptive message, push
 
+### End-of-session checklist
+
+Before wrapping up any coding session, always complete the following steps **in order** and **ask for confirmation before committing/pushing**:
+
+1. **`npm run build`** — verify the production build succeeds and `SourceDesk.html` opens cleanly.
+2. **`CHANGELOG.md`** — add an entry under `## [Unreleased]` (or bump the version section) describing every user-visible change. Mark DB-version bumps with 🗄️, server additions with 🖥️.
+3. **`README.md`** — update the feature list, roadmap checkboxes, Quick Start, or API docs as needed.
+4. **`CLAUDE.md`** — update the *Current State* session notes, *Committed & working* checklist, *Still outstanding* list, *Next Steps*, reserved-name list, and any new Gotchas discovered this session.
+5. **`src/flags.js` + `package.json`** — bump `APP_VERSION` (and keep `package.json` `version` in sync).
+6. **Prepare a commit message** following the format below and **show it to the user for confirmation** before running `git commit`.
+7. **After confirmation:** `git add -A && git commit -m "<message>" && git push`.
+
+> **Never commit or push without explicit user confirmation.** Prepare the commit message, show it, and wait.
+
 ---
 
 ## Architecture
@@ -436,6 +450,7 @@ See the migration guide section below.
 - Prefix: `feat:`, `fix:`, `build:`, `test:`, `docs:`, `refactor:`
 - Body should mention any DB version bumps, reserved-list additions, or breaking changes.
 - Always run `npm run build` and verify `SourceDesk.html` opens before committing.
+- **Always ask the user to confirm the prepared commit message before running `git commit` or `git push`.**
 
 ---
 
@@ -470,9 +485,18 @@ When adding a new object store or index:
 
 ## Current State (as of last commit)
 
-**Current version: v0.8.0** (`src/flags.js`) — build output: `SourceDesk.html` committed at HEAD
+**Current version: v0.8.0** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
 
-> **Note:** `package.json` still shows `0.6.0` — needs to be bumped to `0.8.0` to stay in sync.
+> **Session note (2025-07-21 — project ID copy UI + container deployment docs + end-of-session checklist):**
+> All changes below are complete, documented, and committed.
+>
+> 1. **Project ID copy in Edit Project modal** (`src/index.html`, `src/projects.js`) — the Edit Project modal now shows a read-only **Project ID** row with a 📋 Copy button. The row is hidden in New Project mode. Allows users to quickly grab the correct `projectId` value for email-ingest API calls. `copyProjectId()` added to `build.js` `mangle.reserved`.
+>
+> 2. **Expanded container deployment docs** (`README.md`) — replaced the single-line Docker/Podman entry with three full sub-sections: Docker Compose (volume table, Postgres upgrade path), Podman (macOS + Linux install, rootless notes), and Apple Container (Apple’s open-source OCI runtime via `github.com/apple/container` for Apple Silicon Macs — install, CLI command table, `container compose` usage, arm64 notes).
+>
+> 3. **End-of-session checklist** (`CLAUDE.md`) — new `### End-of-session checklist` in Dev Workflow with the 7-step procedure (build → changelog → README → CLAUDE.md → version bump → draft commit msg → confirm & push). Matching reminder added to `### Commits`.
+>
+> 4. **`package.json` version synced** — bumped from `0.6.0` to `0.8.0` to match `src/flags.js` `APP_VERSION`.
 
 > **Session note (latest — server DB + LLM email pipeline + Template Variable popup):**
 > All features below are complete and committed.

@@ -4747,6 +4747,54 @@
                         style="min-height: 70px"
                     ></textarea>
                 </div>
+                <!-- Project ID row — only visible in edit mode -->
+                <div class="form-row" id="proj-id-row" style="display: none">
+                    <label class="form-label"
+                        >Project ID
+                        <span style="color: var(--text-muted); font-size: 10px"
+                            >&#8212; use as
+                            <code
+                                style="
+                                    font-family: &quot;DM Mono&quot;, monospace;
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                    border-radius: 3px;
+                                "
+                                >projectId</code
+                            >
+                            in API calls</span
+                        >
+                    </label>
+                    <div style="display: flex; gap: 8px; align-items: center">
+                        <input
+                            class="form-input"
+                            id="proj-id-display"
+                            readonly
+                            style="
+                                font-family: &quot;DM Mono&quot;, monospace;
+                                font-size: 12px;
+                                color: var(--text-dim);
+                                background: var(--bg);
+                                cursor: default;
+                                flex: 1;
+                            "
+                        />
+                        <button
+                            class="btn-secondary"
+                            onclick="copyProjectId()"
+                            id="proj-id-copy-btn"
+                            style="
+                                white-space: nowrap;
+                                flex-shrink: 0;
+                                font-size: 12px;
+                                padding: 6px 12px;
+                            "
+                            title="Copy project ID to clipboard"
+                        >
+                            &#128203; Copy
+                        </button>
+                    </div>
+                </div>
                 <div class="modal-actions">
                     <button class="btn-secondary" onclick="closeModal()">
                         Cancel

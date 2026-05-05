@@ -6,6 +6,9 @@ function openNewProject() {
   document.getElementById("proj-name").value = "";
   document.getElementById("proj-notes").value = "";
   document.getElementById("proj-instructions").value = "";
+  // Hide project ID row — ID doesn't exist yet for new projects
+  const idRow = document.getElementById("proj-id-row");
+  if (idRow) idRow.style.display = "none";
   selectPillByVal("proj-category-pills", "RFP");
   const sel = document.getElementById("proj-template-select");
   sel.innerHTML = '<option value="">— Start blank —</option>';
@@ -89,6 +92,13 @@ function openEditProject(id) {
   document.getElementById("proj-name").value = proj.name;
   document.getElementById("proj-notes").value = proj.notes || "";
   document.getElementById("proj-instructions").value = proj.instructions || "";
+  // Show project ID for easy copying into API calls
+  const idRow = document.getElementById("proj-id-row");
+  const idDisplay = document.getElementById("proj-id-display");
+  if (idRow && idDisplay) {
+    idDisplay.value = proj.id;
+    idRow.style.display = "";
+  }
   selectPillByVal("proj-category-pills", proj.category);
   const sel = document.getElementById("proj-template-select");
   sel.innerHTML = '<option value="">— (keep current) —</option>';
@@ -100,6 +110,30 @@ function openEditProject(id) {
   });
   if (proj.templateId) sel.value = proj.templateId;
   showModal("modal-project");
+}
+
+function copyProjectId() {
+  const idDisplay = document.getElementById("proj-id-display");
+  if (!idDisplay || !idDisplay.value) return;
+  navigator.clipboard
+    .writeText(idDisplay.value)
+    .then(() => {
+      const btn = document.getElementById("proj-id-copy-btn");
+      if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = "✓ Copied!";
+        btn.style.color = "var(--success)";
+        setTimeout(() => {
+          btn.textContent = orig;
+          btn.style.color = "";
+        }, 1800);
+      }
+    })
+    .catch(() => {
+      // Fallback for non-HTTPS contexts (e.g. file://)
+      idDisplay.select();
+      document.execCommand("copy");
+    });
 }
 
 async function deleteProject(id) {

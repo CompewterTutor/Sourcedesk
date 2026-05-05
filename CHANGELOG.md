@@ -12,6 +12,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased] 🖥️
 
 ### Added
+- **Project ID copy in Edit Project modal** (`src/index.html`, `src/projects.js`) — when editing an existing project the modal now shows a read-only **Project ID** field in `DM Mono` font with a **📋 Copy** button. Clicking copies the ID to the clipboard and shows a brief "✓ Copied!" flash. The row is hidden entirely in New Project (create) mode. Useful for constructing `projectId` values in email-ingest API calls, curl scripts, and Power Automate flows. `copyProjectId()` added to `build.js` `mangle.reserved`.
+- **End-of-session checklist in `CLAUDE.md`** — new `### End-of-session checklist` under Dev Workflow enumerates the 7-step sequence (build → changelog → README → CLAUDE.md → version bump → commit message draft → confirm & push) that every coding session must complete before wrapping up. A matching one-liner reminder added to the `### Commits` section.
+
+### Changed
+- **README — expanded container deployment section** — the previous single-line `### Docker / Podman` section is replaced by three dedicated sub-sections:
+  - `### Running with Docker` — full `docker compose` workflow, volume mount table, Postgres upgrade path.
+  - `### Running with Podman` — Homebrew + apt install steps, `podman-compose` workflow, notes on named volumes, native module compilation, and rootless port binding.
+  - `### Running with Apple Container (macOS, Apple Silicon)` — covers [`apple/container`](https://github.com/apple/container) (Apple's open-source OCI runtime using the Virtualization framework on M-series Macs): install via Homebrew cask, CLI command mapping table vs Docker, `container run` quick-start with all flags, `container compose` Compose-file support, and notes on native arm64 execution and image isolation from Docker Desktop.
+- **`package.json` version** — synced to `0.8.0` (was `0.6.0`; `src/flags.js` `APP_VERSION` was already `0.8.0`).
+
+---
+
+## [Unreleased — previous] 🖥️
+
+### Added
 - **Server-side DB backend** (`server/db.js`) — new module supporting SQLite (`better-sqlite3`) and PostgreSQL (`pg`). Both packages are optional `optionalDependencies`; the server falls back to file-only storage when `DATABASE_URL` is not set. Unified async API: `createDb(url)` → `{ run, get, all, exec, close, type, runMigrations }`. SQLite uses the synchronous `better-sqlite3` API wrapped in Promises; PostgreSQL uses `pg` Pool with `?` → `$N` placeholder conversion. `runMigrations(dir)` reads all `.sql` files in the `migrations/` directory in alphabetical order, skipping already-applied ones tracked in `schema_migrations`.
 - **Initial DB schema** (`migrations/001_initial.sql`) — SQLite/PostgreSQL-compatible: `schema_migrations`, `users`, `api_tokens` (with `revoked` and `expires_at` columns), `email_ingests`, `email_threads` (upserted per-project, email_count accumulates), `email_messages` (deduplicated by composite `message_key`), `email_summaries` (one per project+user, updated incrementally with `version` counter and `per_thread_json`). All tables use `TEXT PRIMARY KEY` IDs (same `uid()` pattern as the client).
 - **Migration runner CLI** (`scripts/migrate.js`) — `npm run migrate` or `DATABASE_URL=… node scripts/migrate.js`; reads `DATABASE_URL` from `.env` or environment; reports newly-applied files; graceful error if DB module is not installed. Migrations also run automatically on server startup.
