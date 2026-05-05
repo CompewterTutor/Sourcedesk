@@ -7,11 +7,12 @@ const crypto = require("crypto");
 
 function usage() {
   console.log(
-    'Usage: node scripts/generate_api_token.js --user user@example.com [--label "Label"]\n' +
+    'Usage: node scripts/generate_api_token.js --user user@example.com [--label "Label"] [--expires-in 30d]\n' +
       "\n" +
       "Options:\n" +
-      "  --user, -u   <email>   (required) email address to associate with this token\n" +
-      "  --label, -l  <label>   (optional) human-readable label for the token\n" +
+      "  --user, -u   <email>      (required) email address to associate with this token\n" +
+      "  --label, -l  <label>      (optional) human-readable label for the token\n" +
+      "  --expires-in, -e  <dur>   (optional) token expiry: 30d, 7d, 24h, 1y — omit for no expiry\n" +
       "\n" +
       "If DATABASE_URL is configured in .env, the token is also persisted to the DB.\n" +
       "The file .private-documents/api_tokens.json is always written regardless.",
@@ -23,12 +24,15 @@ function usage() {
 const args = process.argv.slice(2);
 let user = null;
 let label = null;
+let expiresIn = null;
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if ((a === "--user" || a === "-u") && args[i + 1]) {
     user = args[++i];
   } else if ((a === "--label" || a === "-l") && args[i + 1]) {
     label = args[++i];
+  } else if ((a === "--expires-in" || a === "-e") && args[i + 1]) {
+    expiresIn = args[++i];
   } else if (a === "--help" || a === "-h") {
     usage();
   }
@@ -61,6 +65,28 @@ function loadEnv(envPath) {
 const env = loadEnv(path.join(__dirname, "..", ".env"));
 const DATABASE_URL = process.env.DATABASE_URL || env.DATABASE_URL || "";
 
+// ─── Parse expiry ────────────────────────────────────────────────────────────
+function _parseExpiresIn(s) {
+  if (!s) return null;
+  const num = parseInt(s, 10);
+  if (isNaN(num)) return null;
+  const unit = s.slice(String(num).length).toLowerCase();
+  const ms =
+    unit === "h"
+      ? num * 3600000
+      : unit === "d"
+        ? num * 86400000
+        : unit === "w"
+          ? num * 604800000
+          : unit === "y"
+            ? num * 365 * 86400000
+            : null;
+  if (!ms) return null;
+  return new Date(Date.now() + ms);
+}
+const expiresAt = _parseExpiresIn(expiresIn);
+const expiresAtStr = expiresAt ? expiresAt.toISOString() : null;
+
 // ─── Generate token ───────────────────────────────────────────────────────────
 const token = crypto.randomBytes(24).toString("hex");
 const now = new Date().toISOString();
@@ -77,13 +103,19 @@ try {
   tokens = {};
 }
 
-tokens[token] = { user, label: label || null, createdAt: now };
+tokens[token] = {
+  user,
+  label: label || null,
+  createdAt: now,
+  expiresAt: expiresAtStr,
+};
 fs.writeFileSync(tokensFile, JSON.stringify(tokens, null, 2), "utf8");
 
 console.log("API token generated: " + token);
 console.log("Saved to file:       " + tokensFile);
 console.log("Mapped to user:      " + user);
 if (label) console.log("Label:               " + label);
+if (expiresAtStr) console.log("Expires at:          " + expiresAtStr);
 
 // ─── DB-backed storage (optional — only if DATABASE_URL is configured) ────────
 if (!DATABASE_URL) {
@@ -143,6 +175,7 @@ async function persistToDb() {
       now.replace(/\D/g, "").slice(0, 14) +
       "_" +
       crypto.randomBytes(3).toString("hex");
+    // TODO v0.9.0: add expires_at column in a future migration
     await db.run(
       "INSERT INTO api_tokens (id, user_id, token, label, created_at) VALUES (?, ?, ?, ?, ?)",
       [tokenId, userId, token, label || null, now],

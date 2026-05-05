@@ -11,10 +11,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Docs
-- **`docs/hindsight-integration-plan.md`** — new comprehensive integration plan for the Hindsight biomimetic memory system (v0.9.0 → v1.0.0). Covers architecture, per-user isolation strategy, procurement-domain bank configuration, all five version phases with exact file inventories, new API endpoints, browser state additions, mangle reserved additions, environment variables, a skill usage guide, and an integration gotcha list. Planning-only — no source files changed.
-- **`CLAUDE.md`** — added `## Skills & Reference Docs` section documenting the `skills/hindsight-docs/` skill with a per-file reference table so future sessions know exactly which docs to read before writing Hindsight code. Added session note for this planning pass and restructured `## Next Steps` with the v0.9.0–v1.0.0 roadmap at the top.
+### Added — v0.9.0 🖥️
+- **Email Summary UI** (`src/index.html`, `src/settings.js`) — new "📧 Email Summaries" sidebar section (shown when a project is loaded and a Server URL is configured); clicking `→` opens the `#modal-email-summaries` modal which fetches `GET /api/email-summaries?token=X&projectId=Y` from the configured server. Displays an overall LLM-generated summary and a per-thread `<details>` accordion. Two action buttons:
+  - **📝 Import to Notes** (`importSummaryToNotes()`) — saves the overall summary text as a new Note in the active project.
+  - **✅ Create Tasks** (`createTasksFromSummary()`) — parses bullet/numbered action items from the summary and creates Task records in the active project.
+- **Token Management UI** in Settings modal (`src/index.html`, `src/settings.js`) — new "Server Connection" + "API Token Management" sections above the MarkItDown settings. Fields: `#settings-server-url` (server base URL) and `#settings-server-token` (API token stored locally, never sent to AI providers). Token list auto-populates when Settings opens if both fields are set; `openTokenManager()` refreshes the list from `GET /api/token-list`. Generate new tokens via `generateApiToken()` with optional label and expiry dropdown. Revoke tokens with per-row `revokeApiToken(token)` button.
+- **`GET /api/token-list`** (`server.js`) — new server endpoint; requires `adminToken` query param; returns all tokens from file store (including expired ones marked `expired: true`) so users can audit and clean up. The `token` field is included to allow display of partial token strings in the UI.
+- **`POST /api/token-generate`** (`server.js`) — new server endpoint; body `{ adminToken, label?, expiresIn? }`; generates a `crypto.randomBytes(24)` hex token; writes to `.private-documents/api_tokens.json` and optionally to DB; supports `expiresIn` strings like `"30d"`, `"7d"`, `"24h"`, `"1y"` via inline `_parseExpiresIn()` helper; returns `{ status, token, label, createdAt, expiresAt }`.
+- **Token expiry** (`server.js` `loadTokens()`) — tokens with `expiresAt` set and in the past are silently skipped; all callers (email-ingest auth, email-summaries auth, token-revoke auth, token-generate auth) automatically reject expired tokens.
+- **`--expires-in` flag for `scripts/generate_api_token.js`** — `-e` / `--expires-in` CLI flag accepts duration strings (`30d`, `7d`, `24h`, `1y`); computed `expiresAt` stored in file record; printed to console when set.
+- **`state.settings.serverUrl` + `state.settings.serverToken`** (`src/state.js`, `src/boot.js`) — two new settings fields loaded from IndexedDB at boot; saved/loaded in `openSettings()` / `saveSettings()`. Stored under keys `serverUrl` and `serverToken`.
 
+### Changed — v0.9.0
+- **`APP_VERSION`** bumped to `0.9.0` in `src/flags.js` and `package.json`.
+- **`build.js` `mangle.reserved`** — added `openEmailSummaries`, `importSummaryToNotes`, `createTasksFromSummary`, `openTokenManager`, `generateApiToken`, `revokeApiToken`.
+
+---
 ---
 
 ## [Unreleased] 🖥️

@@ -112,6 +112,14 @@ function openSettings() {
   if (_webhookEl) _webhookEl.value = state.settings.suggestionWebhook || "";
   const _mkdEl = document.getElementById("settings-markitdown-url");
   if (_mkdEl) _mkdEl.value = state.settings.markitdownUrl || "";
+  const _serverUrlEl = document.getElementById("settings-server-url");
+  if (_serverUrlEl) _serverUrlEl.value = state.settings.serverUrl || "";
+  const _serverTokenEl = document.getElementById("settings-server-token");
+  if (_serverTokenEl) _serverTokenEl.value = state.settings.serverToken || "";
+  // Refresh token manager list if server URL is set
+  if (state.settings.serverUrl && state.settings.serverToken) {
+    openTokenManager();
+  }
   updateApiKeyStatus(!!getCurrentProviderKey());
   showModal("modal-settings");
   // Sync topbar model selector in case it's stale
@@ -230,6 +238,19 @@ async function saveSettings() {
     document.getElementById("settings-markitdown-url")?.value.trim() || "";
   state.settings.markitdownUrl = markitdownUrl;
   await dbPut("settings", { key: "markitdownUrl", value: markitdownUrl });
+
+  const serverUrl =
+    (document.getElementById("settings-server-url") || {}).value || "";
+  await dbPut("settings", { key: "serverUrl", value: serverUrl });
+  state.settings.serverUrl = serverUrl;
+
+  const serverToken =
+    (document.getElementById("settings-server-token") || {}).value || "";
+  await dbPut("settings", { key: "serverToken", value: serverToken });
+  state.settings.serverToken = serverToken;
+
+  const emailSummBtn = document.getElementById("email-summaries-nav-btn");
+  if (emailSummBtn) emailSummBtn.style.display = serverUrl ? "" : "none";
 
   closeModal();
   checkApiKey();
@@ -703,5 +724,367 @@ async function backupToServer() {
     alert("Backup saved to server: " + result.saved);
   } catch (e) {
     alert("Backup failed: " + (e.message || e));
+  }
+}
+
+// ─── EMAIL SUMMARIES ──────────────────────────────────────────────────────────
+// Cached summary for the current modal session
+let _currentEmailSummary = null;
+let _emailSummaryPollTimer = null;
+
+async function openEmailSummaries() {
+  if (!state.activeProject) {
+    alert("No project selected. Open a project first.");
+    return;
+  }
+  const serverUrl = (state.settings.serverUrl || "").replace(/\/$/, "");
+  const serverToken = state.settings.serverToken || "";
+  if (!serverUrl) {
+    alert(
+      "Server URL not configured. Go to Settings and enter your SourceDesk server URL and API token.",
+    );
+    return;
+  }
+  _currentEmailSummary = null;
+  if (_emailSummaryPollTimer) {
+    clearInterval(_emailSummaryPollTimer);
+    _emailSummaryPollTimer = null;
+  }
+  showModal("modal-email-summaries");
+  const loadingEl = document.getElementById("email-summ-loading");
+  const contentEl = document.getElementById("email-summ-content");
+  const statusEl = document.getElementById("email-summ-status");
+  const projNameEl = document.getElementById("email-summ-project-name");
+  if (projNameEl) projNameEl.textContent = state.activeProject.name;
+  if (loadingEl) loadingEl.style.display = "";
+  if (contentEl) contentEl.style.display = "none";
+  if (statusEl) statusEl.textContent = "";
+  try {
+    const url =
+      serverUrl +
+      "/api/email-summaries?token=" +
+      encodeURIComponent(serverToken) +
+      "&projectId=" +
+      encodeURIComponent(state.activeProject.id);
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText }));
+      if (loadingEl)
+        loadingEl.textContent = "\u2717 " + (err.error || resp.statusText);
+      return;
+    }
+    const data = await resp.json();
+    if (loadingEl) loadingEl.style.display = "none";
+    if (contentEl) contentEl.style.display = "";
+    _renderEmailSummary(data.summary);
+  } catch (e) {
+    if (loadingEl)
+      loadingEl.textContent = "\u2717 " + (e.message || "Fetch failed");
+  }
+}
+
+function _renderEmailSummary(summary) {
+  _currentEmailSummary = summary;
+  const overallEl = document.getElementById("email-summ-overall");
+  const threadsEl = document.getElementById("email-summ-threads");
+  if (!summary) {
+    if (overallEl)
+      overallEl.textContent = "No summary available yet for this project.";
+    if (threadsEl) threadsEl.innerHTML = "";
+    return;
+  }
+  if (overallEl)
+    overallEl.textContent =
+      summary.summary_text ||
+      summary.overall_summary ||
+      "No summary available.";
+  // Per-thread breakdown
+  let threads = {};
+  try {
+    threads =
+      typeof summary.per_thread_json === "object"
+        ? summary.per_thread_json
+        : JSON.parse(summary.per_thread_json || "{}");
+  } catch {}
+  if (threadsEl) {
+    const entries = Object.entries(threads);
+    if (entries.length === 0) {
+      threadsEl.innerHTML =
+        '<div style="color:var(--text-muted);font-size:12px">No per-thread breakdown available.</div>';
+    } else {
+      threadsEl.innerHTML = entries
+        .map(
+          ([subject, text]) =>
+            `<details style="margin-bottom:8px;border:1px solid var(--border);border-radius:var(--radius);padding:0">
+            <summary style="cursor:pointer;padding:8px 10px;font-size:12px;font-weight:600;color:var(--text-dim);background:var(--surface2);border-radius:var(--radius)">${_escHtml(subject)}</summary>
+            <div style="padding:10px;font-size:12px;line-height:1.6;white-space:pre-wrap;color:var(--text)">${_escHtml(text || "")}</div>
+          </details>`,
+        )
+        .join("");
+    }
+  }
+}
+
+function _escHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function importSummaryToNotes() {
+  if (!state.activeProject) return;
+  if (!_currentEmailSummary) {
+    alert("No summary loaded. Open email summaries first.");
+    return;
+  }
+  const summaryText =
+    _currentEmailSummary.summary_text ||
+    _currentEmailSummary.overall_summary ||
+    "";
+  const titleDate = (
+    _currentEmailSummary.processed_at || new Date().toISOString()
+  ).slice(0, 10);
+  const note = {
+    id: uid(),
+    projectId: state.activeProject.id,
+    title: "Email Summary \u2014 " + titleDate,
+    content: summaryText,
+    pinned: false,
+    includeInContext: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  await dbPut("notes", note);
+  const statusEl = document.getElementById("email-summ-status");
+  if (statusEl) {
+    statusEl.textContent = "\u2713 Imported to Notes";
+    statusEl.style.color = "var(--success)";
+    setTimeout(() => {
+      statusEl.textContent = "";
+    }, 3000);
+  }
+}
+
+async function createTasksFromSummary() {
+  if (!state.activeProject) return;
+  if (!_currentEmailSummary) {
+    alert("No summary loaded. Open email summaries first.");
+    return;
+  }
+  const text =
+    _currentEmailSummary.summary_text ||
+    _currentEmailSummary.overall_summary ||
+    "";
+  // Parse action items: lines starting with -, *, •, or numbered lists,
+  // under "Action Items" or "Next Steps" headings, or matching global patterns
+  const lines = text.split("\n");
+  let inActionSection = false;
+  const items = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^#+\s*(action items?|next steps?|follow.?up|to.?do)/i.test(trimmed)) {
+      inActionSection = true;
+      continue;
+    }
+    if (/^#+\s/.test(trimmed) && inActionSection) {
+      inActionSection = false;
+    }
+    if (inActionSection && /^[-*\u2022]|\d+\./.test(trimmed)) {
+      const item = trimmed.replace(/^[-*\u2022]\s*|\d+\.\s*/, "").trim();
+      if (item) items.push(item);
+    }
+    // Also pick up any line that looks like an action item globally
+    if (
+      !inActionSection &&
+      /^[-*\u2022]\s*(action|follow.?up|schedule|review|send|draft|contact|prepare|update|confirm)/i.test(
+        trimmed,
+      )
+    ) {
+      const item = trimmed.replace(/^[-*\u2022]\s*/, "").trim();
+      if (item && !items.includes(item)) items.push(item);
+    }
+  }
+  if (items.length === 0) {
+    const statusEl = document.getElementById("email-summ-status");
+    if (statusEl) {
+      statusEl.textContent = "No action items found in summary.";
+      statusEl.style.color = "var(--text-muted)";
+    }
+    return;
+  }
+  const now = new Date().toISOString();
+  for (const item of items) {
+    await dbPut("tasks", {
+      id: uid(),
+      projectId: state.activeProject.id,
+      title: item.slice(0, 120),
+      description: "",
+      status: "todo",
+      priority: "medium",
+      dueDate: "",
+      includeInContext: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  const statusEl = document.getElementById("email-summ-status");
+  if (statusEl) {
+    statusEl.textContent =
+      "\u2713 Created " +
+      items.length +
+      " task" +
+      (items.length !== 1 ? "s" : "");
+    statusEl.style.color = "var(--success)";
+    setTimeout(() => {
+      statusEl.textContent = "";
+    }, 3000);
+  }
+}
+
+// ─── TOKEN MANAGEMENT ─────────────────────────────────────────────────────────
+async function openTokenManager() {
+  const serverUrl = (state.settings.serverUrl || "").replace(/\/$/, "");
+  const adminToken = state.settings.serverToken || "";
+  const listEl = document.getElementById("token-manager-list");
+  const statusEl = document.getElementById("token-generate-status");
+  if (!listEl) return;
+  if (!serverUrl || !adminToken) {
+    listEl.innerHTML =
+      '<div style="color:var(--text-muted);font-size:12px">Enter Server URL and API Token above and save to manage tokens.</div>';
+    return;
+  }
+  listEl.innerHTML =
+    '<div style="color:var(--text-muted);font-size:12px">Loading\u2026</div>';
+  try {
+    const url =
+      serverUrl +
+      "/api/token-list?adminToken=" +
+      encodeURIComponent(adminToken);
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText }));
+      listEl.innerHTML =
+        '<div style="color:var(--danger);font-size:12px">\u2717 ' +
+        _escHtml(err.error || resp.statusText) +
+        "</div>";
+      return;
+    }
+    const data = await resp.json();
+    const tokens = data.tokens || [];
+    if (tokens.length === 0) {
+      listEl.innerHTML =
+        '<div style="color:var(--text-muted);font-size:12px">No tokens found.</div>';
+      return;
+    }
+    listEl.innerHTML = tokens
+      .map((t) => {
+        const labelStr = t.label
+          ? _escHtml(t.label)
+          : '<em style="color:var(--text-muted)">no label</em>';
+        const tokenShort = t.token ? t.token.slice(0, 8) + "\u2026" : "?";
+        const expiry = t.expiresAt
+          ? " \u00b7 expires " + t.expiresAt.slice(0, 10)
+          : "";
+        const expiredBadge = t.expired
+          ? ' <span style="color:var(--danger);font-size:10px">EXPIRED</span>'
+          : "";
+        const isCurrent = t.token === adminToken;
+        return (
+          `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">` +
+          `<span style="flex:1;color:var(--text-dim)">${labelStr} <span style="color:var(--text-muted);font-family:var(--font-mono)">${tokenShort}</span>${expiry}${expiredBadge}</span>` +
+          (isCurrent
+            ? '<span style="color:var(--text-muted);font-size:10px">(current)</span>'
+            : `<button class="btn-secondary" style="font-size:11px;padding:2px 8px" onclick="revokeApiToken('${_escHtml(t.token)}')">Revoke</button>`) +
+          "</div>"
+        );
+      })
+      .join("");
+  } catch (e) {
+    listEl.innerHTML =
+      '<div style="color:var(--danger);font-size:12px">\u2717 ' +
+      _escHtml(e.message || "Fetch failed") +
+      "</div>";
+  }
+}
+
+async function generateApiToken() {
+  const serverUrl = (state.settings.serverUrl || "").replace(/\/$/, "");
+  const adminToken = state.settings.serverToken || "";
+  const labelEl = document.getElementById("token-generate-label");
+  const expiresEl = document.getElementById("token-generate-expires");
+  const statusEl = document.getElementById("token-generate-status");
+  if (!serverUrl || !adminToken) {
+    if (statusEl) {
+      statusEl.textContent = "Enter Server URL and API Token first.";
+      statusEl.style.color = "var(--danger)";
+    }
+    return;
+  }
+  const label = labelEl ? labelEl.value.trim() : "";
+  const expiresIn = expiresEl ? expiresEl.value : "";
+  if (statusEl) {
+    statusEl.textContent = "Generating\u2026";
+    statusEl.style.color = "var(--text-muted)";
+  }
+  try {
+    const resp = await fetch(serverUrl + "/api/token-generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        adminToken,
+        label: label || null,
+        expiresIn: expiresIn || null,
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      if (statusEl) {
+        statusEl.textContent = "\u2717 " + (data.error || resp.statusText);
+        statusEl.style.color = "var(--danger)";
+      }
+      return;
+    }
+    const display = data.token ? data.token.slice(0, 16) + "\u2026" : "?";
+    if (statusEl) {
+      statusEl.textContent = "\u2713 Created: " + display;
+      statusEl.style.color = "var(--success)";
+    }
+    if (labelEl) labelEl.value = "";
+    await openTokenManager(); // refresh list
+  } catch (e) {
+    if (statusEl) {
+      statusEl.textContent = "\u2717 " + (e.message || "Fetch failed");
+      statusEl.style.color = "var(--danger)";
+    }
+  }
+}
+
+async function revokeApiToken(tokenToRevoke) {
+  if (!tokenToRevoke) return;
+  const serverUrl = (state.settings.serverUrl || "").replace(/\/$/, "");
+  const adminToken = state.settings.serverToken || "";
+  if (!serverUrl || !adminToken) return;
+  if (
+    !confirm(
+      "Revoke this token? Any service using it will lose access immediately.",
+    )
+  )
+    return;
+  try {
+    const resp = await fetch(serverUrl + "/api/token-revoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminToken, revokeToken: tokenToRevoke }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      alert("Revoke failed: " + (data.error || resp.statusText));
+      return;
+    }
+    await openTokenManager(); // refresh
+  } catch (e) {
+    alert("Revoke failed: " + (e.message || e));
   }
 }

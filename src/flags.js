@@ -1,7 +1,7 @@
 // ─── FLAGS ──────────────────────────────────────────────────────────────────
 const DEBUG = window.__SOURCEDESK_DEBUG__ || false;
 const TEST = window.__SOURCEDESK_TEST__ || false;
-const APP_VERSION = "0.8.0";
+const APP_VERSION = "0.9.0";
 function log(...args) {
   if (DEBUG) console.log("[SD]", ...args);
 }
@@ -120,18 +120,18 @@ const PROVIDERS = {
 // Falls back to a normal fetch when running from file:// or any other origin
 // that doesn't have the server proxy available.
 function _localFetch(targetUrl, options) {
-    if (typeof window !== "undefined" && window.__SOURCEDESK_ENV__) {
-        return fetch(window.location.origin + "/proxy", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                url: targetUrl,
-                method: options.method || "GET",
-                headers: options.headers || {},
-                body: options.body || "",
-            }),
-            signal: options.signal,
-        });
-    }
-    return fetch(targetUrl, options);
+  if (typeof window !== "undefined" && window.__SOURCEDESK_ENV__) {
+    return fetch(window.location.origin + "/proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: targetUrl,
+        method: options.method || "GET",
+        headers: options.headers || {},
+        body: options.body || "",
+      }),
+      signal: options.signal,
+    });
+  }
+  return fetch(targetUrl, options);
 }

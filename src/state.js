@@ -19,6 +19,8 @@ let state = {
     braveApiKey: "",
     crawl4aiUrl: "http://localhost:11235",
     suggestionWebhook: "",
+    serverUrl: "", // base URL of the SourceDesk server for email summaries + token mgmt
+    serverToken: "", // API token for browser → server authenticated calls
   },
   activeProject: null,
   activeDocs: new Set(),

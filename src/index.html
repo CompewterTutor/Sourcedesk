@@ -2060,6 +2060,19 @@
                     </button>
                 </div>
                 <div class="sidebar-divider"></div>
+                <div class="sidebar-section" style="flex-shrink: 0">
+                    Email Summaries
+                    <button
+                        class="sidebar-add"
+                        id="email-summaries-nav-btn"
+                        onclick="openEmailSummaries()"
+                        title="View email summaries for this project"
+                        style="font-size: 14px; display: none"
+                    >
+                        &rarr;
+                    </button>
+                </div>
+                <div class="sidebar-divider"></div>
                 <div
                     style="
                         padding: 8px 12px;
@@ -5216,6 +5229,131 @@
                         "
                     ></div>
                 </div>
+
+                <!-- ── Server connection ── -->
+                <div
+                    style="
+                        font-size: 11px;
+                        font-weight: 600;
+                        color: var(--text-muted);
+                        text-transform: uppercase;
+                        letter-spacing: 0.06em;
+                        margin: 14px 0 6px;
+                    "
+                >
+                    Server Connection
+                </div>
+                <div class="form-row">
+                    <label class="form-label"
+                        >Server URL
+                        <span style="color: var(--text-muted); font-size: 10px"
+                            >— base URL of your running
+                            <code
+                                style="
+                                    font-family: var(--font-mono);
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                "
+                                >node server.js</code
+                            >
+                            instance (e.g.
+                            <code
+                                style="
+                                    font-family: var(--font-mono);
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                "
+                                >http://localhost:3000</code
+                            >). Required for email summaries and token
+                            management.</span
+                        >
+                    </label>
+                    <input
+                        class="form-input"
+                        id="settings-server-url"
+                        type="text"
+                        placeholder="http://localhost:3000"
+                    />
+                </div>
+                <div class="form-row">
+                    <label class="form-label"
+                        >API Token
+                        <span style="color: var(--text-muted); font-size: 10px"
+                            >— generate one with
+                            <code
+                                style="
+                                    font-family: var(--font-mono);
+                                    background: var(--surface2);
+                                    padding: 1px 4px;
+                                "
+                                >node scripts/generate_api_token.js</code
+                            >. Stored locally, sent only to your server.</span
+                        >
+                    </label>
+                    <input
+                        class="form-input"
+                        id="settings-server-token"
+                        type="password"
+                        placeholder="paste token here"
+                    />
+                </div>
+
+                <!-- ── Token manager ── -->
+                <div
+                    style="
+                        font-size: 11px;
+                        font-weight: 600;
+                        color: var(--text-muted);
+                        text-transform: uppercase;
+                        letter-spacing: 0.06em;
+                        margin: 14px 0 6px;
+                    "
+                >
+                    API Token Management
+                </div>
+                <div
+                    id="token-manager-list"
+                    style="margin-bottom: 10px; min-height: 24px"
+                ></div>
+                <div
+                    style="
+                        display: flex;
+                        gap: 8px;
+                        align-items: center;
+                        flex-wrap: wrap;
+                    "
+                >
+                    <input
+                        class="form-input"
+                        id="token-generate-label"
+                        type="text"
+                        placeholder="Label (e.g. Email ingest)"
+                        style="flex: 1; min-width: 140px"
+                    />
+                    <select
+                        class="form-select"
+                        id="token-generate-expires"
+                        style="width: auto"
+                    >
+                        <option value="">No expiry</option>
+                        <option value="7d">7 days</option>
+                        <option value="30d">30 days</option>
+                        <option value="90d">90 days</option>
+                        <option value="1y">1 year</option>
+                    </select>
+                    <button class="btn-secondary" onclick="generateApiToken()">
+                        + Generate Token
+                    </button>
+                </div>
+                <div
+                    id="token-generate-status"
+                    style="
+                        font-size: 11px;
+                        color: var(--text-muted);
+                        margin-top: 4px;
+                    "
+                ></div>
+
                 <div class="form-row">
                     <label class="form-label"
                         >MarkItDown Server URL
@@ -6024,6 +6162,112 @@ Or paste numbered / blank-line separated questions…"
                         font-size: 12px;
                     "
                 ></div>
+            </div>
+
+            <!-- Email Summaries Modal -->
+            <div
+                id="modal-email-summaries"
+                class="modal hidden"
+                style="max-width: 640px; width: 90vw"
+            >
+                <div class="modal-title">&#x1F4E7; Email Summaries</div>
+                <div
+                    class="modal-subtitle"
+                    id="email-summ-project-name"
+                    style="
+                        color: var(--accent);
+                        font-size: 12px;
+                        margin-bottom: 12px;
+                    "
+                ></div>
+
+                <div
+                    id="email-summ-loading"
+                    style="
+                        color: var(--text-muted);
+                        font-size: 13px;
+                        padding: 20px 0;
+                        text-align: center;
+                    "
+                >
+                    Loading&#x2026;
+                </div>
+
+                <div id="email-summ-content" style="display: none">
+                    <div
+                        style="
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: var(--text-muted);
+                            text-transform: uppercase;
+                            letter-spacing: 0.06em;
+                            margin-bottom: 6px;
+                        "
+                    >
+                        Overall Summary
+                    </div>
+                    <div
+                        id="email-summ-overall"
+                        style="
+                            font-size: 13px;
+                            line-height: 1.6;
+                            color: var(--text);
+                            background: var(--surface2);
+                            border-radius: var(--radius);
+                            padding: 10px 12px;
+                            white-space: pre-wrap;
+                            max-height: 200px;
+                            overflow-y: auto;
+                            margin-bottom: 14px;
+                        "
+                    ></div>
+
+                    <div
+                        style="
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: var(--text-muted);
+                            text-transform: uppercase;
+                            letter-spacing: 0.06em;
+                            margin-bottom: 6px;
+                        "
+                    >
+                        Per-Thread Breakdown
+                    </div>
+                    <div
+                        id="email-summ-threads"
+                        style="
+                            max-height: 240px;
+                            overflow-y: auto;
+                            margin-bottom: 14px;
+                        "
+                    ></div>
+
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                        <button
+                            class="btn-primary"
+                            onclick="importSummaryToNotes()"
+                        >
+                            &#x1F4DD; Import to Notes
+                        </button>
+                        <button
+                            class="btn-secondary"
+                            onclick="createTasksFromSummary()"
+                        >
+                            &#x2705; Create Tasks
+                        </button>
+                    </div>
+                    <div
+                        id="email-summ-status"
+                        style="font-size: 12px; margin-top: 8px"
+                    ></div>
+                </div>
+
+                <div style="margin-top: 16px; text-align: right">
+                    <button class="btn-secondary" onclick="closeModal()">
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
 

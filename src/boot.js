@@ -59,6 +59,10 @@ async function boot() {
     const suggestionWebhook = await dbGet("settings", "suggestionWebhook");
     if (suggestionWebhook)
       state.settings.suggestionWebhook = suggestionWebhook.value;
+    const serverUrl = await dbGet("settings", "serverUrl");
+    if (serverUrl) state.settings.serverUrl = serverUrl.value;
+    const serverToken = await dbGet("settings", "serverToken");
+    if (serverToken) state.settings.serverToken = serverToken.value;
     // Apply .env defaults injected by server.js (only if DB has no saved value)
     const _senv = window.__SOURCEDESK_ENV__ || {};
     if (!state.settings.localLlmUrl && _senv.localLlmUrl) {
@@ -251,6 +255,11 @@ async function loadProject(id) {
 
   const evalBtn = document.getElementById("eval-nav-btn");
   if (evalBtn) evalBtn.style.display = "";
+
+  // Show email summaries button if server is configured
+  const emailSummBtn = document.getElementById("email-summaries-nav-btn");
+  if (emailSummBtn)
+    emailSummBtn.style.display = state.settings.serverUrl ? "" : "none";
 
   renderSidebar();
   renderMessages();

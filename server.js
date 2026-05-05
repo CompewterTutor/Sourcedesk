@@ -74,8 +74,14 @@ const TOKENS_FILE = path.join(
 function loadTokens() {
   try {
     const raw = fs.readFileSync(TOKENS_FILE, "utf8");
-    const obj = JSON.parse(raw);
-    return obj || {};
+    const obj = JSON.parse(raw) || {};
+    const now = new Date();
+    const filtered = {};
+    for (const [tok, meta] of Object.entries(obj)) {
+      if (meta.expiresAt && new Date(meta.expiresAt) < now) continue;
+      filtered[tok] = meta;
+    }
+    return filtered;
   } catch (e) {
     return {};
   }
@@ -664,6 +670,160 @@ function handler(req, res) {
       }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ status: "ok", revokedFromFile, revokedFromDb }));
+    });
+    req.on("error", () => {
+      try {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Request error" }));
+      } catch (_) {}
+    });
+    return;
+  }
+
+  // ─── Token list (GET) ────────────────────────────────────────────────────
+  // Query params: adminToken
+  // Returns all tokens from file (including expired, marked with expired:true).
+  if (url.startsWith("/api/token-list") && req.method === "GET") {
+    try {
+      const sp = new URL("http://x" + url).searchParams;
+      const adminToken = sp.get("adminToken");
+      if (!adminToken) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing adminToken" }));
+        return;
+      }
+      const tokens = loadTokens();
+      if (!tokens[adminToken]) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid adminToken" }));
+        return;
+      }
+      // Read raw file so expired tokens still appear (just flagged)
+      const allRaw = (() => {
+        try {
+          return JSON.parse(fs.readFileSync(TOKENS_FILE, "utf8")) || {};
+        } catch {
+          return {};
+        }
+      })();
+      const arr = Object.entries(allRaw).map(([tok, meta]) => ({
+        token: tok,
+        label: meta.label || null,
+        user: meta.user || null,
+        createdAt: meta.createdAt || null,
+        expiresAt: meta.expiresAt || null,
+        expired: meta.expiresAt ? new Date(meta.expiresAt) < new Date() : false,
+      }));
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "ok", tokens: arr }));
+    } catch (e) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Internal server error" }));
+    }
+    return;
+  }
+
+  // ─── Token generate (POST) ───────────────────────────────────────────────
+  // Body: { adminToken: string, label?: string, expiresIn?: string }
+  // expiresIn examples: "30d", "7d", "24h", "1y" — omit for no expiry.
+  if (url === "/api/token-generate" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", async () => {
+      try {
+        let payload;
+        try {
+          payload = JSON.parse(body);
+        } catch {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Invalid JSON body" }));
+          return;
+        }
+        const { adminToken, label, expiresIn } = payload || {};
+        if (!adminToken) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Missing adminToken" }));
+          return;
+        }
+        const tokens = loadTokens();
+        if (!tokens[adminToken]) {
+          res.writeHead(401, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Invalid adminToken" }));
+          return;
+        }
+        function _parseExpiresIn(s) {
+          if (!s) return null;
+          const num = parseInt(s, 10);
+          if (isNaN(num)) return null;
+          const unit = s.slice(String(num).length).toLowerCase();
+          const ms =
+            unit === "h"
+              ? num * 3600000
+              : unit === "d"
+                ? num * 86400000
+                : unit === "w"
+                  ? num * 604800000
+                  : unit === "y"
+                    ? num * 365 * 86400000
+                    : null;
+          if (!ms) return null;
+          return new Date(Date.now() + ms);
+        }
+        const expiresAt = _parseExpiresIn(expiresIn);
+        const newToken = require("crypto").randomBytes(24).toString("hex");
+        const now = new Date().toISOString();
+        const meta = {
+          user: tokens[adminToken].user || null,
+          label: label || null,
+          createdAt: now,
+          expiresAt: expiresAt ? expiresAt.toISOString() : null,
+        };
+        let rawTokens = {};
+        try {
+          rawTokens = JSON.parse(fs.readFileSync(TOKENS_FILE, "utf8")) || {};
+        } catch {}
+        rawTokens[newToken] = meta;
+        fs.mkdirSync(path.dirname(TOKENS_FILE), { recursive: true });
+        fs.writeFileSync(
+          TOKENS_FILE,
+          JSON.stringify(rawTokens, null, 2),
+          "utf8",
+        );
+        // Also insert into DB if available
+        if (_db) {
+          try {
+            let userId = null;
+            if (meta.user) {
+              const u = await _db.get("SELECT id FROM users WHERE email = ?", [
+                meta.user,
+              ]);
+              if (u) userId = u.id;
+            }
+            const tokenId = _uid();
+            await _db.run(
+              "INSERT INTO api_tokens (id, user_id, token, label, created_at) VALUES (?, ?, ?, ?, ?)",
+              [tokenId, userId, newToken, meta.label, meta.createdAt],
+            );
+          } catch (e) {
+            console.error("  token-generate DB insert error:", e.message);
+          }
+        }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            status: "ok",
+            token: newToken,
+            label: meta.label,
+            createdAt: meta.createdAt,
+            expiresAt: meta.expiresAt,
+          }),
+        );
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Internal server error" }));
+      }
     });
     req.on("error", () => {
       try {

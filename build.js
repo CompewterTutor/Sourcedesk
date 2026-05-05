@@ -358,6 +358,12 @@ async function build() {
           "_tvSaveConstants",
           "_tvInsertVar",
           "copyProjectId",
+          "openEmailSummaries",
+          "importSummaryToNotes",
+          "createTasksFromSummary",
+          "openTokenManager",
+          "generateApiToken",
+          "revokeApiToken",
         ],
       },
       format: {

@@ -204,6 +204,8 @@ let state = {
     crawl4aiUrl: 'http://localhost:11235', // crawl4ai endpoint
     markitdownUrl: '',      // MarkItDown server URL (injected by server.js via window.__SOURCEDESK_ENV__)
     suggestionWebhookUrl: '', // optional webhook for feature suggestions
+    serverUrl: '',          // base URL of running server.js instance (for email summaries + token mgmt)
+    serverToken: '',        // API token for browser → server authenticated calls
   },
   activeProject: null,    // full project object; may have .instructions, .workingContent fields
   activeDocs: new Set(),  // doc IDs toggled ON in context
@@ -402,7 +404,10 @@ analyzeThisGuideline, selectGuidelineAnalysis, deleteGuidelineAnalysis,
 openCreateMasterAnalysis, runCreateMaster,
 openGAVersionHistory, restoreGAVersion, deleteGAVersion,
 openGADiff, _gaStartLabelEdit, _gaSaveLabel, _gaSaveAnalysisLabel, _openGACompareModal,
-openTemplateVarsModal, _tvAddConstantRow, _tvDeleteConstantRow, _tvSaveConstants, _tvInsertVar
+openTemplateVarsModal, _tvAddConstantRow, _tvDeleteConstantRow, _tvSaveConstants, _tvInsertVar,
+copyProjectId,
+openEmailSummaries, importSummaryToNotes, createTasksFromSummary,
+openTokenManager, generateApiToken, revokeApiToken
 ```
 
 **When you add a new function called from HTML, add it to this list or the minified build will silently break.**
@@ -509,33 +514,26 @@ Key files to read for Hindsight work:
 
 ## Current State (as of last commit)
 
-**Current version: v0.8.0** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
+**Current version: v0.9.0** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
 
-> **Session note (current — Hindsight integration planning):**
-> Planning-only session; no source files or build output changed.
+> **Session note (current — v0.9.0: Email Summary frontend + Token Management):**
+> All changes below are complete, documented, and built into `SourceDesk.html`.
 >
-> 1. **Read all docs** — `docs/email_ingest_progress.md`, `docs/feature-request-hindsight.md`, all `skills/hindsight-docs/references/` documentation.
+> 1. **Email Summary UI** — new "📧 Email Summaries" sidebar section and `#modal-email-summaries` modal (`src/index.html`, `src/settings.js`). Fetches `GET /api/email-summaries?token=X&projectId=Y`. Displays overall summary + per-thread `<details>` accordion. **Import to Notes** (`importSummaryToNotes()`) and **Create Tasks** (`createTasksFromSummary()`) action buttons.
 >
-> 2. **Confirmed email summary server work is done** — `server/db.js`, `server/llm.js`, `migrations/001_initial.sql`, `scripts/migrate.js`, full ingest + async LLM summarisation pipeline, `GET /api/email-summaries`, token auth, `POST /api/token-revoke` all shipped. What remains is the **frontend** only (v0.9.0).
+> 2. **Token Management UI** in Settings modal — new "Server Connection" section (`#settings-server-url`, `#settings-server-token`) and "API Token Management" section (`#token-manager-list`, generate form, per-token revoke). Functions: `openTokenManager()`, `generateApiToken()`, `revokeApiToken(t)`.
 >
-> 3. **Wrote `docs/hindsight-integration-plan.md`** — comprehensive 5-phase plan:
->    - v0.9.0: Email summary frontend + token management UI (closes the email pipeline loop)
->    - v0.9.1: Hindsight infrastructure (`server/hindsight.js`, optional `HINDSIGHT_API_URL`, docker-compose service, Settings status row)
->    - v0.9.2: Chat memory (retain sessions after save, recall before sendMessage, inject `## Relevant Memories`)
->    - v0.9.3: Deep content integration (notes, SQ answers, working doc, email summaries, research)
->    - v0.9.4: Memory UI (Settings memory tab, in-chat citations, clear/export bank)
->    - v1.0.0: Production hardening
+> 3. **`GET /api/token-list`** — new server endpoint; reads raw file (includes expired tokens flagged with `expired: true`); requires `adminToken` query param.
 >
-> 4. **Architecture decisions locked:**
->    - Per-user isolation: `bank_id = userId` (one bank per SourceDesk `users.id`)
->    - Hindsight DB is SEPARATE from SourceDesk app DB (same Postgres server, different database: `sourcedesk_hindsight`)
->    - All Hindsight is optional — `HINDSIGHT_API_URL` not set means no-ops everywhere, zero regression
->    - Browser never calls Hindsight directly — goes through `server.js` `/api/hindsight/*` endpoints
->    - Node.js SDK: `@vectorize-io/hindsight-client` (optionalDependency)
->    - Docker image: `ghcr.io/vectorize-io/hindsight:latest-slim` (~500 MB, not the 9 GB full image)
->    - Procurement-domain bank config defined (retain_mission, observations_mission, reflect_mission, entity_labels)
+> 4. **`POST /api/token-generate`** — new server endpoint; generates `crypto.randomBytes(24)` hex token; writes to `.private-documents/api_tokens.json` + DB (optional); `expiresIn` supported (`30d`, `7d`, `24h`, `1y`).
 >
-> 5. **Updated `CLAUDE.md`** — added `## Skills & Reference Docs` section for Hindsight skill; updated session notes and Next Steps.
+> 5. **Token expiry** — `loadTokens()` now silently skips expired tokens (those with `expiresAt` set and in the past).
+>
+> 6. **`--expires-in` flag** for `scripts/generate_api_token.js` (`-e` / `--expires-in`, e.g. `30d`).
+>
+> 7. **`state.settings.serverUrl` + `state.settings.serverToken`** — two new settings fields in `state.js`, loaded in `boot.js`, saved/loaded in `openSettings()` / `saveSettings()`.
+>
+> 8. **`APP_VERSION = '0.9.0'`** in `src/flags.js` and `package.json`; `build.js` mangle.reserved updated.
 
 > **Session note (current — PostgreSQL existing-database docs):**
 > Docs-only change; no source files or build output changed.
@@ -911,18 +909,11 @@ Key files to read for Hindsight work:
 
 ## Next Steps (Ordered for Next Session)
 
-**Current roadmap: v0.9.0 → v1.0.0 (Hindsight integration). Full spec in `docs/hindsight-integration-plan.md`.**
+**Current roadmap: v0.9.1 → v1.0.0 (Hindsight integration). Full spec in `docs/hindsight-integration-plan.md`.**
 
-### Next: v0.9.0 — Email Summary Frontend + Token Management
+### ~~v0.9.0 — Email Summary Frontend + Token Management~~ ✅ DONE
 
-- Email Summary UI panel (fetch summaries, import to Notes, create Tasks from action items)
-- Token Management UI in Settings (list/generate/revoke tokens)
-- Token expiry support in `generate_api_token.js` and `loadTokens()`
-- Message-ID deduplication field in email ingest schema
-- New endpoints: `GET /api/token-list`, `POST /api/token-generate`
-- Mangle reserved: `openEmailSummaries`, `importSummaryToNotes`, `createTasksFromSummary`, `openTokenManager`, `generateApiToken`, `revokeApiToken`
-
-### Then: v0.9.1 — Hindsight Foundation
+### Next: v0.9.1 — Hindsight Foundation
 - `server/hindsight.js` adapter; `HINDSIGHT_API_URL` env gate; docker-compose service (commented in)
 - Bank auto-creation with procurement domain config; `GET /api/hindsight/status`
 - Settings: Hindsight status row; `testHindsightConnection()`
