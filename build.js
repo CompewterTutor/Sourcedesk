@@ -26,6 +26,7 @@ const SRC_FILES = [
   "src/messages.js",
   "src/retrieval.js",
   "src/api.js",
+  "src/hindsight.js",
   "src/chat.js",
   "src/panel.js",
   "src/templates.js",

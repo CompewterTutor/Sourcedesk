@@ -21,4 +21,9 @@
 - need to have an unload model button, i tried to select a new model between analysis runs and it failed trying to load the new model without unloading the old one.
 ---
 5-4-2026 mark 2
-- f
+- add ability to have more than one working document
+- make sure to create .backups folder and .private-documents folder if they don't exist already
+- make sure that hindsight is set up to use the same model that is loaded by the local llm for sourcedesk so we don't try to load 2 models and run out of memory
+- default docker compose to use postgresql now that we have hindsight
+- default to using hindsight
+-

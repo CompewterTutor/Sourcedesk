@@ -546,6 +546,15 @@ async function generateAnswerForQuestion(questionId) {
   q.status = autoStatus;
   q.updatedAt = Date.now();
   await dbPut("supplierQuestions", q);
+  if (q.draftAnswer && q.draftAnswer.trim()) {
+    const _pid = state.activeProject && state.activeProject.id;
+    _hindsightRetainItem(
+      "sq:" + q.id,
+      "Q: " + q.text + "\nA: " + q.draftAnswer,
+      ["project:" + _pid, "type:sq-answer"],
+      "project:" + _pid + (q.vendor ? " vendor:" + q.vendor : ""),
+    );
+  }
 
   if (state.currentQuestion && state.currentQuestion.id === id) {
     state.currentQuestion = q;
@@ -640,6 +649,25 @@ async function saveCurrentSQAnswer() {
     state.currentQuestion.status = "answered";
   }
   await dbPut("supplierQuestions", state.currentQuestion);
+  if (
+    state.currentQuestion.draftAnswer &&
+    state.currentQuestion.draftAnswer.trim()
+  ) {
+    const _pid = state.activeProject && state.activeProject.id;
+    _hindsightRetainItem(
+      "sq:" + state.currentQuestion.id,
+      "Q: " +
+        state.currentQuestion.text +
+        "\nA: " +
+        state.currentQuestion.draftAnswer,
+      ["project:" + _pid, "type:sq-answer"],
+      "project:" +
+        _pid +
+        (state.currentQuestion.vendor
+          ? " vendor:" + state.currentQuestion.vendor
+          : ""),
+    );
+  }
   _sqUpdateStatusPills(state.currentQuestion);
   await loadSupplierQuestions();
 }

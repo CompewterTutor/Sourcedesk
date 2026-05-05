@@ -32,6 +32,7 @@ Sourcedesk/
 │   ├── messages.js         ← renderMessages(), appendMessageEl(), formatMarkdown()
 │   ├── retrieval.js        ← BM25 tokenize/index/score, chunkText(), retrieveContext()
 │   ├── api.js              ← buildApiCall(), parseStreamDelta()
+│   ├── hindsight.js        ← _hindsightRetainItem() — shared browser-side Hindsight retain helper
 │   ├── chat.js             ← sendMessage(), saveChat(), newChat(),
 │   │                          renderChatSessionList(), loadChatSession()
 │   ├── panel.js            ← renderRightPanel(), toggleDoc(), toggleOtherProject(),
@@ -514,9 +515,30 @@ Key files to read for Hindsight work:
 
 ## Current State (as of last commit)
 
-**Current version: v0.9.2** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
+**Current version: v0.9.3** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
 
-> **Session note (current — v0.9.2: Chat Memory):**
+> **Session note (current — v0.9.3: Deep Content Integration):**
+> All changes below are complete, documented, and built into `SourceDesk.html`.
+>
+> 1. **`src/hindsight.js`** — new shared `_hindsightRetainItem(documentId, content, tags, context)` helper. Single place for all browser-side retain calls. Guards (`serverUrl`, `serverToken`, `hindsightEnabled`, `activeProject`) are centralised here. Content truncated to 4 000 chars.
+>
+> 2. **Notes retain** (`src/notes.js`) — `_hindsightRetainItem()` called from `_autoSaveCurrentNote()`, `saveCurrentNote()`, and `toggleNoteInContext()`. Only fires when `includeInContext = true`. `documentId: "note:<id>"`, tag `type:note`.
+>
+> 3. **Supplier Q&A retain** (`src/supplierQuestions.js`) — called from `saveCurrentSQAnswer()` and `generateAnswerForQuestion()` after answer is saved. Only when `draftAnswer` non-empty. `documentId: "sq:<id>"`, tag `type:sq-answer`, optional `vendor:` context.
+>
+> 4. **Working-document retain** (`src/versioning.js`) — called from `saveDocVersion()` after each DB write. Stable `documentId: "wdoc:<projectId>:latest"` → Hindsight upserts (always just one entry per project's working doc). Tag `type:working-doc`.
+>
+> 5. **Research item retain** (`src/research.js`) — called in `summariseResearchItem()` after summary is persisted. Only fires when summary non-empty. `documentId: "research:<id>"`, tag `type:research`.
+>
+> 6. **Email-summary retain** (`server.js` `_summarizeIngest()`) — server-side fire-and-forget `_hindsight.retainContent()` after overall summary is stored in `email_summaries`. `documentId: "email-summary:<projectId>"`, tags `type:email-summary` + `project:<projectId>`.
+>
+> 7. **`_hindsightRetain()` refactored** (`src/chat.js`) — now delegates to `_hindsightRetainItem()` instead of duplicating fetch logic.
+>
+> 8. **`build.js` SRC_FILES** updated — `src/hindsight.js` added after `src/api.js`, before `src/chat.js`.
+>
+> 9. **`APP_VERSION = '0.9.3'`** in `src/flags.js` and `package.json`.
+
+> **Session note (v0.9.2: Chat Memory):**
 > All changes below are complete, documented, and built into `SourceDesk.html`.
 >
 > 1. **`POST /api/hindsight/retain`** (`server.js`) — new token-authenticated endpoint. Validates token, fires `ensureBank(owner)` → `retainContent(owner, ...)` as a fire-and-forget promise chain, and immediately responds `{ ok: true }`. Gracefully no-ops with `{ ok: true, skipped: true }` when Hindsight is not configured.
@@ -955,10 +977,11 @@ Key files to read for Hindsight work:
 - `POST /api/hindsight/retain` + `POST /api/hindsight/recall` server endpoints
 - `state.settings.hindsightEnabled` toggle; `#settings-hindsight-enabled` checkbox in Settings
 
-### Next: v0.9.3 — Deep Content Integration
+### ~~v0.9.3 — Deep Content Integration~~ ✅ DONE
 - Retain notes, SQ answers, working doc versions, email summaries, research items
+- `src/hindsight.js` shared `_hindsightRetainItem()` helper; all browser-side retains centralised
 
-### Then: v0.9.4 — Memory UI
+### Next: v0.9.4 — Memory UI
 - Settings memory tab; in-chat citations; clear/export bank
 
 ### Then: v1.0.0 — Production release

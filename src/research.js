@@ -416,6 +416,21 @@ async function summariseResearchItem(id) {
     }
     item.summary = summary.trim() || item.summary;
     await dbPut("research", item);
+    // Retain the summarised research item in Hindsight.
+    if (item.summary && item.summary.trim()) {
+      const _pid = state.activeProject && state.activeProject.id;
+      _hindsightRetainItem(
+        "research:" + item.id,
+        "# Research: " +
+          (item.title || item.url) +
+          "\nURL: " +
+          item.url +
+          "\n\n" +
+          item.summary,
+        ["project:" + _pid, "type:research"],
+        "project:" + _pid + " research",
+      );
+    }
   } catch (err) {
     alert("Summarise failed: " + err.message);
   } finally {

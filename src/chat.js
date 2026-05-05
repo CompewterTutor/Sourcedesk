@@ -19,10 +19,8 @@ function _setStreamingUI(streaming) {
 // ─── Hindsight helpers ───────────────────────────────────────────────────────────────────────────
 // Fire-and-forget: send chat messages to the Hindsight retain endpoint.
 // Called after saveChat() writes to IndexedDB; never awaited.
+// Delegates to the shared _hindsightRetainItem() in src/hindsight.js.
 function _hindsightRetain(chatId, messages) {
-  const serverUrl = state.settings.serverUrl;
-  const serverToken = state.settings.serverToken;
-  if (!serverUrl || !serverToken || !state.settings.hindsightEnabled) return;
   const projectId = state.activeProject && state.activeProject.id;
   if (!projectId) return;
   const projectCategory =
@@ -33,19 +31,12 @@ function _hindsightRetain(chatId, messages) {
       content: (m.content || "").slice(0, 2000),
     })),
   );
-  const tags = ["project:" + projectId, "type:chat"];
-  const context = "project:" + projectId + " category:" + projectCategory;
-  fetch(serverUrl.replace(/\/$/, "") + "/api/hindsight/retain", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      token: serverToken,
-      documentId: "chat:" + chatId,
-      content,
-      context,
-      tags,
-    }),
-  }).catch(() => {});
+  _hindsightRetainItem(
+    "chat:" + chatId,
+    content,
+    ["project:" + projectId, "type:chat"],
+    "project:" + projectId + " category:" + projectCategory,
+  );
 }
 
 // Returns an array of recalled memory strings (or null on no-op / error).

@@ -11,6 +11,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — v0.9.3 🖥️
+- **`src/hindsight.js`** — new shared `_hindsightRetainItem(documentId, content, tags, context)` helper. All browser-side retain calls now go through this single function. Guard checks (`serverUrl`, `serverToken`, `hindsightEnabled`, `activeProject`) are centralised here; calling code is concise and consistent. Content is truncated to 4 000 chars before sending.
+- **Notes retain** (`src/notes.js`) — `_hindsightRetainItem()` is called from three note-save paths: `_autoSaveCurrentNote()`, `saveCurrentNote()`, and `toggleNoteInContext()`. Only notes with `includeInContext = true` are retained, using `documentId: "note:<id>"` and tag `type:note`. Toggling include-in-context ON immediately retains the note.
+- **Supplier Q&A retain** (`src/supplierQuestions.js`) — `_hindsightRetainItem()` is called after every answer save in `saveCurrentSQAnswer()` and after every AI-generated answer completes in `generateAnswerForQuestion()`. Only retained when `draftAnswer` is non-empty. Uses `documentId: "sq:<id>"`, tag `type:sq-answer`, and optional vendor context string.
+- **Working-document retain** (`src/versioning.js`) — `_hindsightRetainItem()` is called from `saveDocVersion()` after each version snapshot is written to IndexedDB. Uses a **stable** `documentId: "wdoc:<projectId>:latest"` so Hindsight upserts (keeps only the latest content instead of accumulating one entry per version). Tags: `type:working-doc`.
+- **Research item retain** (`src/research.js`) — `_hindsightRetainItem()` is called in `summariseResearchItem()` after a summary is streamed and stored. Only fires when `item.summary` is non-empty. Uses `documentId: "research:<id>"`, tag `type:research`. Includes the item URL and title in the retained content.
+- **Email-summary retain** (`server.js` `_summarizeIngest()`) — after the LLM overall summary is written to `email_summaries`, a fire-and-forget call to `_hindsight.retainContent()` is made directly on the server (no browser round-trip needed). Uses `documentId: "email-summary:<projectId>"`, tags `type:email-summary` and `project:<projectId>`.
+- **`_hindsightRetain()` refactored** (`src/chat.js`) — now delegates to `_hindsightRetainItem()` instead of duplicating the fetch logic. Behaviour is unchanged.
+
+### Changed — v0.9.3
+- **`APP_VERSION`** bumped to `0.9.3` in `src/flags.js` and `package.json`.
+- **`build.js` `SRC_FILES`** — added `src/hindsight.js` (loaded after `src/api.js`, before `src/chat.js`).
+
+---
+
 ### Added — v0.9.2 🖥️
 - **`POST /api/hindsight/retain`** (`server.js`) — new token-authenticated endpoint. Body: `{ token, documentId?, content, context?, tags? }`. Validates token, then fires `ensureBank(owner)` → `retainContent(owner, ...)` as a **fire-and-forget** promise chain and immediately responds `{ ok: true }` — the caller never waits on the retain. If Hindsight is not configured, responds `{ ok: true, skipped: true }` with HTTP 200 (graceful no-op).
 - **`POST /api/hindsight/recall`** (`server.js`) — new token-authenticated endpoint. Body: `{ token, query, projectId?, budget? }`. Returns `{ memories: string[], count: number }`. Calls `recallForQuery(owner, { query, projectId, budget: 2000 })` on the Hindsight adapter. If Hindsight is not configured, returns `{ memories: [], count: 0 }` with HTTP 200.

@@ -263,6 +263,25 @@ async function _summarizeIngest(db, ingestId, projectId, userId, threadsMap) {
         provider2 +
         ")",
     );
+
+    // Retain the overall summary in Hindsight (fire-and-forget)
+    if (_hindsight) {
+      _hindsight
+        .ensureBank(userId)
+        .then(() =>
+          _hindsight.retainContent(userId, {
+            documentId: "email-summary:" + projKey,
+            content:
+              "# Email Summary for Project " +
+              projKey +
+              "\n\n" +
+              overallSummary,
+            context: "project:" + projKey,
+            tags: ["project:" + projKey, "type:email-summary"],
+          }),
+        )
+        .catch(() => {});
+    }
   } catch (e) {
     console.error("  LLM summarization failed:", e.message);
   }
