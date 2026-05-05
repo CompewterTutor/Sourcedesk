@@ -169,13 +169,39 @@ async function retainContent(userId, opts) {
   if (opts.context) retainOpts.context = opts.context;
   if (Array.isArray(opts.tags) && opts.tags.length) retainOpts.tags = opts.tags;
 
-  try {
-    await client.retain(userId, content, retainOpts);
-  } catch (e) {
-    console.warn(
-      "  [Hindsight] retain failed for user " + userId + ":",
-      e.message,
-    );
+  // Retry with exponential backoff on transient failures.
+  // Hindsight is optional infrastructure — errors should never propagate.
+  var maxRetries = 3;
+  var delay = 1000; // ms — doubles each attempt: 1s, 2s, 4s
+  for (var attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await client.retain(userId, content, retainOpts);
+      return; // success
+    } catch (e) {
+      if (attempt === maxRetries) {
+        console.warn(
+          "  [Hindsight] retain failed after " +
+            maxRetries +
+            " attempts for user " +
+            userId +
+            ":",
+          e.message,
+        );
+        return;
+      }
+      console.warn(
+        "  [Hindsight] retain attempt " +
+          attempt +
+          " failed, retrying in " +
+          delay +
+          "ms:",
+        e.message,
+      );
+      await new Promise(function (resolve) {
+        setTimeout(resolve, delay);
+      });
+      delay = delay * 2;
+    }
   }
 }
 

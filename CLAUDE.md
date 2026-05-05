@@ -515,9 +515,20 @@ Key files to read for Hindsight work:
 
 ## Current State (as of last commit)
 
-**Current version: v0.9.4** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
+**Current version: v1.0.0-rc.1** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
 
-> **Session note (current — v0.9.4: Memory UI):**
+> **Session note (current — v1.0.0-rc.1: Production Release Candidate):**
+> All changes below are complete, documented, and built into `SourceDesk.html`.
+>
+> 1. **Exponential backoff retry for Hindsight retain** (`server/hindsight.js`) — `retainContent()` retries failed calls up to 3 times with exponential backoff (1 s → 2 s → 4 s). Handles transient network errors and brief Hindsight server restarts without dropping memory. Always fails silently.
+>
+> 2. **Per-token rate limiting for Hindsight endpoints** (`server.js`) — in-memory sliding-window rate limiter (`_hindsightRateCheck`) applied to retain (60/min) and recall (120/min) per API token. HTTP 429 on excess. Tunable via `RL_RETAIN_MAX` / `RL_RECALL_MAX` / `RL_WINDOW_MS`.
+>
+> 3. **Hindsight setup guide in README** — new `### AI Memory (Hindsight)` section before `### Running with Docker`: what gets remembered (6-row table), Docker Compose quick-start, bare-metal pip install, single-container Docker run, app-side enable steps, image size table, rate limit reference.
+>
+> 4. **`APP_VERSION = '1.0.0-rc.1'`** in `src/flags.js` and `package.json`.
+
+> **Session note (v0.9.4: Memory UI):**
 > All changes below are complete, documented, and built into `SourceDesk.html`.
 >
 > 1. **Memory Browser modal** (`src/settings.js`, `src/index.html`) — new "Browse" button in Settings → 🧠 Memory row. Opens `#modal-memory-browser` with:
@@ -1007,7 +1018,24 @@ Key files to read for Hindsight work:
 ### ~~v0.9.4 — Memory UI~~ ✅ DONE
 - Settings memory browser modal; in-chat citations; clear/export bank
 
-### Then: v1.0.0 — Production release
+### ~~v1.0.0-rc.1 — Production Release Candidate~~ ✅ DONE
+- Exponential backoff retry in `server/hindsight.js` `retainContent()` (3 attempts, 1s/2s/4s)
+- Per-token rate limiting in `server.js`: retain 60/min, recall 120/min; tunable via `RL_RETAIN_MAX` / `RL_RECALL_MAX` / `RL_WINDOW_MS`
+- Full Hindsight setup guide in `README.md` (`### AI Memory (Hindsight)` section)
+- `APP_VERSION = '1.0.0-rc.1'`; production build committed
+
+---
+
+## Next Steps (Post-v1.0.0)
+
+v1.0.0 is the production milestone for the Hindsight integration roadmap. The next work is feature-driven (see Upcoming Feature Sessions below) or a v2 rewrite.
+
+**Suggested next features (from Upcoming Feature Sessions list):**
+- Item 4: Research Agent (auto-Brave → auto-crawl → auto-summarise → Working Document)
+- Item 7: MS Word / LibreOffice MCP integration
+- Item 8: Google Tasks sync
+
+See the `## V2 Roadmap` section for the long-term SvelteKit/Next.js rewrite plan.
 
 ---
 

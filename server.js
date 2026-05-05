@@ -89,6 +89,30 @@ function loadTokens() {
   }
 }
 
+// ─── Hindsight rate limiter ─────────────────────────────────────────────────
+// Simple in-memory per-token sliding-window rate limiter for Hindsight endpoints.
+// Tracks request counts per token per 60-second window.
+// Conservative limits since Hindsight is a paid/self-hosted service.
+var _rl_windows = {}; // { token: { windowStart: ms, counts: { endpoint: N } } }
+var RL_RETAIN_MAX = 60; // max retain requests per token per minute
+var RL_RECALL_MAX = 120; // max recall requests per token per minute
+var RL_WINDOW_MS = 60000;
+
+function _hindsightRateCheck(token, endpoint) {
+  var now = Date.now();
+  if (!_rl_windows[token]) {
+    _rl_windows[token] = { windowStart: now, counts: {} };
+  }
+  var w = _rl_windows[token];
+  if (now - w.windowStart > RL_WINDOW_MS) {
+    w.windowStart = now;
+    w.counts = {};
+  }
+  w.counts[endpoint] = (w.counts[endpoint] || 0) + 1;
+  var max = endpoint === "retain" ? RL_RETAIN_MAX : RL_RECALL_MAX;
+  return w.counts[endpoint] <= max; // true = request allowed
+}
+
 // ─── DB + LLM (optional — graceful no-op if DATABASE_URL not set) ─────────────
 let _db = null;
 let _dbInitError = null;
@@ -650,6 +674,18 @@ function handler(req, res) {
         res.end(JSON.stringify({ error: "Invalid API token" }));
         return;
       }
+      if (!_hindsightRateCheck(reqToken, "retain")) {
+        res.writeHead(429, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error:
+              "Rate limit exceeded. Max " +
+              RL_RETAIN_MAX +
+              " retain requests per minute.",
+          }),
+        );
+        return;
+      }
       if (!_hindsight) {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
@@ -708,6 +744,20 @@ function handler(req, res) {
       if (!tokens[reqToken]) {
         res.writeHead(401, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Invalid API token" }));
+        return;
+      }
+      if (!_hindsightRateCheck(reqToken, "recall")) {
+        res.writeHead(429, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error:
+              "Rate limit exceeded. Max " +
+              RL_RECALL_MAX +
+              " recall requests per minute.",
+            memories: [],
+            count: 0,
+          }),
+        );
         return;
       }
       if (!_hindsight) {

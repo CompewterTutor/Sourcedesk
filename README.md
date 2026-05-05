@@ -375,6 +375,103 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 ---
 
+### AI Memory (Hindsight)
+
+SourceDesk integrates with [Hindsight](https://github.com/vectorize-io/hindsight) to give the AI persistent memory across sessions. When configured, the AI automatically retains key facts from chats, notes, supplier Q&As, working documents, and research — and recalls relevant memories at the start of each response, so you don't have to re-explain context every time.
+
+**Memory is opt-in.** Without `HINDSIGHT_API_URL`, all memory features are silently disabled — no errors, no behaviour change.
+
+#### What gets remembered
+
+| Content type | When retained | Tag scope |
+|---|---|---|
+| Chat sessions | After every AI response (upsert per session) | `project:<id>`, `type:chat` |
+| Notes | When saved with "include in context" checked | `project:<id>`, `type:note` |
+| Supplier Q&A | After an answer is saved or AI-generated | `project:<id>`, `type:sq-answer` |
+| Working document | After each version snapshot | `project:<id>`, `type:working-doc` |
+| Research items | After AI summarization completes | `project:<id>`, `type:research` |
+| Email summaries | After server-side LLM summarization | `project:<id>`, `type:email-summary` |
+
+Recalled memories appear as a **🧠 N memories recalled** collapsible citation row below AI responses — the same UX as the BM25 sources row but with a teal accent.
+
+#### Quick start with Docker Compose
+
+The `docker-compose.yml` includes a commented-out Hindsight service. Uncomment it and configure the environment:
+
+```yaml
+# docker-compose.yml — uncomment the hindsight service block
+hindsight:
+  image: ghcr.io/vectorize-io/hindsight:latest-slim
+  ports:
+    - "8080:8080"
+  environment:
+    - HINDSIGHT_API_EMBEDDINGS_PROVIDER=openai
+    - HINDSIGHT_API_EMBEDDINGS_API_KEY=${OPENAI_API_KEY}
+    - HINDSIGHT_API_DATABASE_URL=postgresql://hindsight:hindsight@postgres:5432/hindsight
+```
+
+Then add to `.env`:
+
+```ini
+# Hindsight memory service
+HINDSIGHT_API_URL=http://localhost:8080
+
+# Hindsight needs an embeddings provider
+OPENAI_API_KEY=sk-...          # used for text-embedding-3-small
+```
+
+Start everything: `docker compose up -d`
+
+#### Bare-metal setup
+
+Install the Hindsight server with pip:
+
+```sh
+pip install hindsight-server
+hindsight serve --port 8080
+```
+
+Or run the official Docker image without Compose:
+
+```sh
+docker run -d \
+  -p 8080:8080 \
+  -e HINDSIGHT_API_EMBEDDINGS_PROVIDER=openai \
+  -e HINDSIGHT_API_EMBEDDINGS_API_KEY=$OPENAI_API_KEY \
+  ghcr.io/vectorize-io/hindsight:latest-slim
+```
+
+Then set `HINDSIGHT_API_URL=http://localhost:8080` in your `.env` and restart `npm run serve`.
+
+#### Enabling memory in the app
+
+1. Open SourceDesk → **Settings** → **Server Connection**
+2. Enter your server URL and API token
+3. Under **🧠 Memory (Hindsight)**, click **Test** to confirm the connection
+4. Enable the **Enable AI Memory (Recall)** checkbox
+
+#### Image sizes
+
+| Image | Compressed size | Notes |
+|---|---|---|
+| `ghcr.io/vectorize-io/hindsight:latest-slim` | ~500 MB | Requires external embeddings provider |
+| `ghcr.io/vectorize-io/hindsight:latest` | ~9 GB (ARM: ~3.7 GB) | Built-in embeddings model |
+
+The `slim` image is recommended. It delegates embeddings to your configured provider — OpenAI `text-embedding-3-small` is the most cost-effective option.
+
+#### Rate limits (server-side)
+
+The SourceDesk server applies per-token rate limits to Hindsight endpoints to protect self-hosted Hindsight instances:
+
+| Endpoint | Limit |
+|---|---|
+| `POST /api/hindsight/retain` | 60 requests / minute / token |
+| `POST /api/hindsight/recall` | 120 requests / minute / token |
+
+These limits are generous for normal interactive use. If you need higher limits, edit `RL_RETAIN_MAX` and `RL_RECALL_MAX` near the top of `server.js`.
+
+---
+
 ### Running with Docker
 
 The fastest way to get the server running is with Docker Compose. SQLite is used by default; see `docker-compose.yml` to enable PostgreSQL.

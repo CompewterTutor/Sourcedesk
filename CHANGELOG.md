@@ -11,6 +11,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.0.0-rc.1] — 2025-07-22 🖥️
+
+### Added — v1.0.0
+- **Exponential backoff retry for Hindsight retain** (`server/hindsight.js`) — `retainContent()` now retries failed retain calls up to 3 times with exponential backoff (1 s → 2 s → 4 s) before logging a warning. This handles transient network hiccups and brief Hindsight server restarts without dropping memory data. Always fails silently — Hindsight errors never propagate to the caller.
+- **Per-token rate limiting for Hindsight endpoints** (`server.js`) — simple in-memory sliding-window rate limiter (`_hindsightRateCheck`) applied to `POST /api/hindsight/retain` (60 req/min) and `POST /api/hindsight/recall` (120 req/min) per API token. Returns HTTP 429 with a descriptive message on excess. Constants `RL_RETAIN_MAX` / `RL_RECALL_MAX` / `RL_WINDOW_MS` at top of `server.js` for easy tuning.
+- **Hindsight setup guide in README** — new `### AI Memory (Hindsight)` section under `Building from Source`, covering: what gets remembered (table of content types, retention triggers, and tag scopes), Docker Compose quick-start, bare-metal pip install, single-container Docker run, app-side enable steps, image size comparison, and rate limit reference.
+
+### Changed — v1.0.0
+- **`APP_VERSION`** bumped to `1.0.0` in `src/flags.js` and `package.json`.
+
+---
+
 ### Added — v0.9.4 🖥️
 - **Memory Browser** (`src/settings.js`, `src/index.html`) — new "Browse" button in Settings → 🧠 Memory row opens `#modal-memory-browser`. The modal shows all retained memories for the current user with:
   - Search input (filters server-side via Hindsight `listMemories` `q` param)
