@@ -16,6 +16,72 @@ function _setStreamingUI(streaming) {
   if (sendBtn) sendBtn.disabled = streaming;
 }
 
+// ─── Hindsight helpers ───────────────────────────────────────────────────────────────────────────
+// Fire-and-forget: send chat messages to the Hindsight retain endpoint.
+// Called after saveChat() writes to IndexedDB; never awaited.
+function _hindsightRetain(chatId, messages) {
+  const serverUrl = state.settings.serverUrl;
+  const serverToken = state.settings.serverToken;
+  if (!serverUrl || !serverToken || !state.settings.hindsightEnabled) return;
+  const projectId = state.activeProject && state.activeProject.id;
+  if (!projectId) return;
+  const projectCategory =
+    (state.activeProject && state.activeProject.category) || "unknown";
+  const content = JSON.stringify(
+    messages.map((m) => ({
+      role: m.role,
+      content: (m.content || "").slice(0, 2000),
+    })),
+  );
+  const tags = ["project:" + projectId, "type:chat"];
+  const context = "project:" + projectId + " category:" + projectCategory;
+  fetch(serverUrl.replace(/\/$/, "") + "/api/hindsight/retain", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token: serverToken,
+      documentId: "chat:" + chatId,
+      content,
+      context,
+      tags,
+    }),
+  }).catch(() => {});
+}
+
+// Returns an array of recalled memory strings (or null on no-op / error).
+// Never throws. Times out after 2 s to never block chat.
+async function _hindsightRecall(query) {
+  const serverUrl = state.settings.serverUrl;
+  const serverToken = state.settings.serverToken;
+  if (!serverUrl || !serverToken || !state.settings.hindsightEnabled)
+    return null;
+  const projectId = state.activeProject && state.activeProject.id;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000);
+    const resp = await fetch(
+      serverUrl.replace(/\/$/, "") + "/api/hindsight/recall",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: serverToken,
+          query: query.slice(0, 500),
+          projectId: projectId || undefined,
+          budget: 2000,
+        }),
+        signal: controller.signal,
+      },
+    );
+    clearTimeout(timer);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.memories && data.memories.length ? data.memories : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 // ─── SEND MESSAGE ─────────────────────────────────────────────────────────────
 async function sendMessage() {
   if (state.streaming || !state.activeProject) return;
@@ -51,7 +117,10 @@ async function sendMessage() {
   state.messages.push({ role: "user", content: userDisplayText });
   appendMessageEl("user", userDisplayText);
 
-  const { context, sources, chunks } = await retrieveContext(text);
+  const [{ context, sources, chunks }, _memories] = await Promise.all([
+    retrieveContext(text),
+    _hindsightRecall(text),
+  ]);
 
   let systemPrompt = `You are SourceDesk, an expert AI assistant for strategic sourcing and procurement at a university. You help with RFPs, RFIs, vendor questionnaires, contract review, and supplier analysis.
 
@@ -59,6 +128,9 @@ Be precise, professional, and concise. Use procurement terminology correctly. Wh
 
   if (state.settings.globalContext)
     systemPrompt += `\n\n## Global Instructions\n${state.settings.globalContext}`;
+
+  if (_memories && _memories.length)
+    systemPrompt += `\n\n## Relevant Memories\n${_memories.join("\n")}`;
 
   if (state.activeProject) {
     systemPrompt += `\n\n## Current Project\nName: ${state.activeProject.name}\nCategory: ${state.activeProject.category}`;
@@ -349,6 +421,7 @@ async function saveChat() {
     };
     if (titleToKeep) record.title = titleToKeep;
     await dbPut("chats", record);
+    _hindsightRetain(state.activeChatId, state.messages);
   } else {
     // First message in a new session — create a record
     const id = uid();
@@ -372,6 +445,7 @@ async function saveChat() {
     };
     if (title) record.title = title;
     await dbPut("chats", record);
+    _hindsightRetain(id, state.messages);
     // Async LLM title generation — fire and forget
     if (firstContent)
       setTimeout(() => _generateChatTitle(id, firstContent), 800);

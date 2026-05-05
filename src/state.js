@@ -21,6 +21,7 @@ let state = {
     suggestionWebhook: "",
     serverUrl: "", // base URL of the SourceDesk server for email summaries + token mgmt
     serverToken: "", // API token for browser → server authenticated calls
+    hindsightEnabled: false, // enable Hindsight memory recall in chat
   },
   activeProject: null,
   activeDocs: new Set(),

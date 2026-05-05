@@ -602,6 +602,121 @@ function handler(req, res) {
     return;
   }
 
+  // ─── Hindsight retain (POST) ─────────────────────────────────────────────
+  // Body: { token, documentId?, content, context?, tags? }
+  // Returns: { ok: true } immediately; retain fires async in the background.
+  if (url === "/api/hindsight/retain" && req.method === "POST") {
+    let body = "";
+    req.on("data", (d) => {
+      body += d;
+    });
+    req.on("end", () => {
+      let payload;
+      try {
+        payload = JSON.parse(body || "{}");
+      } catch (_) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON body" }));
+        return;
+      }
+      const { token: reqToken, documentId, content, context, tags } = payload;
+      if (!reqToken) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing token" }));
+        return;
+      }
+      const tokens = loadTokens();
+      if (!tokens[reqToken]) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid API token" }));
+        return;
+      }
+      if (!_hindsight) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            ok: true,
+            skipped: true,
+            reason: "Hindsight not configured",
+          }),
+        );
+        return;
+      }
+      // Fire-and-forget: return immediately; retain happens in background
+      const owner =
+        tokens[reqToken].user || tokens[reqToken].label || "unknown";
+      _hindsight
+        .ensureBank(owner)
+        .then(() =>
+          _hindsight.retainContent(owner, {
+            content: content || "",
+            documentId: documentId || undefined,
+            context: context || undefined,
+            tags: Array.isArray(tags) ? tags : undefined,
+          }),
+        )
+        .catch((_e) => {});
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // ─── Hindsight recall (POST) ──────────────────────────────────────────────
+  // Body: { token, query, projectId?, budget? }
+  // Returns: { memories: string[], count: number }
+  if (url === "/api/hindsight/recall" && req.method === "POST") {
+    let body = "";
+    req.on("data", (d) => {
+      body += d;
+    });
+    req.on("end", () => {
+      let payload;
+      try {
+        payload = JSON.parse(body || "{}");
+      } catch (_) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON body" }));
+        return;
+      }
+      const { token: reqToken, query, projectId, budget } = payload;
+      if (!reqToken) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing token" }));
+        return;
+      }
+      const tokens = loadTokens();
+      if (!tokens[reqToken]) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid API token" }));
+        return;
+      }
+      if (!_hindsight) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ memories: [], count: 0 }));
+        return;
+      }
+      (async function () {
+        try {
+          const owner =
+            tokens[reqToken].user || tokens[reqToken].label || "unknown";
+          const result = await _hindsight.recallForQuery(owner, {
+            query: query || "",
+            projectId: projectId || undefined,
+            budget: budget || 2000,
+          });
+          const memories = (result && result.memories) || [];
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ memories, count: memories.length }));
+        } catch (e) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: e.message, memories: [], count: 0 }));
+        }
+      })();
+    });
+    return;
+  }
+
   // ─── Email summaries (GET) ──────────────────────────────────────────────────
   // Returns LLM-generated summaries for a project.
   // Query params: token=<api_token>&projectId=<id>
@@ -1304,7 +1419,7 @@ function handler(req, res) {
   // Anything else → 404
   res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
   res.end(
-    `Not found: ${url}\nAvailable endpoints: / /health /convert /backup /proxy /api/email-ingest /api/email-summaries /api/token-revoke`,
+    `Not found: ${url}\nAvailable endpoints: / /health /convert /backup /proxy /api/email-ingest /api/email-summaries /api/token-revoke /api/hindsight/status /api/hindsight/retain /api/hindsight/recall`,
   );
 }
 

@@ -116,6 +116,11 @@ function openSettings() {
   if (_serverUrlEl) _serverUrlEl.value = state.settings.serverUrl || "";
   const _serverTokenEl = document.getElementById("settings-server-token");
   if (_serverTokenEl) _serverTokenEl.value = state.settings.serverToken || "";
+  const _hindsightToggle = document.getElementById(
+    "settings-hindsight-enabled",
+  );
+  if (_hindsightToggle)
+    _hindsightToggle.checked = !!state.settings.hindsightEnabled;
   // Refresh token manager list if server URL is set
   if (state.settings.serverUrl && state.settings.serverToken) {
     openTokenManager();
@@ -248,6 +253,12 @@ async function saveSettings() {
     (document.getElementById("settings-server-token") || {}).value || "";
   await dbPut("settings", { key: "serverToken", value: serverToken });
   state.settings.serverToken = serverToken;
+
+  const hindsightEnabled = !!(
+    document.getElementById("settings-hindsight-enabled") || {}
+  ).checked;
+  state.settings.hindsightEnabled = hindsightEnabled;
+  await dbPut("settings", { key: "hindsightEnabled", value: hindsightEnabled });
 
   const emailSummBtn = document.getElementById("email-summaries-nav-btn");
   if (emailSummBtn) emailSummBtn.style.display = serverUrl ? "" : "none";

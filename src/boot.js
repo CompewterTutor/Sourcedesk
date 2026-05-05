@@ -63,6 +63,9 @@ async function boot() {
     if (serverUrl) state.settings.serverUrl = serverUrl.value;
     const serverToken = await dbGet("settings", "serverToken");
     if (serverToken) state.settings.serverToken = serverToken.value;
+    const hindsightEnabled = await dbGet("settings", "hindsightEnabled");
+    if (hindsightEnabled)
+      state.settings.hindsightEnabled = !!hindsightEnabled.value;
     // Apply .env defaults injected by server.js (only if DB has no saved value)
     const _senv = window.__SOURCEDESK_ENV__ || {};
     if (!state.settings.localLlmUrl && _senv.localLlmUrl) {

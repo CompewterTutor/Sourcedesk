@@ -11,6 +11,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — v0.9.2 🖥️
+- **`POST /api/hindsight/retain`** (`server.js`) — new token-authenticated endpoint. Body: `{ token, documentId?, content, context?, tags? }`. Validates token, then fires `ensureBank(owner)` → `retainContent(owner, ...)` as a **fire-and-forget** promise chain and immediately responds `{ ok: true }` — the caller never waits on the retain. If Hindsight is not configured, responds `{ ok: true, skipped: true }` with HTTP 200 (graceful no-op).
+- **`POST /api/hindsight/recall`** (`server.js`) — new token-authenticated endpoint. Body: `{ token, query, projectId?, budget? }`. Returns `{ memories: string[], count: number }`. Calls `recallForQuery(owner, { query, projectId, budget: 2000 })` on the Hindsight adapter. If Hindsight is not configured, returns `{ memories: [], count: 0 }` with HTTP 200.
+- **`_hindsightRetain(chatId, messages)`** (`src/chat.js`) — fire-and-forget helper that POSTs the current session's messages to `/api/hindsight/retain` after every `saveChat()` DB write. Tags each retain with `project:<projectId>` and `type:chat`. No-ops silently when `hindsightEnabled` is false, server URL/token is missing, or no project is active.
+- **`_hindsightRecall(query)`** (`src/chat.js`) — async helper called at the start of every `sendMessage()` in parallel with BM25 retrieval. Returns `string[] | null`. Has a hard 2-second `AbortController` timeout — never blocks chat. Returns `null` on timeout, HTTP error, or when not configured.
+- **Parallel recall + retrieval** (`src/chat.js` `sendMessage()`) — `retrieveContext(text)` and `_hindsightRecall(text)` now run concurrently via `Promise.all`. If memories are returned, they are injected into the system prompt as `## Relevant Memories` between `## Global Instructions` and `## Current Project`.
+- **"Enable memory recall in chat" toggle** (`src/index.html`, `src/settings.js`, `src/state.js`) — new `#settings-hindsight-enabled` checkbox in Settings → Server Connection, below the Hindsight status row. Saved to IndexedDB as `hindsightEnabled`. Loaded at boot into `state.settings.hindsightEnabled`. When unchecked, all Hindsight calls are suppressed client-side.
+
+### Changed — v0.9.2
+- **`APP_VERSION`** bumped to `0.9.2` in `src/flags.js` and `package.json`.
+- **`build.js` `mangle.reserved`** — added `toggleHindsight`.
+
+---
+
 ### Added — v0.9.1 🖥️
 - **`server/hindsight.js`** — new Hindsight memory adapter module. Wraps `@vectorize-io/hindsight-client` with full graceful degradation: if `HINDSIGHT_API_URL` is not set or the SDK is not installed, all exports are safe no-ops that return `null`/empty arrays. Exports: `getClient()`, `ensureBank(userId)`, `retainContent(userId, opts)`, `recallForQuery(userId, opts)`, `getStatus(userId)`. Bank auto-creation applies a procurement-domain config (retain/observations/reflect missions, disposition traits, entity labels for vendor, project_type, deadline) via `updateBankConfig`. Bank ID = userId (one bank per SourceDesk user). `retainContent` always uses `async: true` (fire-and-forget). `recallForQuery` uses `tagsMatch: 'any_strict'` for project-scoped recall to prevent cross-project memory bleed.
 - **`migrations/002_hindsight_settings.sql`** — new `user_hindsight` table tracking per-user bank ID and enabled flag; compatible with SQLite and PostgreSQL.
