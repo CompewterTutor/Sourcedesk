@@ -211,8 +211,11 @@ Copy `.env.example` to `.env` and configure:
 PORT=3000
 LOCAL_LLM_URL=http://localhost:11434/v1  # Ollama / LM Studio base URL
 
-# Optional: SQLite persistence (install: npm install better-sqlite3)
+# Database — choose one:
+# SQLite  (install: npm install better-sqlite3)
 DATABASE_URL=sqlite:./data/sourcedesk.db
+# PostgreSQL (install: npm install pg)
+# DATABASE_URL=postgres://user:password@localhost:5432/sourcedesk
 
 # Optional: server-side LLM for email summarization
 LLM_PROVIDER=anthropic
@@ -221,6 +224,12 @@ ANTHROPIC_API_KEY=sk-ant-…
 ```
 
 Then `npm run serve` and open `http://localhost:3000`.
+
+Migrations run automatically on startup. To run them manually:
+
+```sh
+npm run migrate
+```
 
 ### Email Ingest API
 
@@ -237,6 +246,134 @@ curl -X POST http://localhost:3000/api/email-ingest \
 ```
 
 If `DATABASE_URL` and `LLM_PROVIDER` are configured, the server stores threads and asynchronously generates per-thread and project-level summaries with the configured LLM. Retrieve them with `GET /api/email-summaries?token=<TOKEN>&projectId=my-rfp`.
+
+### Using an existing PostgreSQL database
+
+SourceDesk's server supports PostgreSQL out of the box — no need to spin up a new database if one is already running. The `pg` package is declared as an optional dependency; install it once:
+
+```sh
+npm install pg
+```
+
+Then point `DATABASE_URL` at your existing database. Migrations run automatically on `npm run serve` (or manually with `npm run migrate`).
+
+#### Connection string format
+
+```
+postgres://USER:PASSWORD@HOST:PORT/DATABASE
+```
+
+| Part | Example | Notes |
+|---|---|---|
+| `USER` | `sourcedesk` | Must have CREATE TABLE / CREATE INDEX privileges for first-run migration |
+| `PASSWORD` | `s3cr3t` | URL-encode special characters (`@` → `%40`, `#` → `%23`) |
+| `HOST` | `localhost` | Hostname or IP — see per-scenario notes below |
+| `PORT` | `5432` | Default PostgreSQL port |
+| `DATABASE` | `sourcedesk` | Create the database before first run: `createdb sourcedesk` |
+
+#### Scenario A — Postgres running natively (bare-metal / system service)
+
+If PostgreSQL is installed directly on your machine (via Homebrew, `apt`, the Postgres.app, etc.) and listening on `localhost`:
+
+```sh
+# Create the database (first time only)
+createdb sourcedesk
+# or: psql -U postgres -c "CREATE DATABASE sourcedesk;"
+
+# .env
+DATABASE_URL=postgres://YOUR_PG_USER:YOUR_PG_PASS@localhost:5432/sourcedesk
+```
+
+Then `npm run serve` — migrations run automatically.
+
+> **Tip — macOS Homebrew:** `brew services start postgresql@16` starts Postgres at login. The default superuser is your macOS username with no password, so the URL becomes `postgres://$(whoami)@localhost:5432/sourcedesk`.
+
+> **Tip — pgvector:** If you plan to use server-side RAG embeddings in a future release, install the `pgvector` extension now:
+> ```sql
+> -- run once as a superuser
+> CREATE EXTENSION IF NOT EXISTS vector;
+> ```
+
+#### Scenario B — Postgres running in an existing Docker container
+
+If you already have a Postgres container running (not the one in `docker-compose.yml`), find the container's published port:
+
+```sh
+docker ps --filter ancestor=postgres
+# PORTS: 0.0.0.0:5432->5432/tcp  ← the host port
+```
+
+Then point `DATABASE_URL` at `localhost` (or `127.0.0.1`) with that host port — **from the SourceDesk Node process running on the host** this is just `localhost`:
+
+```sh
+# .env (running npm run serve directly on the host)
+DATABASE_URL=postgres://sourcedesk:sourcedeskpass@localhost:5432/sourcedesk
+```
+
+If the SourceDesk server is **also** in a Docker container (i.e. you ran `docker compose up` for the SourceDesk service but want it to talk to a *separate* pre-existing Postgres container), the two containers must share a Docker network. The simplest approach:
+
+```sh
+# Find the network your existing Postgres container is on
+docker inspect <postgres-container-name> --format '{{json .NetworkSettings.Networks}}'
+
+# Attach the SourceDesk container to the same network
+# In docker-compose.yml, add under `web:`:
+#   networks:
+#     - existing_net
+# and at the bottom:
+# networks:
+#   existing_net:
+#     external: true
+#     name: <your-existing-network-name>
+```
+
+Then in `docker-compose.yml` set:
+```yaml
+DATABASE_URL: "postgres://user:pass@<postgres-container-name>:5432/sourcedesk"
+```
+
+Alternatively, expose the Postgres container's port to the host (`-p 5432:5432` or `ports: ["5432:5432"]`) and use `host.docker.internal` as the hostname (works on Docker Desktop for Mac/Windows; on Linux use `172.17.0.1` or `--add-host=host.docker.internal:host-gateway`):
+
+```yaml
+# docker-compose.yml — SourceDesk container → host-side Postgres
+DATABASE_URL: "postgres://user:pass@host.docker.internal:5432/sourcedesk"
+```
+
+#### Scenario C — Postgres running in a Podman container
+
+Same as Scenario B but use `podman` commands:
+
+```sh
+podman ps --filter ancestor=postgres
+podman inspect <container> --format '{{json .NetworkSettings.Networks}}'
+```
+
+On rootless Podman, `host.docker.internal` is not available. Use the host's IP on the `podman` bridge network (typically `10.0.2.2` inside the container, or obtain it with `ip route show default` from inside the container).
+
+#### First-run migrations
+
+SourceDesk automatically runs `migrations/001_initial.sql` (and any later migrations) the first time the server starts with a new database. The schema is compatible with both SQLite and PostgreSQL. You can also run migrations explicitly:
+
+```sh
+DATABASE_URL=postgres://user:pass@localhost:5432/sourcedesk node scripts/migrate.js
+# or, if DATABASE_URL is already in .env:
+npm run migrate
+```
+
+Migrations are idempotent — they are tracked in the `schema_migrations` table and skipped if already applied.
+
+#### Recommended Postgres role setup
+
+```sql
+-- Run as superuser once
+CREATE ROLE sourcedesk WITH LOGIN PASSWORD 'choose-a-strong-password';
+CREATE DATABASE sourcedesk OWNER sourcedesk;
+-- Optional (future RAG support):
+\c sourcedesk
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+---
 
 ### Running with Docker
 

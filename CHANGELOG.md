@@ -11,6 +11,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] 🖥️
 
+### Changed
+- **README — `### Using an existing PostgreSQL database` section** 🖥️ — new section between `### Email Ingest API` and `### Running with Docker` covering how to connect SourceDesk's server to an already-running Postgres instance without spinning up a new one:
+  - *Connection string format* table (`USER / PASSWORD / HOST / PORT / DATABASE` with notes on privileges and URL-encoding).
+  - *Scenario A — native / bare-metal* — Postgres installed via Homebrew, `apt`, or Postgres.app; `localhost` connection string; macOS Homebrew `brew services` tip; pgvector extension tip for future RAG.
+  - *Scenario B — existing Docker container* — host-side Node.js → published port (`localhost`); container-to-container via shared Docker network (by container name) or `host.docker.internal` (Mac/Windows) / `172.17.0.1` / `--add-host` (Linux).
+  - *Scenario C — rootless Podman container* — `host.docker.internal` unavailable; bridge IP (`10.0.2.2`) workaround.
+  - *First-run migrations* — idempotent, auto-run on `npm run serve`, manual `npm run migrate` also documented.
+  - *Recommended Postgres role setup* SQL block (`CREATE ROLE / DATABASE / EXTENSION vector`).
+- **README — `### Local server setup`** — `.env` snippet now shows both SQLite and Postgres `DATABASE_URL` options side-by-side with install hints; added `npm run migrate` note below the snippet.
+
 ### Added
 - **Project ID copy in Edit Project modal** (`src/index.html`, `src/projects.js`) — when editing an existing project the modal now shows a read-only **Project ID** field in `DM Mono` font with a **📋 Copy** button. Clicking copies the ID to the clipboard and shows a brief "✓ Copied!" flash. The row is hidden entirely in New Project (create) mode. Useful for constructing `projectId` values in email-ingest API calls, curl scripts, and Power Automate flows. `copyProjectId()` added to `build.js` `mangle.reserved`.
 - **End-of-session checklist in `CLAUDE.md`** — new `### End-of-session checklist` under Dev Workflow enumerates the 7-step sequence (build → changelog → README → CLAUDE.md → version bump → commit message draft → confirm & push) that every coding session must complete before wrapping up. A matching one-liner reminder added to the `### Commits` section.

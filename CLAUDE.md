@@ -487,6 +487,18 @@ When adding a new object store or index:
 
 **Current version: v0.8.0** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
 
+> **Session note (current — PostgreSQL existing-database docs):**
+> Docs-only change; no source files or build output changed.
+>
+> 1. **`README.md` — `### Using an existing PostgreSQL database` section** — new section placed between `### Email Ingest API` and `### Running with Docker`. Covers four sub-topics:
+>    - **Connection string format** table (USER / PASSWORD / HOST / PORT / DATABASE with notes)
+>    - **Scenario A** — native / bare-metal Postgres (`localhost`); Homebrew tip; pgvector extension tip
+>    - **Scenario B** — Postgres already in a Docker container: host-process path (localhost), container-to-container path (shared Docker network + `host.docker.internal` fallback for Mac/Windows + Linux `172.17.0.1` / `--add-host` note)
+>    - **Scenario C** — rootless Podman container; `host.docker.internal` unavailable; bridge IP workaround
+>    - **First-run migrations** — idempotent, auto-run on startup, `npm run migrate` for manual
+>    - **Recommended Postgres role setup** SQL block (`CREATE ROLE / DATABASE / EXTENSION vector`)
+> 2. **`### Local server setup`** — `.env.example` snippet updated to show SQLite and Postgres `DATABASE_URL` options side-by-side; added `npm run migrate` note.
+
 > **Session note (2025-07-21 — project ID copy UI + container deployment docs + end-of-session checklist):**
 > All changes below are complete, documented, and committed.
 >
