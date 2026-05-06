@@ -12,6 +12,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **SourceDesk Chrome Extension** (`SourceDesk_chrome_extension/`) — new companion MV3 Chrome extension with a sidebar UI for utility workflows that complement SourceDesk. Matches the SourceDesk dark theme (same CSS variables, color palette, and fonts).
+  - **Bidnet module** — sidebar panel for bulk Q&A management on [BidNet Direct](https://www.bidnetdirect.com):
+    - **Load All Questions** — manipulates the page URL querystring (`searchCriteria.pageSize=9999`) to bypass the 100-per-page UI limit and show all questions at once
+    - **Extract Q&A to CSV** — scrapes the Q&A table and downloads a CSV with question ID, number, vendor, question text, answer text, visibility, status, and date
+    - **Load CSV** — drag-and-drop or browse for a CSV (`question_number, answer, visibility, comment` columns); preview first 5 rows; count badge
+    - **Batch Fill Answers** — iterates CSV rows, navigates to each answer form, fills visibility dropdown (`#answerTypeDropdown`), answer textarea (`#answerQuestion_answer_input_EN`), and optional comment (`#answer.workingRevision.internalComment`), then clicks "Save & Quit" (`button[data-href*="target=save"]`); configurable delay between actions; progress bar with Stop button; supports UI-click or programmatic form submit
+    - **Batch Visibility Change** — select questions via checkboxes in the Questions table, choose Public or Private, apply in batch
+    - **Questions Table** — refresh from page, search/filter, Select All / Deselect All, per-row "Go" button to navigate directly to that question's answer form; CSV match indicator
+    - Collapsible cards, timestamped colour-coded status log (success/error/info), per-action progress label
+  - **Bottom tab bar** — persistent navigation with placeholder tabs for future modules (SourceDesk integration, Settings)
+  - All DOM selectors confirmed against captured live BidNet HTML source in `docs/bidnet_src/`
+  - `generate-icons.html` — open in any browser tab to draw and download the 4 required extension icon PNGs
 - **Multiple Working Documents** 🗄️ **DB_VERSION 13** — each project can now hold multiple named working documents. A dropdown selector in the Working Doc view header lets you switch between documents, create new ones (+), rename (✏), and delete (✕) them. Existing `projects.workingContent` is auto-migrated to a "Working Document" entry in the new `workingDocs` store on first load. Version history is scoped per document. `workingDocs` included in export / import / backup / cascade-delete flows.
 - **Writing Style Capture** (`src/style.js`, Settings modal) — new ✍ Writing Style row in Settings with a **Configure** modal. Paste or upload old communications (emails, reports, messages); click **✨ Generate Profile** to run them through the active LLM and extract a compact style profile. When "Apply to AI responses" is checked, the profile is injected into every chat system prompt as `## Writing Style`. Profile is stored in IndexedDB; samples are transient (not stored).
 - **Multiple Docker Compose variants + Makefile targets** — `docker-compose.sqlite.yml` (SQLite only, no db/Hindsight services) and `docker-compose.pgsql-local.yml` (connect to an existing/host PostgreSQL, optional Hindsight). `Makefile` gains `compose-up-sqlite`, `compose-down-sqlite`, `compose-up-pgsql-local`, `compose-down-pgsql-local`. `make help` now shows a structured multi-section output.

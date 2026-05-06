@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SourceDesk — Generate Icons</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0f0e0c;
+      color: #e8e4dc;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      gap: 32px;
+    }
+    h1 {
+      font-size: 22px;
+      color: #c9a84c;
+      margin: 0;
+      letter-spacing: 0.04em;
+    }
+    p {
+      color: #a8a49c;
+      font-size: 13px;
+      margin: 0;
+      text-align: center;
+    }
+    .grid {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .icon-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      background: #191816;
+      border: 1px solid #2e2c28;
+      border-radius: 10px;
+      padding: 20px 24px;
+    }
+    .icon-card span {
+      font-size: 11px;
+      color: #72706a;
+      font-family: 'Courier New', monospace;
+    }
+    canvas {
+      image-rendering: pixelated;
+      /* Show at a readable size regardless of actual pixel dimensions */
+      width: 128px;
+      height: 128px;
+      border-radius: 18%;
+      box-shadow: 0 0 0 1px #3a3834;
+    }
+    a.download-btn {
+      display: inline-block;
+      padding: 7px 16px;
+      background: #7a6430;
+      border: 1px solid #c9a84c;
+      color: #c9a84c;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    a.download-btn:hover { background: #8c7235; }
+    .instructions {
+      background: #191816;
+      border: 1px solid #2e2c28;
+      border-radius: 8px;
+      padding: 16px 20px;
+      max-width: 480px;
+      font-size: 12px;
+      color: #a8a49c;
+      line-height: 1.7;
+    }
+    .instructions code {
+      background: #22201e;
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: #c9a84c;
+      font-size: 11px;
+    }
+    ol { margin: 8px 0 0 16px; padding: 0; }
+    ol li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+<h1>SourceDesk — Icon Generator</h1>
+<p>Click each download button and save the file into <code>images/</code> with the exact filename shown.</p>
+
+<div class="grid" id="icon-grid"></div>
+
+<div class="instructions">
+  <strong style="color:#e8e4dc;">Instructions</strong>
+  <ol>
+    <li>Click all four <strong>Download</strong> buttons below.</li>
+    <li>Save each file into the <code>images/</code> folder inside the extension directory.</li>
+    <li>Make sure the filenames are exactly: <code>icon-16.png</code>, <code>icon-32.png</code>, <code>icon-48.png</code>, <code>icon-128.png</code>.</li>
+    <li>Load/reload the extension in Chrome at <code>chrome://extensions</code>.</li>
+  </ol>
+</div>
+
+<script>
+'use strict';
+
+var SIZES = [16, 32, 48, 128];
+
+// Design tokens
+var BG      = '#0f0e0c';
+var SURFACE = '#191816';
+var ACCENT  = '#c9a84c';
+var TEXT    = '#e8e4dc';
+
+/**
+ * Draw the SourceDesk "S" icon onto a canvas at the given size.
+ * Returns the canvas element.
+ */
+function drawIcon(size) {
+  var canvas = document.createElement('canvas');
+  canvas.width  = size;
+  canvas.height = size;
+  var ctx = canvas.getContext('2d');
+
+  var w = size;
+  var h = size;
+
+  // ── Background ─────────────────────────────────────────────────────
+  // Rounded rectangle background
+  var r = w * 0.18; // corner radius as fraction of size
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.lineTo(w - r, 0);
+  ctx.quadraticCurveTo(w, 0, w, r);
+  ctx.lineTo(w, h - r);
+  ctx.quadraticCurveTo(w, h, w - r, h);
+  ctx.lineTo(r, h);
+  ctx.quadraticCurveTo(0, h, 0, h - r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+  ctx.fillStyle = SURFACE;
+  ctx.fill();
+
+  // ── Subtle inner glow / gradient overlay ─────────────────────────
+  var grad = ctx.createRadialGradient(w * 0.35, h * 0.30, 0, w * 0.5, h * 0.5, w * 0.7);
+  grad.addColorStop(0, 'rgba(201,168,76,0.10)');
+  grad.addColorStop(1, 'rgba(201,168,76,0.00)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // ── Draw "S" ──────────────────────────────────────────────────────
+  var fontSize = Math.round(w * 0.62);
+  ctx.font = 'bold ' + fontSize + 'px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Accent glow shadow
+  ctx.shadowColor   = 'rgba(201,168,76,0.55)';
+  ctx.shadowBlur    = w * 0.18;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  ctx.fillStyle = ACCENT;
+  // Slight upward nudge for visual centering (descenders etc.)
+  ctx.fillText('S', w * 0.5, h * 0.515);
+
+  // ── Thin accent border ring ───────────────────────────────────────
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur  = 0;
+
+  ctx.beginPath();
+  ctx.moveTo(r + 0.5, 0.5);
+  ctx.lineTo(w - r - 0.5, 0.5);
+  ctx.quadraticCurveTo(w - 0.5, 0.5,    w - 0.5, r + 0.5);
+  ctx.lineTo(w - 0.5, h - r - 0.5);
+  ctx.quadraticCurveTo(w - 0.5, h - 0.5, w - r - 0.5, h - 0.5);
+  ctx.lineTo(r + 0.5, h - 0.5);
+  ctx.quadraticCurveTo(0.5, h - 0.5, 0.5, h - r - 0.5);
+  ctx.lineTo(0.5, r + 0.5);
+  ctx.quadraticCurveTo(0.5, 0.5, r + 0.5, 0.5);
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(201,168,76,0.28)';
+  ctx.lineWidth   = Math.max(1, size / 32);
+  ctx.stroke();
+
+  return canvas;
+}
+
+/**
+ * Build one icon card for the given size: canvas preview + download button.
+ */
+function buildCard(size) {
+  var canvas   = drawIcon(size);
+  var filename = 'icon-' + size + '.png';
+
+  var card = document.createElement('div');
+  card.className = 'icon-card';
+
+  var label = document.createElement('span');
+  label.textContent = size + ' × ' + size + ' px';
+
+  var link = document.createElement('a');
+  link.className    = 'download-btn';
+  link.textContent  = '⬇ Download ' + filename;
+  link.download     = filename;
+
+  // Generate PNG data URL and assign to href
+  link.href = canvas.toDataURL('image/png');
+
+  card.appendChild(canvas);
+  card.appendChild(label);
+  card.appendChild(link);
+
+  return card;
+}
+
+// Render all four size cards
+var grid = document.getElementById('icon-grid');
+SIZES.forEach(function(size) {
+  grid.appendChild(buildCard(size));
+});
+</script>
+</body>
+</html>

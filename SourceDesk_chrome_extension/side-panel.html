@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SourceDesk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Syne:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Design Tokens ─────────────────────────────────────────────── */
+    :root {
+      --bg:           #0f0e0c;
+      --surface:      #191816;
+      --surface2:     #22201e;
+      --border:       #2e2c28;
+      --border-light: #3a3834;
+      --accent:       #c9a84c;
+      --accent-dim:   #7a6430;
+      --accent-glow:  rgba(201, 168, 76, 0.12);
+      --text:         #e8e4dc;
+      --text-dim:     #a8a49c;
+      --text-muted:   #72706a;
+      --danger:       #c0513a;
+      --success:      #5a9e6f;
+      --radius:       6px;
+      --radius-lg:    10px;
+    }
+
+    /* ─── Reset / Base ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow: hidden;
+    }
+
+    /* ─── App Shell ─────────────────────────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    /* ─── Topbar ────────────────────────────────────────────────────── */
+    #topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px 11px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 8px;
+    }
+    #topbar .logo-group {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    #topbar .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+    }
+    #topbar .logo-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-style: italic;
+      color: var(--text-muted);
+    }
+    #topbar .module-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      background: var(--accent-glow);
+      border: 1px solid var(--accent-dim);
+      color: var(--accent);
+      padding: 2px 7px;
+      border-radius: 20px;
+    }
+
+    /* ─── Panel Body ────────────────────────────────────────────────── */
+    #panel-body {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .view {
+      display: none;
+      height: 100%;
+      overflow-y: auto;
+      padding: 10px 10px 12px;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .view.active { display: flex; }
+
+    /* Scrollbar styling */
+    .view::-webkit-scrollbar { width: 5px; }
+    .view::-webkit-scrollbar-track { background: var(--bg); }
+    .view::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+    .view::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ─── Cards ─────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px 8px;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      transition: background 0.15s;
+    }
+    .card-header:hover { background: #28261f; }
+    .card-header .card-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: var(--text-dim);
+    }
+    .card-header .collapse-icon {
+      color: var(--text-muted);
+      font-size: 10px;
+      transition: transform 0.2s;
+    }
+    .card.collapsed .collapse-icon { transform: rotate(-90deg); }
+    .card-body {
+      padding: 10px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .card.collapsed .card-body { display: none; }
+
+    /* ─── Buttons ────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 7px 11px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-light);
+      background: var(--surface2);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #2c2a26; border-color: var(--text-muted); }
+    .btn:active { transform: translateY(1px); }
+    .btn.btn-accent {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .btn.btn-accent:hover { background: #8c7235; }
+    .btn.btn-accent-solid {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0f0e0c;
+      font-weight: 600;
+    }
+    .btn.btn-accent-solid:hover { background: #d9b85a; }
+    .btn.btn-danger {
+      background: rgba(192, 81, 58, 0.15);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+    .btn.btn-danger:hover { background: rgba(192, 81, 58, 0.28); }
+    .btn.btn-sm {
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+    .btn.btn-full { width: 100%; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+    /* ─── Form Controls ─────────────────────────────────────────────── */
+    label.form-label {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+    }
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .form-row-inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    input[type="text"],
+    input[type="number"],
+    input[type="search"],
+    select,
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      padding: 6px 9px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="search"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent-dim);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+    select option { background: var(--surface2); }
+    textarea { resize: vertical; min-height: 56px; font-size: 11px; }
+    input[type="number"] { width: 80px; }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+    .checkbox-row input[type="checkbox"] {
+      width: 13px; height: 13px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .radio-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .radio-group label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+    }
+    .radio-group input[type="radio"] { accent-color: var(--accent); cursor: pointer; }
+
+    /* ─── Log / Status ──────────────────────────────────────────────── */
+    #log-output {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      line-height: 1.6;
+      min-height: 52px;
+      max-height: 120px;
+      overflow-y: auto;
+      color: var(--text-muted);
+    }
+    #log-output::-webkit-scrollbar { width: 4px; }
+    #log-output::-webkit-scrollbar-track { background: transparent; }
+    #log-output::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .log-entry { display: block; }
+    .log-entry.log-success { color: var(--success); }
+    .log-entry.log-error   { color: var(--danger); }
+    .log-entry.log-info    { color: var(--text-muted); }
+    .log-ts { color: var(--text-muted); margin-right: 5px; }
+
+    /* ─── Progress Bar ──────────────────────────────────────────────── */
+    #progress-wrap {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+    }
+    #progress-wrap.visible { display: flex; }
+    #progress-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+    #progress-bar-track {
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    #progress-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+
+    /* ─── File Drop Zone ────────────────────────────────────────────── */
+    #csv-dropzone {
+      border: 1.5px dashed var(--border-light);
+      border-radius: var(--radius);
+      padding: 16px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--text-muted);
+      font-size: 12px;
+      position: relative;
+    }
+    #csv-dropzone:hover,
+    #csv-dropzone.drag-over {
+      border-color: var(--accent-dim);
+      background: var(--accent-glow);
+      color: var(--text-dim);
+    }
+    #csv-dropzone .drop-icon { font-size: 22px; display: block; margin-bottom: 4px; }
+    #csv-dropzone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+
+    /* ─── CSV Preview ───────────────────────────────────────────────── */
+    #csv-preview-wrap { display: none; }
+    #csv-preview-wrap.visible { display: block; }
+    .csv-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: 20px;
+      border: 1px solid var(--border-light);
+      color: var(--text-dim);
+      background: var(--surface2);
+      letter-spacing: 0.5px;
+    }
+    .badge.badge-accent {
+      border-color: var(--accent-dim);
+      color: var(--accent);
+      background: var(--accent-glow);
+    }
+    .badge.badge-success {
+      border-color: var(--success);
+      color: var(--success);
+      background: rgba(90,158,111,0.1);
+    }
+
+    /* ─── Tables ────────────────────────────────────────────────────── */
+    .mini-table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    .mini-table-wrap::-webkit-scrollbar { height: 4px; }
+    .mini-table-wrap::-webkit-scrollbar-track { background: var(--bg); }
+    .mini-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+    table.data-table thead th {
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 6px 8px;
+      text-align: left;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border);
+    }
+    table.data-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+      cursor: pointer;
+    }
+    table.data-table tbody tr:last-child { border-bottom: none; }
+    table.data-table tbody tr:hover { background: var(--surface2); }
+    table.data-table tbody tr.selected { background: var(--accent-glow); }
+    table.data-table tbody td {
+      padding: 5px 8px;
+      color: var(--text-dim);
+      vertical-align: middle;
+    }
+    table.data-table tbody td.mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+    }
+
+    /* ─── Questions Table Toolbar ───────────────────────────────────── */
+    #questions-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    #question-search {
+      flex: 1;
+      min-width: 100px;
+      padding: 5px 8px;
+      font-size: 11px;
+    }
+    #questions-count-badge { flex-shrink: 0; }
+    .questions-table-wrap {
+      max-height: 260px;
+      overflow-y: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    .questions-table-wrap::-webkit-scrollbar { width: 4px; }
+    .questions-table-wrap::-webkit-scrollbar-track { background: var(--bg); }
+    .questions-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .questions-table-wrap table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 20px 12px;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-style: italic;
+    }
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 5px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Visibility Icons ──────────────────────────────────────────── */
+    .vis-icon-public  { color: var(--success); font-size: 12px; }
+    .vis-icon-private { color: var(--accent-dim); font-size: 12px; }
+    .status-answered { color: var(--success); font-size: 10px; font-family: 'JetBrains Mono', monospace; }
+    .status-open     { color: var(--text-muted); font-size: 10px; font-family: 'JetBrains Mono', monospace; }
+    .csv-match-yes   { color: var(--success); }
+    .csv-match-no    { color: var(--border-light); }
+
+    /* ─── Section Dividers ──────────────────────────────────────────── */
+    .subsection-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-muted);
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2px;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2px 0;
+    }
+
+    /* ─── Coming Soon Views ─────────────────────────────────────────── */
+    .coming-soon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 10px;
+      color: var(--text-muted);
+    }
+    .coming-soon .cs-icon { font-size: 36px; }
+    .coming-soon .cs-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      color: var(--text-dim);
+    }
+    .coming-soon .cs-sub { font-size: 11px; font-style: italic; }
+
+    /* ─── Bottom Tabs ────────────────────────────────────────────────── */
+    #bottom-tabs {
+      display: flex;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 4px 8px;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      border-top: 2px solid transparent;
+      transition: all 0.15s;
+      line-height: 1;
+    }
+    .tab-btn .tab-icon { font-size: 18px; }
+    .tab-btn:hover { color: var(--text); background: var(--surface2); }
+    .tab-btn.active { color: var(--accent); border-top-color: var(--accent); }
+  </style>
+</head>
+
+<body>
+<div id="app">
+
+  <!-- ── Topbar ─────────────────────────────────────────────────────── -->
+  <header id="topbar">
+    <div class="logo-group">
+      <span class="logo">SourceDesk</span>
+      <span class="logo-sub">· Utility</span>
+    </div>
+    <span class="module-badge" id="module-badge">BIDNET</span>
+  </header>
+
+  <!-- ── Panel Body ────────────────────────────────────────────────── -->
+  <main id="panel-body">
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         VIEW: BIDNET
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="view-bidnet" class="view active">
+
+      <!-- ── Section A: Page Controls ─────────────────────────────── -->
+      <div class="card" id="card-pagecontrols">
+        <div class="card-header" onclick="toggleCard('card-pagecontrols')">
+          <span class="card-title">Page Controls</span>
+          <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-body">
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn btn-accent" id="btn-load-all" onclick="sendLoadAllQuestions()">
+              🔍 Load All Questions
+            </button>
+            <button class="btn" id="btn-extract-qa" onclick="sendExtractQA()">
+              📥 Extract Q&amp;A to CSV
+            </button>
+          </div>
+          <div class="form-row">
+            <label class="form-label">Status Log</label>
+            <div id="log-output"><span class="log-entry log-info"><span class="log-ts">--:--:--</span>Ready.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section B: Load CSV ───────────────────────────────────── -->
+      <div class="card" id="card-loadcsv">
+        <div class="card-header" onclick="toggleCard('card-loadcsv')">
+          <span class="card-title">Load Data</span>
+          <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-body">
+          <div id="csv-dropzone"
+               ondragover="handleDragOver(event)"
+               ondragleave="handleDragLeave(event)"
+               ondrop="handleDrop(event)">
+            <span class="drop-icon">📂</span>
+            <span>Drop CSV or click to browse</span>
+            <input type="file" id="csv-file-input" accept=".csv,text/csv" onchange="handleFileSelect(event)" />
+          </div>
+
+          <div id="csv-preview-wrap">
+            <div class="csv-meta-row">
+              <span class="form-label">Preview (first 5 rows)</span>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <span class="badge badge-accent" id="csv-count-badge">0 rows</span>
+                <button class="btn btn-sm btn-danger" onclick="clearCsvData()">Clear Data</button>
+              </div>
+            </div>
+            <div class="mini-table-wrap">
+              <table class="data-table" id="csv-preview-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Q#</th>
+                    <th>Answer</th>
+                    <th>Visibility</th>
+                    <th>Comment</th>
+                  </tr>
+                </thead>
+                <tbody id="csv-preview-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Section C: Batch Operations ──────────────────────────── -->
+      <div class="card" id="card-batch">
+        <div class="card-header" onclick="toggleCard('card-batch')">
+          <span class="card-title">Batch Actions</span>
+          <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-body">
+
+          <!-- Fill Answers sub-section -->
+          <div class="subsection-title">Fill Answers from CSV</div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="chk-use-ui" checked />
+            Submit via UI clicks (recommended)
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="chk-override-vis" checked />
+            Override visibility from CSV column
+          </label>
+
+          <div class="form-row-inline">
+            <div class="form-row" style="flex:1;">
+              <label class="form-label">Default Visibility</label>
+              <select id="sel-default-vis">
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label class="form-label">Delay (ms)</label>
+              <input type="number" id="inp-delay" value="800" min="100" max="10000" step="100" />
+            </div>
+          </div>
+
+          <button class="btn btn-accent-solid btn-full" id="btn-start-fill" onclick="startFilling()">
+            ▶ Start Filling Answers
+          </button>
+
+          <div id="progress-wrap">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <span id="progress-label" class="form-label">0 / 0</span>
+              <button class="btn btn-sm btn-danger" id="btn-stop" onclick="stopFilling()">⏹ Stop</button>
+            </div>
+            <div id="progress-bar-track">
+              <div id="progress-bar-fill"></div>
+            </div>
+          </div>
+
+          <hr class="divider" />
+
+          <!-- Batch Visibility sub-section -->
+          <div class="subsection-title">Batch Visibility Change</div>
+          <p style="font-size:11px; color:var(--text-muted);">Use checkboxes in the table below to select questions.</p>
+
+          <div class="form-row-inline" style="align-items:center; flex-wrap:wrap; gap:10px;">
+            <span class="form-label" style="white-space:nowrap;">Change selected to:</span>
+            <div class="radio-group">
+              <label><input type="radio" name="batch-vis" value="public" checked /> Public</label>
+              <label><input type="radio" name="batch-vis" value="private" /> Private</label>
+            </div>
+          </div>
+          <button class="btn btn-full" onclick="applyBatchVisibility()">Apply to Selected</button>
+        </div>
+      </div>
+
+      <!-- ── Section D: Questions Table ───────────────────────────── -->
+      <div class="card" id="card-questions">
+        <div class="card-header" onclick="toggleCard('card-questions')">
+          <span class="card-title">Questions</span>
+          <span class="collapse-icon">▼</span>
+        </div>
+        <div class="card-body" style="padding-bottom:8px;">
+
+          <div id="questions-toolbar">
+            <input type="search" id="question-search" placeholder="🔍 Filter questions…" oninput="filterQuestionsTable()" />
+            <label class="checkbox-row" style="flex-shrink:0;">
+              <input type="checkbox" id="chk-select-all" onchange="toggleSelectAll(this.checked)" />
+              All
+            </label>
+            <button class="btn btn-sm" onclick="deselectAll()">Deselect</button>
+            <span class="badge" id="questions-count-badge">0</span>
+          </div>
+
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-sm btn-accent" id="btn-refresh-questions" onclick="refreshQuestionsFromPage()" style="flex:1;">
+              🔄 Refresh from Page
+            </button>
+          </div>
+
+          <div class="questions-table-wrap" id="questions-table-container">
+            <div class="empty-state">Click 'Refresh from Page' to load questions</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /view-bidnet -->
+
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         VIEW: SOURCEDESK
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="view-sourcedesk" class="view">
+      <div class="coming-soon">
+        <span class="cs-icon">🚧</span>
+        <span class="cs-title">SourceDesk</span>
+        <span class="cs-sub">Coming Soon</span>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         VIEW: SETTINGS
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="view-settings" class="view">
+      <div class="coming-soon">
+        <span class="cs-icon">🚧</span>
+        <span class="cs-title">Settings</span>
+        <span class="cs-sub">Coming Soon</span>
+      </div>
+    </div>
+
+  </main><!-- /panel-body -->
+
+  <!-- ── Bottom Tabs ────────────────────────────────────────────────── -->
+  <nav id="bottom-tabs">
+    <button class="tab-btn active" data-view="bidnet" onclick="switchTab('bidnet')">
+      <span class="tab-icon">📋</span>
+      <span>Bidnet</span>
+    </button>
+    <button class="tab-btn" data-view="sourcedesk" onclick="switchTab('sourcedesk')">
+      <span class="tab-icon">🏢</span>
+      <span>SourceDesk</span>
+    </button>
+    <button class="tab-btn" data-view="settings" onclick="switchTab('settings')">
+      <span class="tab-icon">⚙️</span>
+      <span>Settings</span>
+    </button>
+  </nav>
+
+</div><!-- /app -->
+
+<!-- ─── Module Badge Labels per view ──────────────────────────────────── -->
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════════════════════════ */
+let csvData        = [];          // parsed CSV rows
+let pageQuestions  = [];          // questions scraped from page
+let selectedIds    = new Set();   // checked question IDs in table
+let filling        = false;       // true while batch fill is running
+let fillStopFlag   = false;       // set true to abort fill loop
+let filteredQuestions = [];       // questions visible after search filter
+
+const MODULE_BADGES = {
+  bidnet:      'BIDNET',
+  sourcedesk:  'SOURCEDESK',
+  settings:    'SETTINGS',
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TAB SWITCHING
+════════════════════════════════════════════════════════════════════════ */
+function switchTab(viewName) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+  const view = document.getElementById('view-' + viewName);
+  if (view) view.classList.add('active');
+
+  const btn = document.querySelector('.tab-btn[data-view="' + viewName + '"]');
+  if (btn) btn.classList.add('active');
+
+  const badge = document.getElementById('module-badge');
+  if (badge) badge.textContent = MODULE_BADGES[viewName] || viewName.toUpperCase();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CARD COLLAPSE / EXPAND
+════════════════════════════════════════════════════════════════════════ */
+function toggleCard(cardId) {
+  const card = document.getElementById(cardId);
+  if (card) card.classList.toggle('collapsed');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LOGGING
+════════════════════════════════════════════════════════════════════════ */
+const MAX_LOG_ENTRIES = 20;
+
+function appendLog(text, type) {
+  // type: 'success' | 'error' | 'info' (default)
+  const logEl = document.getElementById('log-output');
+  if (!logEl) return;
+
+  const level = type || 'info';
+  const now = new Date();
+  const ts = now.toTimeString().slice(0, 8);
+
+  const entry = document.createElement('span');
+  entry.className = 'log-entry log-' + level;
+  entry.innerHTML = '<span class="log-ts">' + ts + '</span>' + escHtml(String(text));
+  logEl.appendChild(document.createElement('br'));
+  logEl.appendChild(entry);
+
+  // Trim old entries (each entry is 2 nodes: <br> + <span>)
+  while (logEl.childNodes.length > MAX_LOG_ENTRIES * 2 + 2) {
+    logEl.removeChild(logEl.firstChild);
+    if (logEl.firstChild) logEl.removeChild(logEl.firstChild);
+  }
+
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function escHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PROGRESS BAR
+════════════════════════════════════════════════════════════════════════ */
+function showProgress() {
+  const wrap = document.getElementById('progress-wrap');
+  if (wrap) wrap.classList.add('visible');
+}
+
+function hideProgress() {
+  const wrap = document.getElementById('progress-wrap');
+  if (wrap) wrap.classList.remove('visible');
+  updateProgress(0, 0, '');
+}
+
+function updateProgress(current, total, label) {
+  const lbl  = document.getElementById('progress-label');
+  const fill = document.getElementById('progress-bar-fill');
+  if (!lbl || !fill) return;
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+  lbl.textContent  = label ? (current + ' / ' + total + ' — ' + label) : (current + ' / ' + total);
+  fill.style.width = pct + '%';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ACTIVE TAB HELPER
+════════════════════════════════════════════════════════════════════════ */
+async function getActiveTab() {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+      if (!tabs || tabs.length === 0) return reject(new Error('No active tab found'));
+      resolve(tabs[0]);
+    });
+  });
+}
+
+async function sendToContentScript(message) {
+  const tab = await getActiveTab();
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(tab.id, message, (response) => {
+      if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+      resolve(response);
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SECTION A — PAGE CONTROLS
+════════════════════════════════════════════════════════════════════════ */
+async function sendLoadAllQuestions() {
+  const btn = document.getElementById('btn-load-all');
+  btn.disabled = true;
+  appendLog('Sending load-all-questions command…', 'info');
+  try {
+    const resp = await sendToContentScript({ action: 'loadAllQuestions' });
+    appendLog(resp && resp.ok ? 'Page redirected to show all questions.' : 'Command sent.', 'success');
+  } catch (err) {
+    appendLog('Error: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function sendExtractQA() {
+  const btn = document.getElementById('btn-extract-qa');
+  btn.disabled = true;
+  appendLog('Extracting Q&A from page…', 'info');
+  try {
+    const resp = await sendToContentScript({ action: 'extractQA' });
+    if (resp && resp.ok) {
+      appendLog('Extracted ' + (resp.data ? resp.data.length : 0) + ' rows. CSV download triggered.', 'success');
+      if (resp.data && resp.data.length > 0) handleExtractedQA(resp.data);
+    } else {
+      appendLog('Extract returned no data.', 'error');
+    }
+  } catch (err) {
+    appendLog('Error: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SECTION B — CSV LOADING
+════════════════════════════════════════════════════════════════════════ */
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('csv-dropzone').classList.add('drag-over');
+}
+function handleDragLeave(e) {
+  document.getElementById('csv-dropzone').classList.remove('drag-over');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('csv-dropzone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processCSVFile(file);
+}
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processCSVFile(file);
+}
+
+function processCSVFile(file) {
+  appendLog('Loading CSV: ' + file.name, 'info');
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      csvData = parseCSV(e.target.result);
+      appendLog('Loaded ' + csvData.length + ' rows from CSV.', 'success');
+      renderCSVPreview();
+      // Re-render questions table to show CSV match column
+      if (pageQuestions.length > 0) renderQuestionsTable(pageQuestions);
+    } catch (err) {
+      appendLog('CSV parse error: ' + err.message, 'error');
+    }
+  };
+  reader.onerror = () => appendLog('Failed to read file.', 'error');
+  reader.readAsText(file);
+}
+
+/**
+ * Parse CSV text into array of objects.
+ * Expected columns: question_number, answer, visibility, comment
+ * Handles quoted fields, blank lines.
+ */
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const rows = [];
+
+  // Tokenise a single CSV line, handling quoted fields
+  function tokeniseLine(line) {
+    const fields = [];
+    let i = 0;
+    while (i < line.length) {
+      if (line[i] === '"') {
+        // Quoted field
+        i++; // skip opening quote
+        let field = '';
+        while (i < line.length) {
+          if (line[i] === '"') {
+            if (line[i + 1] === '"') { field += '"'; i += 2; } // escaped quote
+            else { i++; break; } // closing quote
+          } else {
+            field += line[i++];
+          }
+        }
+        fields.push(field);
+        if (line[i] === ',') i++; // skip comma separator
+      } else {
+        // Unquoted field
+        const end = line.indexOf(',', i);
+        if (end === -1) {
+          fields.push(line.slice(i).trim());
+          break;
+        } else {
+          fields.push(line.slice(i, end).trim());
+          i = end + 1;
+        }
+      }
+    }
+    return fields;
+  }
+
+  if (lines.length < 2) throw new Error('CSV has fewer than 2 lines');
+
+  // Parse header
+  const headers = tokeniseLine(lines[0]).map(h => h.toLowerCase().trim());
+
+  // Find column indices (flexible — tolerate extra columns)
+  const colIdx = {
+    question_number: headers.indexOf('question_number'),
+    answer:          headers.indexOf('answer'),
+    visibility:      headers.indexOf('visibility'),
+    comment:         headers.indexOf('comment'),
+  };
+  // Fallback: positional if names don't match
+  if (colIdx.question_number === -1) colIdx.question_number = 0;
+  if (colIdx.answer === -1)          colIdx.answer = 1;
+  if (colIdx.visibility === -1)      colIdx.visibility = 2;
+  if (colIdx.comment === -1)         colIdx.comment = 3;
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue; // skip blank lines
+    const fields = tokeniseLine(lines[i]);
+    const row = {
+      question_number: (fields[colIdx.question_number] || '').trim(),
+      answer:          (fields[colIdx.answer]          || '').trim(),
+      visibility:      (fields[colIdx.visibility]      || '').trim().toLowerCase(),
+      comment:         (fields[colIdx.comment]         || '').trim(),
+    };
+    if (row.question_number) rows.push(row);
+  }
+
+  return rows;
+}
+
+function renderCSVPreview() {
+  const wrap  = document.getElementById('csv-preview-wrap');
+  const tbody = document.getElementById('csv-preview-tbody');
+  const badge = document.getElementById('csv-count-badge');
+
+  wrap.classList.add('visible');
+  badge.textContent = csvData.length + ' rows';
+  tbody.innerHTML = '';
+
+  const preview = csvData.slice(0, 5);
+  preview.forEach((row, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td class="mono">' + escHtml(String(idx + 1)) + '</td>' +
+      '<td class="mono">' + escHtml(row.question_number) + '</td>' +
+      '<td>' + escHtml(truncate(row.answer, 40)) + '</td>' +
+      '<td><span class="badge ' + (row.visibility === 'private' ? '' : 'badge-success') + '">' +
+        escHtml(row.visibility || 'public') + '</span></td>' +
+      '<td>' + escHtml(truncate(row.comment, 30)) + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+function clearCsvData() {
+  csvData = [];
+  document.getElementById('csv-preview-wrap').classList.remove('visible');
+  document.getElementById('csv-preview-tbody').innerHTML = '';
+  document.getElementById('csv-file-input').value = '';
+  appendLog('CSV data cleared.', 'info');
+  if (pageQuestions.length > 0) renderQuestionsTable(pageQuestions);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SECTION C — BATCH OPERATIONS
+════════════════════════════════════════════════════════════════════════ */
+
+/* ── Fill Answers ──────────────────────────────────────────────────── */
+async function startFilling() {
+  if (filling) return;
+  if (csvData.length === 0) {
+    appendLog('No CSV data loaded. Load a CSV first.', 'error');
+    return;
+  }
+
+  const useUI        = document.getElementById('chk-use-ui').checked;
+  const overrideVis  = document.getElementById('chk-override-vis').checked;
+  const defaultVis   = document.getElementById('sel-default-vis').value;
+  const delay        = parseInt(document.getElementById('inp-delay').value, 10) || 800;
+
+  filling      = true;
+  fillStopFlag = false;
+
+  document.getElementById('btn-start-fill').disabled = true;
+  showProgress();
+
+  appendLog('Starting fill: ' + csvData.length + ' rows, delay=' + delay + 'ms', 'info');
+
+  for (let i = 0; i < csvData.length; i++) {
+    if (fillStopFlag) {
+      appendLog('Fill stopped by user at row ' + (i + 1) + '.', 'info');
+      break;
+    }
+
+    const row = csvData[i];
+    const vis = overrideVis && row.visibility ? row.visibility : defaultVis;
+
+    updateProgress(i + 1, csvData.length, 'Q#' + row.question_number);
+
+    try {
+      const resp = await sendToContentScript({
+        action: 'fillAnswer',
+        payload: {
+          questionId:  row.question_number,
+          answer:      row.answer,
+          visibility:  vis,
+          comment:     row.comment,
+          useUI:       useUI,
+          delay:       delay,
+        },
+      });
+      if (resp && resp.ok) {
+        appendLog('Q#' + row.question_number + ' filled ✓', 'success');
+      } else {
+        appendLog('Q#' + row.question_number + ' — ' + (resp && resp.error ? resp.error : 'unknown error'), 'error');
+      }
+    } catch (err) {
+      appendLog('Q#' + row.question_number + ' error: ' + err.message, 'error');
+    }
+
+    if (i < csvData.length - 1 && !fillStopFlag) {
+      await sleep(delay);
+    }
+  }
+
+  filling = false;
+  fillStopFlag = false;
+  document.getElementById('btn-start-fill').disabled = false;
+  hideProgress();
+  appendLog('Fill operation complete.', 'success');
+}
+
+function stopFilling() {
+  fillStopFlag = true;
+  appendLog('Stop requested — will halt after current row.', 'info');
+}
+
+/* ── Batch Visibility ──────────────────────────────────────────────── */
+async function applyBatchVisibility() {
+  if (selectedIds.size === 0) {
+    appendLog('No questions selected. Use checkboxes in the table.', 'error');
+    return;
+  }
+  const vis = document.querySelector('input[name="batch-vis"]:checked').value;
+  const ids = Array.from(selectedIds);
+  appendLog('Batch visibility: ' + vis + ' for ' + ids.length + ' questions…', 'info');
+  try {
+    const resp = await sendToContentScript({
+      action:  'batchVisibility',
+      payload: { questionIds: ids, visibility: vis },
+    });
+    if (resp && resp.ok) {
+      appendLog('Batch visibility complete.', 'success');
+    } else {
+      appendLog('Batch visibility error: ' + (resp && resp.error ? resp.error : 'unknown'), 'error');
+    }
+  } catch (err) {
+    appendLog('Error: ' + err.message, 'error');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SECTION D — QUESTIONS TABLE
+════════════════════════════════════════════════════════════════════════ */
+async function refreshQuestionsFromPage() {
+  const btn = document.getElementById('btn-refresh-questions');
+  btn.disabled = true;
+
+  const container = document.getElementById('questions-table-container');
+  container.innerHTML = '<div class="empty-state"><span class="spinner"></span>Loading…</div>';
+  appendLog('Fetching questions from page…', 'info');
+
+  try {
+    const resp = await sendToContentScript({ action: 'getPageQuestions' });
+    if (resp && resp.ok && Array.isArray(resp.questions)) {
+      pageQuestions = resp.questions;
+      renderQuestionsTable(pageQuestions);
+      appendLog('Loaded ' + pageQuestions.length + ' questions.', 'success');
+    } else {
+      container.innerHTML = '<div class="empty-state">No questions found on this page.</div>';
+      appendLog('No questions returned.', 'error');
+    }
+  } catch (err) {
+    container.innerHTML = '<div class="empty-state">Error loading questions.</div>';
+    appendLog('Error: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/**
+ * Render the questions table.
+ * questions: [{id, number, text, answered, visibility}]
+ */
+function renderQuestionsTable(questions) {
+  pageQuestions = questions;
+  filteredQuestions = questions;
+
+  const searchVal = (document.getElementById('question-search').value || '').toLowerCase();
+  if (searchVal) {
+    filteredQuestions = questions.filter(q =>
+      (q.text || '').toLowerCase().includes(searchVal) ||
+      String(q.number || '').includes(searchVal)
+    );
+  }
+
+  const container = document.getElementById('questions-table-container');
+  const badge     = document.getElementById('questions-count-badge');
+  badge.textContent = filteredQuestions.length;
+
+  if (filteredQuestions.length === 0) {
+    container.innerHTML = '<div class="empty-state">No questions match the filter.</div>';
+    return;
+  }
+
+  // Build CSV lookup map: question_number → row
+  const csvMap = {};
+  csvData.forEach(row => { csvMap[String(row.question_number).trim()] = row; });
+
+  const table = document.createElement('table');
+  table.className = 'data-table';
+
+  const thead = document.createElement('thead');
+  thead.innerHTML = '<tr>' +
+    '<th>☐</th>' +
+    '<th>#</th>' +
+    '<th>Question</th>' +
+    '<th>Status</th>' +
+    '<th>Vis</th>' +
+    '<th>CSV</th>' +
+    '<th></th>' +
+    '</tr>';
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  filteredQuestions.forEach((q) => {
+    const qid      = String(q.id || q.number || '');
+    const qnum     = String(q.number || '');
+    const checked  = selectedIds.has(qid);
+    const inCsv    = csvMap[qnum] !== undefined;
+    const visIcon  = q.visibility === 'private'
+      ? '<span class="vis-icon-private" title="Private">🔒</span>'
+      : '<span class="vis-icon-public"  title="Public">🔓</span>';
+    const csvMatch = inCsv
+      ? '<span class="csv-match-yes">✓</span>'
+      : '<span class="csv-match-no">—</span>';
+    const statusEl = q.answered
+      ? '<span class="status-answered">Answered</span>'
+      : '<span class="status-open">Open</span>';
+
+    const tr = document.createElement('tr');
+    if (checked) tr.classList.add('selected');
+    tr.dataset.qid = qid;
+
+    tr.innerHTML =
+      '<td><input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleRowSelect(\'' + escAttr(qid) + '\', this.checked, event)" onclick="event.stopPropagation()" /></td>' +
+      '<td class="mono">' + escHtml(qnum) + '</td>' +
+      '<td>' + escHtml(truncate(q.text || '', 45)) + '</td>' +
+      '<td>' + statusEl + '</td>' +
+      '<td>' + visIcon + '</td>' +
+      '<td>' + csvMatch + '</td>' +
+      '<td><button class="btn btn-sm" onclick="goToQuestion(\'' + escAttr(qid) + '\', event)" title="Go to answer page">Go</button></td>';
+
+    tr.addEventListener('click', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+      const cb = tr.querySelector('input[type="checkbox"]');
+      const newState = !cb.checked;
+      cb.checked = newState;
+      toggleRowSelect(qid, newState);
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  container.innerHTML = '';
+  container.appendChild(table);
+}
+
+function filterQuestionsTable() {
+  if (pageQuestions.length > 0) renderQuestionsTable(pageQuestions);
+}
+
+function toggleRowSelect(qid, checked, event) {
+  if (event) event.stopPropagation();
+  if (checked) {
+    selectedIds.add(qid);
+  } else {
+    selectedIds.delete(qid);
+    const selectAll = document.getElementById('chk-select-all');
+    if (selectAll) selectAll.checked = false;
+  }
+  // Update row highlight
+  const row = document.querySelector('tr[data-qid="' + escAttr(qid) + '"]');
+  if (row) row.classList.toggle('selected', checked);
+}
+
+function toggleSelectAll(checked) {
+  filteredQuestions.forEach((q) => {
+    const qid = String(q.id || q.number || '');
+    if (checked) selectedIds.add(qid); else selectedIds.delete(qid);
+  });
+  // Re-render to sync checkbox states
+  if (pageQuestions.length > 0) renderQuestionsTable(pageQuestions);
+  // Re-sync select-all checkbox state after re-render
+  const selectAll = document.getElementById('chk-select-all');
+  if (selectAll) selectAll.checked = checked;
+}
+
+function deselectAll() {
+  selectedIds.clear();
+  const selectAll = document.getElementById('chk-select-all');
+  if (selectAll) selectAll.checked = false;
+  if (pageQuestions.length > 0) renderQuestionsTable(pageQuestions);
+}
+
+async function goToQuestion(qid, event) {
+  if (event) event.stopPropagation();
+  appendLog('Navigating to Q#' + qid + '…', 'info');
+  try {
+    const resp = await sendToContentScript({
+      action:  'navigateToQuestion',
+      payload: { questionId: qid },
+    });
+    if (resp && resp.ok) {
+      appendLog('Navigated to Q#' + qid, 'success');
+    } else {
+      appendLog('Navigate error: ' + (resp && resp.error ? resp.error : 'unknown'), 'error');
+    }
+  } catch (err) {
+    appendLog('Error: ' + err.message, 'error');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   INCOMING MESSAGES (from content script via background relay)
+════════════════════════════════════════════════════════════════════════ */
+chrome.runtime.onMessage.addListener((msg) => {
+  if (!msg || !msg.action) return;
+  if (msg.action === 'progress')      updateProgress(msg.current, msg.total, msg.label || '');
+  if (msg.action === 'log')           appendLog(msg.text, msg.level || 'info');
+  if (msg.action === 'pageQuestions') renderQuestionsTable(msg.questions || []);
+  if (msg.action === 'extractedQA')   handleExtractedQA(msg.data || []);
+});
+
+function handleExtractedQA(data) {
+  appendLog('Received ' + data.length + ' extracted Q&A rows.', 'success');
+  // Optionally auto-load into csvData if user has not loaded a CSV yet
+  // This allows the extracted data to populate the questions table
+  pageQuestions = data.map(row => ({
+    id:         String(row.question_number || row.id || ''),
+    number:     String(row.question_number || row.number || ''),
+    text:       row.question || row.text || '',
+    answered:   !!(row.answer || row.answered),
+    visibility: row.visibility || 'public',
+  }));
+  renderQuestionsTable(pageQuestions);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   UTILS
+════════════════════════════════════════════════════════════════════════ */
+function truncate(str, len) {
+  if (!str) return '';
+  return str.length > len ? str.slice(0, len) + '…' : str;
+}
+
+function escAttr(str) {
+  return String(str).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+}
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+</script>
+</body>
+</html>

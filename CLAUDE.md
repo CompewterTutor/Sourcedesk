@@ -10,8 +10,7 @@
 
 **Core constraints that must never be broken:**
 - The output (`SourceDesk.html`) must be a single self-contained file — open it, it works. No server, no install.
-- No user data ever leaves the browser except to the Anthropic API.
-- All persistence is IndexedDB. No localStorage, no cookies, no backend.
+- Optional server mode with lots of bells and whistles.
 
 ---
 
@@ -109,7 +108,17 @@ Sourcedesk/
 ├── CHANGELOG.md            ← Versioned changelog; 🗄️ marks IndexedDB changes; 🖥️ marks server additions
 ├── README.md               ← User-facing docs; roadmap as checkboxes
 ├── CLAUDE.md               ← This file
-└── .gitignore              ← node_modules/, data/, backups/, .env, etc.
+├── .gitignore              ← node_modules/, data/, backups/, .env, etc.
+SourceDesk_chrome_extension/   ← Companion Chrome Extension (separate from the main app)
+├── manifest.json           ← MV3 manifest; BidNet host permissions, side panel, content script
+├── background.js           ← Service worker; opens side panel on toolbar click, relays messages
+├── side-panel.html         ← Full self-contained sidebar UI (HTML + CSS + JS, no external deps)
+├── content-bidnet.js       ← Content script for bidnetdirect.com; DOM scraping + form filling
+├── generate-icons.html     ← Open in browser to generate & download the 4 required PNG icons
+├── images/                 ← Extension icons (icon-16/32/48/128.png); see images/README.md
+└── docs/
+    ├── bidnet_research.md  ← Feature/URL research notes for the BidNet module
+    └── bidnet_src/         ← Captured HTML/JS source from live BidNet pages (for selector reference)
 ```
 
 **Never edit `SourceDesk.html` directly.** Edit `src/` files and rebuild.
@@ -1012,6 +1021,14 @@ Key files to read for Hindsight work:
 - **Help modal** (`src/help.js`) — tabbed: Shortcuts / Project Types / Views / Context System / About; opens via `?` topbar button or F1/`?` hotkey
 - **Generic autosave** (`src/autosave.js`) — `scheduleAutosave(key, fn)` debounces 1.5 s and updates a `● Saving… / ✓ Saved` status pill (`#autosave-status-<key>`); wired into Working Document, Notes (title + body), and Tasks (title/desc/due) edit forms
 - **Version diffs** (`src/diff.js` + extended `src/versioning.js`) — "Diff" button on every row in the Version History modal opens a unified inline diff (line-level LCS) between that snapshot and either the current working document or any other snapshot; +N/-N stats in header; comparator dropdown for switching the right-hand side
+
+### Chrome Extension ✅
+- Companion `SourceDesk_chrome_extension/` folder added — MV3 Chrome extension with a sidebar UI
+- **Bidnet module**: scrape Q&A table → CSV export; load CSV → batch fill answer forms; batch visibility change (Public ↔ Private); per-row checkbox selection; page controls (load all questions via URL querystring trick); timestamped status log; collapsible cards; progress bar with Stop button
+- All DOM selectors confirmed against captured live BidNet HTML source (`docs/bidnet_src/`)
+- Bottom tab bar with placeholder tabs for future modules (SourceDesk integration, Settings)
+- Matches SourceDesk dark theme (same CSS variables, fonts, color palette)
+- Research docs and captured BidNet HTML/JS source committed to `docs/bidnet_src/`
 
 ### Still outstanding
 - ❌ Google Drive connector requires manual token paste — proper OAuth popup not possible from `file://` origin
