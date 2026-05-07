@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **Chrome Extension CSP compliance** (`SourceDesk_chrome_extension/`) -- MV3 extensions reject inline scripts and inline event handlers at runtime. Extracted the entire `<script>` block from `side-panel.html` into a new external `side-panel.js` file and removed every inline event attribute (`onclick`, `ondragover`, `ondragleave`, `ondrop`, `onchange`, `oninput`) from the HTML. All event wiring now lives in a `DOMContentLoaded` handler inside `side-panel.js` using `addEventListener`. Dynamically-generated table rows (`renderQuestionsTable`) were also refactored away from inline-handler strings in `innerHTML` to `addEventListener` calls after the row is built. Added missing element IDs for newly-referenced elements (`btn-clear-csv`, `btn-apply-vis`, `btn-deselect`) and `data-card` attributes on card headers for the collapse-toggle listener loop.
+
 ### Added
 - **SourceDesk Chrome Extension** (`SourceDesk_chrome_extension/`) — new companion MV3 Chrome extension with a sidebar UI for utility workflows that complement SourceDesk. Matches the SourceDesk dark theme (same CSS variables, color palette, and fonts).
   - **Bidnet module** — sidebar panel for bulk Q&A management on [BidNet Direct](https://www.bidnetdirect.com):
