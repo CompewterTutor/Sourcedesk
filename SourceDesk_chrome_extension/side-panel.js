@@ -8,6 +8,7 @@ let pageQuestions = []; // questions scraped from page
 let selectedIds = new Set(); // checked question IDs in table
 let filling = false; // true while batch fill is running
 let fillStopFlag = false; // set true to abort fill loop
+let fillTimerInterval = null; // setInterval handle for batch timer
 let filteredQuestions = []; // questions visible after search filter
 let testFillIndex = 0; // which CSV row is next for test mode
 let solicitationInfo = null; // { solId, qaUrl, currentUrl, pageTitle }
@@ -419,6 +420,25 @@ async function startFilling() {
     "info",
   );
 
+  // ── Timer setup ──────────────────────────────────────────────────
+  const fillStartTime = Date.now();
+  // Estimate: every row costs one delay interval; skipped rows are faster
+  // but we don't know how many will be skipped, so use full rangeCount.
+  const estimatedMaxSec = Math.ceil((rangeCount * delay) / 1000);
+  const timerEl = document.getElementById("fill-timer");
+  const estimateEl = document.getElementById("fill-estimate");
+  if (estimateEl)
+    estimateEl.textContent = "Est. max: ~" + fmtSec(estimatedMaxSec);
+  fillTimerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - fillStartTime) / 1000);
+    if (timerEl)
+      timerEl.textContent = fmtSec(elapsed) + " / ~" + fmtSec(estimatedMaxSec);
+  }, 1000);
+
+  let fillCount = 0,
+    skipCount = 0,
+    errorCount = 0;
+
   for (let i = rangeFrom; i <= effectiveTo; i++) {
     if (fillStopFlag) {
       appendLog("Fill stopped by user at row " + (i + 1) + ".", "info");
@@ -441,6 +461,7 @@ async function startFilling() {
             rangeCount,
             "Q#" + row.question_number + " (skipped)",
           );
+          skipCount++;
           continue;
         }
         if (onlyUpdate && !pageQ.answered) {
@@ -455,6 +476,7 @@ async function startFilling() {
             rangeCount,
             "Q#" + row.question_number + " (skipped)",
           );
+          skipCount++;
           continue;
         }
       }
@@ -483,6 +505,7 @@ async function startFilling() {
       });
       if (resp && resp.ok) {
         appendLog("Q#" + row.question_number + " filled ✓", "success");
+        fillCount++;
       } else {
         appendLog(
           "Q#" +
@@ -491,9 +514,11 @@ async function startFilling() {
             (resp && resp.error ? resp.error : "unknown error"),
           "error",
         );
+        errorCount++;
       }
     } catch (err) {
       appendLog("Q#" + row.question_number + " error: " + err.message, "error");
+      errorCount++;
     }
 
     if (i < effectiveTo && !fillStopFlag) {
@@ -501,15 +526,37 @@ async function startFilling() {
     }
   }
 
+  // ── Teardown + final report ──────────────────────────────────────────
+  clearInterval(fillTimerInterval);
+  fillTimerInterval = null;
+  const totalSec = Math.floor((Date.now() - fillStartTime) / 1000);
+  if (timerEl) timerEl.textContent = "";
+  if (estimateEl) estimateEl.textContent = "";
+
   filling = false;
   fillStopFlag = false;
   document.getElementById("btn-start-fill").disabled = false;
   hideProgress();
-  appendLog("Fill operation complete.", "success");
+
+  const reportParts = [
+    "Done in " + fmtSec(totalSec) + ".",
+    "Filled: " + fillCount,
+    "Skipped: " + skipCount,
+    "Errors: " + errorCount,
+    "(" + rangeCount + " rows in range)",
+  ];
+  appendLog(
+    reportParts.join("  ·  "),
+    errorCount > 0 ? "error" : fillCount > 0 ? "success" : "info",
+  );
 }
 
 function stopFilling() {
   fillStopFlag = true;
+  if (fillTimerInterval) {
+    clearInterval(fillTimerInterval);
+    fillTimerInterval = null;
+  }
   appendLog("Stop requested — will halt after current row.", "info");
 }
 
@@ -791,6 +838,12 @@ function escAttr(str) {
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Format integer seconds as M:SS. */
+function fmtSec(s) {
+  const m = Math.floor(s / 60);
+  return m + ":" + String(s % 60).padStart(2, "0");
 }
 
 /**

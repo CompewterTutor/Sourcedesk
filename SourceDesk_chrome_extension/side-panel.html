@@ -1014,16 +1014,44 @@
                                     <span id="progress-label" class="form-label"
                                         >0 / 0</span
                                     >
-                                    <button
-                                        class="btn btn-sm btn-danger"
-                                        id="btn-stop"
+                                    <div
+                                        style="
+                                            display: flex;
+                                            gap: 8px;
+                                            align-items: center;
+                                        "
                                     >
-                                        ⏹ Stop
-                                    </button>
+                                        <span
+                                            id="fill-timer"
+                                            style="
+                                                font-size: 10px;
+                                                color: var(--text-muted);
+                                                font-variant-numeric: tabular-nums;
+                                                font-family: var(
+                                                    --font-mono,
+                                                    monospace
+                                                );
+                                            "
+                                        ></span>
+                                        <button
+                                            class="btn btn-sm btn-danger"
+                                            id="btn-stop"
+                                        >
+                                            ⏹ Stop
+                                        </button>
+                                    </div>
                                 </div>
                                 <div id="progress-bar-track">
                                     <div id="progress-bar-fill"></div>
                                 </div>
+                                <div
+                                    id="fill-estimate"
+                                    style="
+                                        font-size: 10px;
+                                        color: var(--text-muted);
+                                        margin-top: 3px;
+                                    "
+                                ></div>
                             </div>
 
                             <hr class="divider" style="margin-top: 12px" />
@@ -1186,6 +1214,66 @@
 
                 <!-- ═══════════════════════════════════════════════════════════════
          VIEW: SOURCEDESK
+    ═══════════════════════════════════════════════════════════════
+
+    PLANNED FEATURES — SourceDesk Integration Tab
+    ================================================
+    The SourceDesk tab will connect the extension to a running SourceDesk
+    instance (URL + token configured in Settings). Four collapsible cards:
+
+    CARD 1 — Chat
+    ──────────────
+    • Dropdown to select the active project (populated from GET /api/projects).
+    • Single-turn chat input that sends a message to the active project's
+      chat via the SourceDesk server (POST /api/chat or similar).
+    • Small prompt-library dropdown (fetch favorites from GET /api/prompts)
+      identical to SourceDesk's ⌘ book icon; clicking inserts into input.
+    • Response shown inline as a scrollable bubble.
+    • No session history needed — each submit is a one-shot query.
+
+    CARD 2 — Notes
+    ───────────────
+    • List of notes for the active project (GET /api/notes?projectId=...).
+    • Each note row: title + pinned indicator + date; click to expand/view.
+    • Quick “New Note” form: title input + body textarea + Save button.
+    • No full editor — just fast capture; open in SourceDesk for full edit.
+    • Pin toggle per row.
+
+    CARD 3 — Tasks & Calendar
+    ───────────────────────────
+    • Task list for active project (GET /api/tasks?projectId=...).
+    • Each row: checkbox to toggle done, title, priority badge, due date.
+    • Inline “New Task”: title + due date + priority pill + Save.
+    • Mini month-strip calendar under the list — days with tasks highlighted;
+      clicking a day filters the list (same _calSelectDay logic as main app).
+    • No full description editor — open in SourceDesk for details.
+
+    CARD 4 — Research
+    ────────────────────
+    • Two tabs inside the card: Bookmarks | Documents.
+
+    Bookmarks tab:
+      • List of research items for the active project (GET /api/research).
+      • “+ Add URL” form: URL input + optional caption/tag input + Add button.
+        On submit: POST /api/research with { url, title: caption, source: 'manual',
+        includeInContext: true }. SourceDesk crawls + indexes server-side.
+      • Per-item: favicon, title/URL truncated, caption badge, ✓ Indexed / ⌛
+        Pending status, × delete.
+      • “Open in SourceDesk” jump link on each item.
+
+    Documents tab:
+      • Upload zone (drag-drop or click): accepts .txt, .md, .pdf, .docx, .csv.
+      • Caption / tag input shown before confirm.
+      • On upload: POST multipart to /api/docs with projectId + docType='doc'.
+        SourceDesk converts (markitdown or Drive) + indexes server-side.
+      • List of uploaded docs: name, conversion badge, Include-in-context toggle.
+      • “Open in SourceDesk” jump link on each doc.
+
+    IMPLEMENTATION NOTES:
+    • All API calls require Authorization: Bearer {serverToken} from Settings.
+    • If serverUrl or serverToken is blank, show a prompt to configure Settings.
+    • Each card should lazy-load its data when expanded (not on tab switch).
+    • Error states: 401 → “Token invalid or expired”, 0/network → “Server unreachable”.
     ════════════════════════════════════════════════════════════════ -->
                 <div id="view-sourcedesk" class="view">
                     <div class="coming-soon">
@@ -1197,7 +1285,76 @@
 
                 <!-- ═══════════════════════════════════════════════════════════════
          VIEW: SETTINGS
-    ════════════════════════════════════════════════════════════════ -->
+    ═══════════════════════════════════════════════════════════════
+
+    PLANNED SETTINGS REDESIGN
+    ==========================
+    Replace the current single-card layout with five collapsible cards.
+    All values persist to chrome.storage.local. Save is per-card (or
+    auto-save on blur for text inputs).
+
+    CARD 1 — LLM Provider
+    ──────────────────────
+    • Provider radio-pills: Anthropic | OpenAI | OpenRouter | GitHub Models | Local.
+    • API Key input (password type) + eye-toggle — label changes per provider:
+      “Anthropic API Key”, “OpenAI API Key”, “OpenRouter API Key”, “GitHub PAT”, “Local Key (optional)”.
+    • Local LLM Base URL row — only visible when provider = Local:
+      text input (placeholder “http://localhost:11434/v1”) + 🔍 Detect Models button.
+    • Model selector <select>: populated from PROVIDERS[provider].models[] or
+      runtime-fetched local models. Includes a ⏏ Unload/Eject button (visible
+      for Local only) that calls unloadLocalModel() via the SourceDesk server
+      or directly if server URL is configured.
+    • “Test connection” button — sends a minimal ping to the chosen provider;
+      shows ✅ OK + latency or ❌ error.
+
+    CARD 2 — SourceDesk Connection
+    ───────────────────────────────
+    (Already partially built — URL field exists.)
+    • Server URL input (existing inp-sourcedesk-url).
+    • Server Token input (password type) — generated from SourceDesk’s
+      Token Manager; used as Authorization: Bearer on all /api/* calls.
+    • “Test Connection” button — calls GET /health on the server;
+      shows ✅ Connected + version or ❌ Unreachable.
+    • Current Project selector <select> — populated via GET /api/projects;
+      selection saved as activeProjectId in storage and used by the
+      SourceDesk tab (Chat, Notes, Tasks, Research).
+
+    CARD 3 — Google Integration
+    ─────────────────────────────
+    • Connection status row: shows ● Connected as <email> (expires in Nh) or
+      ○ Not connected; small “Disconnect” link when connected.
+    • “Connect Google” button — opens Google OAuth Playground in a new tab
+      with the required scopes pre-filled (drive.file, drive.appdata,
+      spreadsheets, documents); user pastes token back.
+    • OAuth token input (password type) — same flow as main SourceDesk app.
+    • “Test Docs” button — attempts to create + delete a tiny temp Doc;
+      confirms write access without side effects.
+    • “Open Drive” link — opens drive.google.com in active tab.
+
+    CARD 4 — Saved Solicitations
+    ──────────────────────────────
+    (Already built — card-settings-bookmarks.)
+    Minor additions planned:
+    • Export all bookmarks as JSON button.
+    • Import bookmarks from JSON button.
+
+    CARD 5 — About
+    ──────────────
+    • Extension version (from manifest.json, injected at build time or
+      read from chrome.runtime.getManifest().version).
+    • SourceDesk app version (fetched from GET /health appVersion field).
+    • “View Changelog” link — opens CHANGELOG.md on GitHub.
+    • “Report a Bug” link — opens GitHub Issues.
+    • “Open SourceDesk” button — opens the configured serverUrl in a new tab,
+      or sourcedesk.app if not configured.
+
+    IMPLEMENTATION NOTES:
+    • Provider + key + model + local URL mirror the state shape in main SourceDesk
+      (state.settings.*). Consider syncing these from the main app’s IndexedDB
+      on connect so the user doesn’t re-enter keys already configured there.
+    • Auto-save on blur for all text inputs; show a transient “✓ Saved” tick.
+    • Keep the existing SourceDesk URL card functional until the redesign ships.
+    ═══════════════════════════════════════════════════════════════ -->
                 <div id="view-settings" class="view">
                     <div class="card" id="card-settings-general">
                         <div
