@@ -10,6 +10,7 @@ let filling = false; // true while batch fill is running
 let fillStopFlag = false; // set true to abort fill loop
 let filteredQuestions = []; // questions visible after search filter
 let testFillIndex = 0; // which CSV row is next for test mode
+let solicitationInfo = null; // { solId, qaUrl, currentUrl, pageTitle }
 
 const MODULE_BADGES = {
   bidnet: "BIDNET",
@@ -142,12 +143,17 @@ async function sendToContentScript(message) {
 async function sendLoadAllQuestions() {
   const btn = document.getElementById("btn-load-all");
   btn.disabled = true;
-  appendLog("Sending load-all-questions command…", "info");
+  const pageSizeEl = document.getElementById("inp-page-size");
+  const pageSize = pageSizeEl ? parseInt(pageSizeEl.value, 10) || 9999 : 9999;
+  appendLog("Loading questions (page size: " + pageSize + ")…", "info");
   try {
-    const resp = await sendToContentScript({ action: "loadAllQuestions" });
+    const resp = await sendToContentScript({
+      action: "loadAllQuestions",
+      payload: { pageSize },
+    });
     appendLog(
       resp && resp.ok
-        ? "Page redirected to show all questions."
+        ? "Page redirected to show " + pageSize + " questions."
         : "Command sent.",
       "success",
     );
@@ -309,8 +315,13 @@ function renderCSVPreview() {
   const tbody = document.getElementById("csv-preview-tbody");
   const badge = document.getElementById("csv-count-badge");
 
-  testFillIndex = 0;
+  const { from: rangeFrom } = getRowRange();
+  testFillIndex = rangeFrom;
   _updateTestStatus();
+
+  // Update To row placeholder to reflect total rows available
+  const toEl = document.getElementById("inp-row-to");
+  if (toEl) toEl.placeholder = "all (" + csvData.length + ")";
 
   wrap.classList.add("visible");
   badge.textContent = csvData.length + " rows";
@@ -368,6 +379,22 @@ async function startFilling() {
   const overrideVis = document.getElementById("chk-override-vis").checked;
   const defaultVis = document.getElementById("sel-default-vis").value;
   const delay = parseInt(document.getElementById("inp-delay").value, 10) || 800;
+  const skipAnswered = document.getElementById("chk-skip-answered").checked;
+  const onlyUpdate = document.getElementById("chk-only-update").checked;
+  const blankVisSkip = document.getElementById("chk-blank-vis-skip").checked;
+
+  // Build lookup: question number → pageQuestions entry (for skip/only-update)
+  const pageQMap = {};
+  pageQuestions.forEach((q) => {
+    pageQMap[String(q.number || q.id || "").trim()] = q;
+  });
+  const hasPageData = pageQuestions.length > 0;
+  if ((skipAnswered || onlyUpdate) && !hasPageData) {
+    appendLog(
+      "Warning: Skip/Only-Update filters need the Questions table refreshed. Proceeding without filtering.",
+      "info",
+    );
+  }
 
   filling = true;
   fillStopFlag = false;
@@ -375,21 +402,71 @@ async function startFilling() {
   document.getElementById("btn-start-fill").disabled = true;
   showProgress();
 
+  const { from: rangeFrom, to: rangeTo } = getRowRange();
+  const effectiveTo = Math.min(rangeTo, csvData.length - 1);
+  const rangeCount = effectiveTo - rangeFrom + 1;
+
   appendLog(
-    "Starting fill: " + csvData.length + " rows, delay=" + delay + "ms",
+    "Starting fill: rows " +
+      (rangeFrom + 1) +
+      "–" +
+      (effectiveTo + 1) +
+      " (" +
+      rangeCount +
+      " rows), delay=" +
+      delay +
+      "ms",
     "info",
   );
 
-  for (let i = 0; i < csvData.length; i++) {
+  for (let i = rangeFrom; i <= effectiveTo; i++) {
     if (fillStopFlag) {
       appendLog("Fill stopped by user at row " + (i + 1) + ".", "info");
       break;
     }
 
     const row = csvData[i];
-    const vis = overrideVis && row.visibility ? row.visibility : defaultVis;
 
-    updateProgress(i + 1, csvData.length, "Q#" + row.question_number);
+    // ── answered-status filter ───────────────────────────────────────
+    if (hasPageData && (skipAnswered || onlyUpdate)) {
+      const pageQ = pageQMap[String(row.question_number).trim()];
+      if (pageQ) {
+        if (skipAnswered && pageQ.answered) {
+          appendLog(
+            "Q#" + row.question_number + " already answered — skipped.",
+            "info",
+          );
+          updateProgress(
+            i - rangeFrom + 1,
+            rangeCount,
+            "Q#" + row.question_number + " (skipped)",
+          );
+          continue;
+        }
+        if (onlyUpdate && !pageQ.answered) {
+          appendLog(
+            "Q#" +
+              row.question_number +
+              " has no answer yet — skipped (only-update).",
+            "info",
+          );
+          updateProgress(
+            i - rangeFrom + 1,
+            rangeCount,
+            "Q#" + row.question_number + " (skipped)",
+          );
+          continue;
+        }
+      }
+    }
+
+    // ── visibility ───────────────────────────────────────────────
+    const visFromCsv = overrideVis ? (row.visibility || "").trim() : "";
+    const vis = visFromCsv || defaultVis;
+    // skipVisibility = override is on, but CSV cell is blank, and blank-vis-skip is checked
+    const skipVisibility = blankVisSkip && overrideVis && !visFromCsv;
+
+    updateProgress(i - rangeFrom + 1, rangeCount, "Q#" + row.question_number);
 
     try {
       const resp = await sendToContentScript({
@@ -401,6 +478,7 @@ async function startFilling() {
           comment: row.comment,
           useUI: useUI,
           delay: delay,
+          skipVisibility: skipVisibility,
         },
       });
       if (resp && resp.ok) {
@@ -418,7 +496,7 @@ async function startFilling() {
       appendLog("Q#" + row.question_number + " error: " + err.message, "error");
     }
 
-    if (i < csvData.length - 1 && !fillStopFlag) {
+    if (i < effectiveTo && !fillStopFlag) {
       await sleep(delay);
     }
   }
@@ -715,6 +793,24 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * Read from/to row inputs and return 0-based indices { from, to }.
+ * 'to' is clamped to csvData.length-1. Empty To = all rows.
+ */
+function getRowRange() {
+  const fromEl = document.getElementById("inp-row-from");
+  const toEl = document.getElementById("inp-row-to");
+  const from = fromEl ? Math.max(0, (parseInt(fromEl.value, 10) || 1) - 1) : 0;
+  const to =
+    toEl && toEl.value.trim()
+      ? Math.min(
+          csvData.length - 1,
+          (parseInt(toEl.value, 10) || csvData.length) - 1,
+        )
+      : csvData.length - 1;
+  return { from, to };
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    TEST MODE
 ════════════════════════════════════════════════════════════════════════ */
@@ -727,12 +823,14 @@ function _updateTestStatus() {
     lbl.textContent = "No CSV loaded";
     return;
   }
-  if (testFillIndex >= csvData.length) {
+  const { from: rangeFrom, to: rangeTo } = getRowRange();
+  const effectiveTo = Math.min(rangeTo, csvData.length - 1);
+  if (testFillIndex > effectiveTo) {
     lbl.textContent =
-      "\u2713 Done — all " +
-      csvData.length +
-      " row" +
-      (csvData.length !== 1 ? "s" : "") +
+      "\u2713 Done \u2014 rows " +
+      (rangeFrom + 1) +
+      "\u2013" +
+      (effectiveTo + 1) +
       " tested. Click Reset to start over.";
     return;
   }
@@ -741,8 +839,8 @@ function _updateTestStatus() {
     "Next: row " +
     (testFillIndex + 1) +
     " / " +
-    csvData.length +
-    " — Q#" +
+    (effectiveTo + 1) +
+    " \u2014 Q#" +
     row.question_number;
 }
 
@@ -757,21 +855,66 @@ async function testNextQuestion() {
     appendLog("[TEST] No CSV data loaded. Load a CSV first.", "error");
     return;
   }
-  if (testFillIndex >= csvData.length) {
-    appendLog("[TEST] All rows tested. Click Reset to start over.", "info");
+
+  const { from: rangeFrom, to: rangeTo } = getRowRange();
+  const effectiveTo = Math.min(rangeTo, csvData.length - 1);
+
+  if (testFillIndex > effectiveTo) {
+    appendLog(
+      "[TEST] All rows in range tested. Click Reset to start over.",
+      "info",
+    );
     return;
   }
 
   const row = csvData[testFillIndex];
   const overrideVis = document.getElementById("chk-override-vis").checked;
   const defaultVis = document.getElementById("sel-default-vis").value;
-  const vis = overrideVis && row.visibility ? row.visibility : defaultVis;
+  const skipAnswered = document.getElementById("chk-skip-answered").checked;
+  const onlyUpdate = document.getElementById("chk-only-update").checked;
+  const blankVisSkip = document.getElementById("chk-blank-vis-skip").checked;
+
+  // ── answered-status filter ─────────────────────────────────────
+  if (pageQuestions.length > 0 && (skipAnswered || onlyUpdate)) {
+    const pageQMap = {};
+    pageQuestions.forEach((q) => {
+      pageQMap[String(q.number || q.id || "").trim()] = q;
+    });
+    const pageQ = pageQMap[String(row.question_number).trim()];
+    if (pageQ) {
+      if (skipAnswered && pageQ.answered) {
+        appendLog(
+          "[TEST] Q#" + row.question_number + " already answered — skipped.",
+          "info",
+        );
+        testFillIndex++;
+        _updateTestStatus();
+        return;
+      }
+      if (onlyUpdate && !pageQ.answered) {
+        appendLog(
+          "[TEST] Q#" +
+            row.question_number +
+            " has no answer yet — skipped (only-update).",
+          "info",
+        );
+        testFillIndex++;
+        _updateTestStatus();
+        return;
+      }
+    }
+  }
+
+  // ── visibility ────────────────────────────────────────────────
+  const visFromCsv = overrideVis ? (row.visibility || "").trim() : "";
+  const vis = visFromCsv || defaultVis;
+  const skipVisibility = blankVisSkip && overrideVis && !visFromCsv;
 
   appendLog(
     "[TEST] Row " +
       (testFillIndex + 1) +
       "/" +
-      csvData.length +
+      (effectiveTo + 1) +
       ": Q#" +
       row.question_number +
       " (vis: " +
@@ -791,6 +934,7 @@ async function testNextQuestion() {
         answer: row.answer,
         visibility: vis,
         comment: row.comment,
+        skipVisibility: skipVisibility,
       },
     });
 
@@ -799,10 +943,10 @@ async function testNextQuestion() {
       appendLog(
         "[TEST] Q#" +
           row.question_number +
-          " — form filled (not saved). " +
-          (next < csvData.length
+          " — form filled, Save button flashing (not clicked). " +
+          (next <= effectiveTo
             ? "Click Test Next for row " + (next + 1) + "."
-            : "That was the last row."),
+            : "That was the last row in range."),
         "success",
       );
     } else {
@@ -821,41 +965,321 @@ async function testNextQuestion() {
     );
   }
 
-  // Advance regardless of success so we don’t get stuck on one row
+  // Advance regardless of success so we don't get stuck on one row
   testFillIndex++;
   _updateTestStatus();
   if (btn) btn.disabled = false;
 }
 
-/** Reset the test mode index back to the first row. */
+/** Reset the test mode index back to the start of the current range. */
 function resetTestMode() {
-  testFillIndex = 0;
+  const { from: rangeFrom } = getRowRange();
+  testFillIndex = rangeFrom;
   _updateTestStatus();
-  appendLog("[TEST] Reset — will start from row 1 on next Test click.", "info");
+  appendLog(
+    "[TEST] Reset — will start from row " +
+      (rangeFrom + 1) +
+      " on next Test click.",
+    "info",
+  );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════════════
+   SOLICITATION INFO & BOOKMARKS
+════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Ask the content script what solicitation is on the active tab.
+ * Updates the info bar and loads any saved bookmark.
+ */
+async function loadSolicitationInfo() {
+  const infoText = document.getElementById("sol-info-text");
+  const bookmarksDiv = document.getElementById("sol-bookmarks");
+  if (infoText) infoText.textContent = "Detecting solicitation…";
+  if (bookmarksDiv) {
+    bookmarksDiv.style.display = "none";
+    bookmarksDiv.innerHTML = "";
+  }
+
+  try {
+    const resp = await sendToContentScript({ action: "getSolicitationInfo" });
+    if (resp && resp.ok && resp.solId) {
+      solicitationInfo = resp;
+      if (infoText) {
+        infoText.innerHTML =
+          "Solicitation <strong>#" +
+          escHtml(resp.solId) +
+          "</strong>" +
+          (resp.qaUrl
+            ? " &nbsp;<a href='#' id='sol-qa-link' style='color:var(--accent);text-decoration:none;'>\ud83d\udccb Q&A List</a>"
+            : "");
+        const qaLink = document.getElementById("sol-qa-link");
+        if (qaLink && resp.qaUrl) {
+          qaLink.addEventListener("click", (e) => {
+            e.preventDefault();
+            chrome.tabs.update({ url: resp.qaUrl });
+          });
+        }
+      }
+      await loadAndRenderSolBookmark(resp.solId);
+    } else {
+      solicitationInfo = null;
+      if (infoText)
+        infoText.textContent = "No BidNet solicitation on active tab.";
+    }
+  } catch {
+    solicitationInfo = null;
+    if (infoText) infoText.textContent = "Open a BidNet page to use controls.";
+  }
+}
+
+/**
+ * Load the saved bookmark for a solicitation ID and render it in the panel.
+ */
+async function loadAndRenderSolBookmark(solId) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get("sol_" + solId, (items) => {
+      renderSolBookmarkInPanel(solId, items["sol_" + solId] || null);
+      resolve(items["sol_" + solId] || null);
+    });
+  });
+}
+
+/**
+ * Render the in-panel bookmark block for a given solicitation.
+ * Shows Q&A link, solicitation page link, project link input.
+ */
+function renderSolBookmarkInPanel(solId, data) {
+  const div = document.getElementById("sol-bookmarks");
+  if (!div) return;
+  if (!data) {
+    div.style.display = "none";
+    div.innerHTML = "";
+    return;
+  }
+
+  div.style.display = "block";
+  div.innerHTML = "";
+
+  // Links row
+  const linksRow = document.createElement("div");
+  linksRow.style.cssText =
+    "display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;";
+
+  if (data.qaUrl)
+    linksRow.appendChild(makeLink("\ud83d\udccb Q&A List", data.qaUrl, false));
+  if (data.currentUrl)
+    linksRow.appendChild(
+      makeLink("\ud83c\udf10 Solicitation Page", data.currentUrl, false),
+    );
+  if (data.projectLink)
+    linksRow.appendChild(
+      makeLink("\ud83c\udfe2 Open Project", data.projectLink, true),
+    );
+
+  div.appendChild(linksRow);
+
+  // Project link input row
+  const projRow = document.createElement("div");
+  projRow.style.cssText = "display:flex;gap:4px;align-items:center;";
+
+  const projInput = document.createElement("input");
+  projInput.type = "text";
+  projInput.placeholder = "Project URL (SourceDesk or other)";
+  projInput.style.cssText = "flex:1;font-size:11px;";
+  projInput.value = data.projectLink || "";
+
+  const saveProjBtn = document.createElement("button");
+  saveProjBtn.className = "btn btn-sm";
+  saveProjBtn.textContent = "\ud83d\udcbe";
+  saveProjBtn.title = "Save project link for this solicitation";
+  saveProjBtn.addEventListener("click", () => {
+    data.projectLink = projInput.value.trim();
+    chrome.storage.local.set({ ["sol_" + solId]: data }, () => {
+      appendLog("Project link saved \u2713", "success");
+      renderSolBookmarkInPanel(solId, data);
+      renderSavedSolicitationsSettings();
+    });
+  });
+
+  projRow.appendChild(projInput);
+  projRow.appendChild(saveProjBtn);
+  div.appendChild(projRow);
+}
+
+/**
+ * Helper: create a link <a> that navigates or opens a tab.
+ */
+function makeLink(text, url, newTab) {
+  const a = document.createElement("a");
+  a.href = "#";
+  a.textContent = text;
+  a.style.cssText = "color:var(--accent);text-decoration:none;font-size:11px;";
+  a.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (newTab) chrome.tabs.create({ url });
+    else chrome.tabs.update({ url });
+  });
+  return a;
+}
+
+/**
+ * Bookmark the current solicitation to chrome.storage.local.
+ */
+async function saveBookmark() {
+  if (!solicitationInfo || !solicitationInfo.solId) {
+    appendLog("No solicitation detected on active tab.", "error");
+    return;
+  }
+  const key = "sol_" + solicitationInfo.solId;
+  // Preserve existing data (e.g. projectLink)
+  const existing = await new Promise((resolve) => {
+    chrome.storage.local.get(key, (items) => resolve(items[key] || {}));
+  });
+  const data = {
+    ...existing,
+    solId: solicitationInfo.solId,
+    qaUrl: solicitationInfo.qaUrl,
+    currentUrl: solicitationInfo.currentUrl,
+    pageTitle: solicitationInfo.pageTitle,
+    savedAt: new Date().toISOString(),
+  };
+  chrome.storage.local.set({ [key]: data }, () => {
+    appendLog(
+      "Bookmarked solicitation #" + solicitationInfo.solId + " \u2713",
+      "success",
+    );
+    renderSolBookmarkInPanel(solicitationInfo.solId, data);
+    renderSavedSolicitationsSettings();
+  });
+}
+
+/**
+ * Render the saved solicitations list in the Settings tab.
+ */
+function renderSavedSolicitationsSettings() {
+  const list = document.getElementById("saved-solicitations-list");
+  if (!list) return;
+  chrome.storage.local.get(null, (items) => {
+    const solItems = Object.entries(items).filter(([k]) =>
+      k.startsWith("sol_"),
+    );
+    if (solItems.length === 0) {
+      list.innerHTML =
+        '<div class="empty-state">No saved solicitations yet.</div>';
+      return;
+    }
+    list.innerHTML = "";
+    solItems
+      .sort((a, b) => ((b[1].savedAt || "") > (a[1].savedAt || "") ? 1 : -1))
+      .forEach(([key, data]) => {
+        const item = document.createElement("div");
+        item.style.cssText =
+          "padding:6px 0;border-bottom:1px solid var(--surface2);";
+
+        const titleRow = document.createElement("div");
+        titleRow.style.cssText =
+          "display:flex;justify-content:space-between;align-items:center;";
+
+        const titleEl = document.createElement("span");
+        titleEl.style.cssText =
+          "font-size:11px;color:var(--text);font-weight:600;";
+        titleEl.textContent =
+          "#" +
+          (data.solId || key.slice(4)) +
+          (data.pageTitle ? " \u2014 " + truncate(data.pageTitle, 35) : "");
+
+        const delBtn = document.createElement("span");
+        delBtn.textContent = "\u2715";
+        delBtn.style.cssText =
+          "color:var(--danger);cursor:pointer;font-size:11px;padding:0 4px;";
+        delBtn.title = "Remove bookmark";
+        delBtn.addEventListener("click", () => {
+          chrome.storage.local.remove(key, () =>
+            renderSavedSolicitationsSettings(),
+          );
+        });
+
+        titleRow.appendChild(titleEl);
+        titleRow.appendChild(delBtn);
+        item.appendChild(titleRow);
+
+        const links = document.createElement("div");
+        links.style.cssText =
+          "display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;";
+        if (data.qaUrl)
+          links.appendChild(makeLink("\ud83d\udccb Q&A", data.qaUrl, false));
+        if (data.currentUrl)
+          links.appendChild(
+            makeLink("\ud83c\udf10 Page", data.currentUrl, false),
+          );
+        if (data.projectLink)
+          links.appendChild(
+            makeLink("\ud83c\udfe2 Project", data.projectLink, true),
+          );
+
+        item.appendChild(links);
+        list.appendChild(item);
+      });
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SETTINGS PERSISTENCE
+════════════════════════════════════════════════════════════════════════ */
+
+function saveSettingsToStorage() {
+  const urlEl = document.getElementById("inp-sourcedesk-url");
+  const url = urlEl ? urlEl.value.trim() : "";
+  chrome.storage.local.set({ sourcedesk_url: url }, () => {
+    appendLog("Settings saved \u2713", "success");
+  });
+}
+
+function loadSettingsFromStorage() {
+  chrome.storage.local.get("sourcedesk_url", (items) => {
+    const urlEl = document.getElementById("inp-sourcedesk-url");
+    if (urlEl && items.sourcedesk_url) urlEl.value = items.sourcedesk_url;
+  });
+}
+
+/* Tab change listeners — refresh solicitation info when the user
+   navigates or switches tabs. */
+chrome.tabs.onActivated.addListener(() => loadSolicitationInfo());
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+  if (changeInfo.status === "complete") loadSolicitationInfo();
+});
+
+/* ════════════════════════════════════════════════════════════════════════
    WIRE UP STATIC EVENT LISTENERS
    (replaces all inline onclick / ondragover / oninput / etc. attributes)
 ════════════════════════════════════════════════════════════════════════ */
 document.addEventListener("DOMContentLoaded", () => {
-  // ── Tab bar ──────────────────────────────────────────────────────────
+  // ── Tab bar ──────────────────────────────────────────────────────────────────
   document.querySelectorAll(".tab-btn[data-view]").forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.view));
   });
 
-  // ── Card headers (collapse/expand) ───────────────────────────────────
+  // ── Card headers (collapse/expand) ──────────────────────────────────────
   document.querySelectorAll(".card-header[data-card]").forEach((header) => {
     header.addEventListener("click", () => toggleCard(header.dataset.card));
   });
 
-  // ── Section A: Page Controls ─────────────────────────────────────────
+  // ── Section A: Page Controls ─────────────────────────────────────────────
   document
     .getElementById("btn-load-all")
     .addEventListener("click", sendLoadAllQuestions);
   document
     .getElementById("btn-extract-qa")
     .addEventListener("click", sendExtractQA);
+  document
+    .getElementById("btn-open-bidnet")
+    .addEventListener("click", () =>
+      chrome.tabs.create({ url: "https://www.bidnetdirect.com" }),
+    );
+  document
+    .getElementById("btn-bookmark")
+    .addEventListener("click", saveBookmark);
 
   // ── Section B: CSV Loading ────────────────────────────────────────────
   const dropzone = document.getElementById("csv-dropzone");
@@ -880,7 +1304,7 @@ document.addEventListener("DOMContentLoaded", () => {
     .getElementById("btn-apply-vis")
     .addEventListener("click", applyBatchVisibility);
 
-  // ── Section C: Test Mode ──────────────────────────────────────────────
+  // ── Section C: Test Mode ─────────────────────────────────────────────
   document
     .getElementById("btn-test-next")
     .addEventListener("click", testNextQuestion);
@@ -888,7 +1312,15 @@ document.addEventListener("DOMContentLoaded", () => {
     .getElementById("btn-test-reset")
     .addEventListener("click", resetTestMode);
 
-  // ── Section D: Questions Table ────────────────────────────────────────
+  // Row range inputs — update test status on change
+  document
+    .getElementById("inp-row-from")
+    .addEventListener("change", _updateTestStatus);
+  document
+    .getElementById("inp-row-to")
+    .addEventListener("change", _updateTestStatus);
+
+  // ── Section D: Questions Table ────────────────────────────────────────────
   document
     .getElementById("question-search")
     .addEventListener("input", filterQuestionsTable);
@@ -901,4 +1333,14 @@ document.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("btn-refresh-questions")
     .addEventListener("click", refreshQuestionsFromPage);
+
+  // ── Settings tab ────────────────────────────────────────────────────────────────
+  document
+    .getElementById("btn-save-settings")
+    .addEventListener("click", saveSettingsToStorage);
+
+  // ── Initial data load ────────────────────────────────────────────────────────────
+  loadSolicitationInfo();
+  loadSettingsFromStorage();
+  renderSavedSolicitationsSettings();
 });

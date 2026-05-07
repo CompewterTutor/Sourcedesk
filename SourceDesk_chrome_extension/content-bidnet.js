@@ -36,7 +36,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
   switch (message.action) {
     case "loadAllQuestions":
-      handleLoadAllQuestions(sendResponse);
+      handleLoadAllQuestions(message.payload || {}, sendResponse);
       return true;
 
     case "extractQA":
@@ -61,6 +61,10 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
     case "batchVisibility":
       handleBatchVisibility(message.payload || {}, sendResponse);
+      return true;
+
+    case "getSolicitationInfo":
+      handleGetSolicitationInfo(sendResponse);
       return true;
 
     default:
@@ -197,7 +201,7 @@ function downloadCSV(rows, filename) {
    HANDLER: LOAD ALL QUESTIONS (manipulate pageSize querystring)
 ════════════════════════════════════════════════════════════════════════ */
 
-function handleLoadAllQuestions(sendResponse) {
+function handleLoadAllQuestions(payload, sendResponse) {
   try {
     var base = getQABaseUrl();
     if (!base) {
@@ -207,9 +211,10 @@ function handleLoadAllQuestions(sendResponse) {
       });
       return;
     }
+    var pageSize = payload.pageSize || 9999;
     // Preserve any existing query params except pageSize / pageNumber
     var params = new URLSearchParams(window.location.search);
-    params.set("searchCriteria.pageSize", "9999");
+    params.set("searchCriteria.pageSize", String(pageSize));
     params.set("searchCriteria.pageNumber", "1");
     // Remove target= if present (can interfere)
     params.delete("target");
@@ -393,9 +398,14 @@ async function handleFillAnswer(payload, sendResponse) {
     await waitForElement("#answerQuestionForm", 15000);
     await sleep(500); // let any JS initialisation settle
 
-    // ── Visibility dropdown ──────────────────────────────────────────
+    // ── Visibility dropdown ──────────────────────────────────────────────────
     var visSel = document.querySelector("#answerTypeDropdown");
-    if (visSel) {
+    if (payload.skipVisibility) {
+      sendLog(
+        "Visibility left unchanged (blank in CSV + skip enabled).",
+        "info",
+      );
+    } else if (visSel) {
       var visVal = visibility.toUpperCase(); // "PUBLIC" or "PRIVATE"
       visSel.value = visVal;
       visSel.dispatchEvent(new Event("change", { bubbles: true }));
@@ -558,15 +568,22 @@ async function handleTestFillAnswer(payload, sendResponse) {
     findings.formFound = true;
     sendLog("[TEST] Form loaded ✓", "success");
 
-    // ── Step 3: visibility dropdown ───────────────────────────────────
+    // ── Step 3: visibility dropdown ─────────────────────────────────────────────
     var visSel = document.querySelector("#answerTypeDropdown");
     if (visSel) {
       findings.visDropdownFound = true;
-      var visVal = visibility.toUpperCase();
-      visSel.value = visVal;
-      visSel.dispatchEvent(new Event("change", { bubbles: true }));
-      findings.visValueSet = true;
-      sendLog("[TEST] Visibility set to " + visVal + " ✓", "success");
+      if (payload.skipVisibility) {
+        sendLog(
+          "[TEST] Visibility left unchanged (blank in CSV + skip enabled) ✓",
+          "success",
+        );
+      } else {
+        var visVal = visibility.toUpperCase();
+        visSel.value = visVal;
+        visSel.dispatchEvent(new Event("change", { bubbles: true }));
+        findings.visValueSet = true;
+        sendLog("[TEST] Visibility set to " + visVal + " ✓", "success");
+      }
     } else {
       sendLog("[TEST] WARNING: #answerTypeDropdown not found!", "error");
     }
@@ -609,8 +626,15 @@ async function handleTestFillAnswer(payload, sendResponse) {
     var saveBtn = findSaveButton();
     if (saveBtn) {
       findings.saveBtnFound = true;
-      saveBtn.style.outline = "3px solid orange";
-      saveBtn.style.outlineOffset = "2px";
+      // Inject flash keyframes once
+      if (!document.getElementById("sd-test-flash-style")) {
+        var styleEl = document.createElement("style");
+        styleEl.id = "sd-test-flash-style";
+        styleEl.textContent =
+          "@keyframes sd-test-flash { 0%,100%{outline:4px solid orange;background:#ff8c00;color:#fff;} 50%{outline:4px solid #ff4400;background:#fff3e0;color:#333;} } .sd-test-highlight { animation: sd-test-flash 0.7s ease-in-out infinite; outline-offset: 3px; }";
+        document.head.appendChild(styleEl);
+      }
+      saveBtn.classList.add("sd-test-highlight");
       saveBtn.title = "SourceDesk TEST MODE — not saving";
       sendLog(
         "[TEST] Save button found and highlighted in orange (NOT clicking) ✓",
@@ -742,4 +766,20 @@ async function handleBatchVisibility(payload, sendResponse) {
 
   sendProgress(total, total, "Done");
   sendLog("Batch visibility change complete.", "success");
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   HANDLER: GET SOLICITATION INFO
+═══════════════════════════════════════════════════════════════════════ */
+
+function handleGetSolicitationInfo(sendResponse) {
+  var solId = getSolicitationId();
+  var qaUrl = getQABaseUrl();
+  sendResponse({
+    ok: true,
+    solId: solId,
+    qaUrl: qaUrl ? window.location.origin + qaUrl : null,
+    currentUrl: window.location.href,
+    pageTitle: document.title,
+  });
 }

@@ -714,17 +714,103 @@
                             <span class="collapse-icon">▼</span>
                         </div>
                         <div class="card-body">
+                            <!-- Solicitation info bar -->
                             <div
-                                style="display: flex; gap: 6px; flex-wrap: wrap"
+                                id="sol-info-bar"
+                                style="
+                                    display: flex;
+                                    justify-content: space-between;
+                                    align-items: center;
+                                    gap: 6px;
+                                    margin-bottom: 8px;
+                                    padding: 6px 8px;
+                                    background: var(--surface2);
+                                    border-radius: var(--radius);
+                                    flex-wrap: wrap;
+                                "
                             >
+                                <span
+                                    id="sol-info-text"
+                                    class="form-label"
+                                    style="margin: 0; font-size: 11px"
+                                    >Detecting solicitation…</span
+                                >
+                                <div
+                                    style="
+                                        display: flex;
+                                        gap: 4px;
+                                        flex-shrink: 0;
+                                    "
+                                >
+                                    <button
+                                        class="btn btn-sm"
+                                        id="btn-open-bidnet"
+                                        title="Open BidNet in a new tab"
+                                    >
+                                        🔗 BidNet
+                                    </button>
+                                    <button
+                                        class="btn btn-sm"
+                                        id="btn-bookmark"
+                                        title="Bookmark this solicitation"
+                                    >
+                                        📌
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Saved bookmark for current solicitation -->
+                            <div
+                                id="sol-bookmarks"
+                                style="
+                                    display: none;
+                                    margin-bottom: 8px;
+                                    padding: 6px 8px;
+                                    background: var(--surface2);
+                                    border-radius: var(--radius);
+                                    font-size: 11px;
+                                "
+                            ></div>
+                            <!-- Page size + action buttons -->
+                            <div
+                                style="
+                                    display: flex;
+                                    gap: 6px;
+                                    flex-wrap: wrap;
+                                    align-items: flex-end;
+                                    margin-bottom: 6px;
+                                "
+                            >
+                                <div
+                                    style="
+                                        display: flex;
+                                        flex-direction: column;
+                                        gap: 2px;
+                                    "
+                                >
+                                    <label
+                                        class="form-label"
+                                        style="margin: 0; font-size: 10px"
+                                        >Page size</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="inp-page-size"
+                                        value="9999"
+                                        min="1"
+                                        max="9999"
+                                        step="50"
+                                        style="width: 72px"
+                                    />
+                                </div>
                                 <button
                                     class="btn btn-accent"
                                     id="btn-load-all"
+                                    style="flex: 1; min-width: 110px"
                                 >
-                                    🔍 Load All Questions
+                                    🔍 Load Questions
                                 </button>
                                 <button class="btn" id="btn-extract-qa">
-                                    📥 Extract Q&amp;A to CSV
+                                    📥 Extract Q&amp;A
                                 </button>
                             </div>
                             <div class="form-row">
@@ -830,6 +916,35 @@
                                 />
                                 Override visibility from CSV column
                             </label>
+                            <label class="checkbox-row">
+                                <input
+                                    type="checkbox"
+                                    id="chk-blank-vis-skip"
+                                />
+                                Leave visibility unchanged if CSV cell is blank
+                            </label>
+
+                            <hr class="divider" style="margin: 6px 0" />
+
+                            <label class="checkbox-row">
+                                <input type="checkbox" id="chk-skip-answered" />
+                                Skip already-answered questions
+                            </label>
+                            <label class="checkbox-row">
+                                <input type="checkbox" id="chk-only-update" />
+                                Only update existing answers (skip unanswered)
+                            </label>
+                            <p
+                                id="filter-mode-note"
+                                style="
+                                    font-size: 10px;
+                                    color: var(--text-muted);
+                                    margin: 2px 0 6px;
+                                "
+                            >
+                                ⚠ Skip / Only-update require the Questions table
+                                to be refreshed first.
+                            </p>
 
                             <div class="form-row-inline">
                                 <div class="form-row" style="flex: 1">
@@ -850,6 +965,33 @@
                                         min="100"
                                         max="10000"
                                         step="100"
+                                    />
+                                </div>
+                            </div>
+
+                            <!-- Row range -->
+                            <div
+                                class="form-row-inline"
+                                style="gap: 8px; margin-bottom: 8px"
+                            >
+                                <div class="form-row" style="flex: 1">
+                                    <label class="form-label">From row</label>
+                                    <input
+                                        type="number"
+                                        id="inp-row-from"
+                                        value="1"
+                                        min="1"
+                                        step="1"
+                                    />
+                                </div>
+                                <div class="form-row" style="flex: 1">
+                                    <label class="form-label">To row</label>
+                                    <input
+                                        type="number"
+                                        id="inp-row-to"
+                                        placeholder="all"
+                                        min="1"
+                                        step="1"
                                     />
                                 </div>
                             </div>
@@ -1057,10 +1199,62 @@
          VIEW: SETTINGS
     ════════════════════════════════════════════════════════════════ -->
                 <div id="view-settings" class="view">
-                    <div class="coming-soon">
-                        <span class="cs-icon">🚧</span>
-                        <span class="cs-title">Settings</span>
-                        <span class="cs-sub">Coming Soon</span>
+                    <div class="card" id="card-settings-general">
+                        <div
+                            class="card-header"
+                            data-card="card-settings-general"
+                        >
+                            <span class="card-title"
+                                >SourceDesk Connection</span
+                            >
+                            <span class="collapse-icon">▼</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-row">
+                                <label class="form-label"
+                                    >SourceDesk URL (optional)</label
+                                >
+                                <input
+                                    type="text"
+                                    id="inp-sourcedesk-url"
+                                    placeholder="http://localhost:8080"
+                                />
+                            </div>
+                            <p
+                                style="
+                                    font-size: 11px;
+                                    color: var(--text-muted);
+                                    margin-bottom: 8px;
+                                "
+                            >
+                                Optional. Enter your SourceDesk instance URL.
+                                Then use the 🏢 Project Link field per
+                                solicitation (in the Q&amp;A tab after
+                                bookmarking) to associate a project URL.
+                            </p>
+                            <button
+                                class="btn btn-accent btn-full"
+                                id="btn-save-settings"
+                            >
+                                💾 Save Settings
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card" id="card-settings-bookmarks">
+                        <div
+                            class="card-header"
+                            data-card="card-settings-bookmarks"
+                        >
+                            <span class="card-title">Saved Solicitations</span>
+                            <span class="collapse-icon">▼</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="saved-solicitations-list">
+                                <div class="empty-state">
+                                    No saved solicitations yet.
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>

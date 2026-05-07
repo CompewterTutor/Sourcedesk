@@ -21,8 +21,11 @@ RUN npm run build
 FROM node:18-alpine AS runtime
 WORKDIR /app
 
-# Same native build tools needed at runtime for better-sqlite3
-RUN apk add --no-cache python3 make g++
+# Native build tools for better-sqlite3, plus pip + markitdown for doc conversion
+# markitdown[all] includes: pdfminer-six (PDF), mammoth (docx),
+#   openpyxl (xlsx), python-pptx (pptx)
+RUN apk add --no-cache python3 py3-pip make g++ && \
+    pip3 install --no-cache-dir "markitdown[all]" --break-system-packages
 
 # Copy package manifests and install production + optional dependencies
 COPY package.json package-lock.json ./

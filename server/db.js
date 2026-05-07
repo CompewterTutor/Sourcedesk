@@ -17,26 +17,28 @@
 //   db.type               → 'sqlite' | 'postgres'
 //   db.runMigrations(dir) → Promise<string[]>   newly applied filenames
 
-'use strict';
+"use strict";
 
-const fs   = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public factory
 // ─────────────────────────────────────────────────────────────────────────────
 
 function createDb(url) {
-  if (!url) throw new Error('createDb: DATABASE_URL is required');
+  if (!url) throw new Error("createDb: DATABASE_URL is required");
 
-  if (url.startsWith('sqlite:') || url.startsWith('file:')) {
+  if (url.startsWith("sqlite:") || url.startsWith("file:")) {
     return _createSqliteDb(url);
   }
-  if (url.startsWith('postgres://') || url.startsWith('postgresql://')) {
+  if (url.startsWith("postgres://") || url.startsWith("postgresql://")) {
     return _createPostgresDb(url);
   }
   throw new Error(
-    'createDb: unknown URL scheme "' + url.split(':')[0] + '". Use sqlite: or postgres://'
+    'createDb: unknown URL scheme "' +
+      url.split(":")[0] +
+      '". Use sqlite: or postgres://',
   );
 }
 
@@ -49,33 +51,36 @@ module.exports = { createDb };
 function _createSqliteDb(url) {
   // Strip scheme prefix: "sqlite:./foo.db" → "./foo.db", "file:///abs" → "/abs"
   let filePath = url
-    .replace(/^sqlite:\/\/\//, '/')    // sqlite:///abs/path
-    .replace(/^sqlite:\/\//, '')       // sqlite://relative (unusual but handle it)
-    .replace(/^sqlite:/, '')           // sqlite:./relative
-    .replace(/^file:\/\/\//, '/')      // file:///abs/path
-    .replace(/^file:\/\//, '')         // file://relative
-    .replace(/^file:/, '');            // file:./relative
+    .replace(/^sqlite:\/\/\//, "/") // sqlite:///abs/path
+    .replace(/^sqlite:\/\//, "") // sqlite://relative (unusual but handle it)
+    .replace(/^sqlite:/, "") // sqlite:./relative
+    .replace(/^file:\/\/\//, "/") // file:///abs/path
+    .replace(/^file:\/\//, "") // file://relative
+    .replace(/^file:/, ""); // file:./relative
 
   // Resolve relative to process.cwd()
-  if (!path.isAbsolute(filePath)) filePath = path.resolve(process.cwd(), filePath);
+  if (!path.isAbsolute(filePath))
+    filePath = path.resolve(process.cwd(), filePath);
 
   // Ensure parent directory exists
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 
   let Database;
   try {
-    Database = require('better-sqlite3');
+    Database = require("better-sqlite3");
   } catch (e) {
     throw new Error(
-      'better-sqlite3 is not installed. Run: npm install better-sqlite3\n' +
-      '(Original error: ' + e.message + ')'
+      "better-sqlite3 is not installed. Run: npm install better-sqlite3\n" +
+        "(Original error: " +
+        e.message +
+        ")",
     );
   }
 
   const sqlite = new Database(filePath);
   // WAL mode: better concurrent read performance
-  sqlite.pragma('journal_mode = WAL');
-  sqlite.pragma('foreign_keys = ON');
+  sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("foreign_keys = ON");
 
   function _spread(params) {
     // better-sqlite3 stmt.run/get/all accept spread positional args or a named object
@@ -85,7 +90,7 @@ function _createSqliteDb(url) {
   }
 
   const db = {
-    type: 'sqlite',
+    type: "sqlite",
 
     run(sql, params = []) {
       try {
@@ -93,7 +98,10 @@ function _createSqliteDb(url) {
         const r = Array.isArray(params)
           ? stmt.run(...params)
           : stmt.run(params);
-        return Promise.resolve({ lastID: r.lastInsertRowid, changes: r.changes });
+        return Promise.resolve({
+          lastID: r.lastInsertRowid,
+          changes: r.changes,
+        });
       } catch (e) {
         return Promise.reject(e);
       }
@@ -156,32 +164,41 @@ function _createSqliteDb(url) {
 function _createPostgresDb(url) {
   let Pool;
   try {
-    Pool = require('pg').Pool;
+    Pool = require("pg").Pool;
   } catch (e) {
     throw new Error(
-      'pg is not installed. Run: npm install pg\n' +
-      '(Original error: ' + e.message + ')'
+      "pg is not installed. Run: npm install pg\n" +
+        "(Original error: " +
+        e.message +
+        ")",
     );
   }
 
   const pool = new Pool({ connectionString: url });
 
   const db = {
-    type: 'postgres',
+    type: "postgres",
 
     async run(sql, params = []) {
       // Convert SQLite ? placeholders to $1, $2, ...
       let pgSql = sql;
       let i = 0;
-      pgSql = pgSql.replace(/\?/g, function() { return '$' + (++i); });
+      pgSql = pgSql.replace(/\?/g, function () {
+        return "$" + ++i;
+      });
       const r = await pool.query(pgSql, params);
-      return { lastID: (r.rows[0] && r.rows[0].id) || null, changes: r.rowCount };
+      return {
+        lastID: (r.rows[0] && r.rows[0].id) || null,
+        changes: r.rowCount,
+      };
     },
 
     async get(sql, params = []) {
       let pgSql = sql;
       let i = 0;
-      pgSql = pgSql.replace(/\?/g, function() { return '$' + (++i); });
+      pgSql = pgSql.replace(/\?/g, function () {
+        return "$" + ++i;
+      });
       const r = await pool.query(pgSql, params);
       return r.rows[0];
     },
@@ -189,17 +206,27 @@ function _createPostgresDb(url) {
     async all(sql, params = []) {
       let pgSql = sql;
       let i = 0;
-      pgSql = pgSql.replace(/\?/g, function() { return '$' + (++i); });
+      pgSql = pgSql.replace(/\?/g, function () {
+        return "$" + ++i;
+      });
       const r = await pool.query(pgSql, params);
       return r.rows;
     },
 
     async exec(sql) {
-      // Split on semicolons, filter empty, run each statement individually
-      const stmts = sql
-        .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.match(/^--/));
+      // Strip all comment lines first (before splitting on ';'), so that
+      // semicolons embedded inside '--' comment text don't produce bogus
+      // SQL fragments (e.g. "-- One row per user; bank_id mirrors ...").
+      const stripped = sql
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("--"))
+        .join("\n");
+
+      const stmts = stripped
+        .split(";")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
       for (const stmt of stmts) {
         await pool.query(stmt);
       }
@@ -224,17 +251,18 @@ function _createPostgresDb(url) {
 async function _runMigrations(db, migrationsDir) {
   // Ensure the schema_migrations table exists
   await db.exec(
-    'CREATE TABLE IF NOT EXISTS schema_migrations (' +
-    '  version TEXT PRIMARY KEY,' +
-    '  applied_at TEXT NOT NULL' +
-    ')'
+    "CREATE TABLE IF NOT EXISTS schema_migrations (" +
+      "  version TEXT PRIMARY KEY," +
+      "  applied_at TEXT NOT NULL" +
+      ")",
   );
 
   // Read all .sql files, sorted by name
   let files;
   try {
-    files = fs.readdirSync(migrationsDir)
-      .filter(f => f.endsWith('.sql'))
+    files = fs
+      .readdirSync(migrationsDir)
+      .filter((f) => f.endsWith(".sql"))
       .sort();
   } catch (e) {
     // migrations dir doesn't exist — nothing to apply
@@ -245,20 +273,20 @@ async function _runMigrations(db, migrationsDir) {
   for (const file of files) {
     // Check if already applied
     const existing = await db.get(
-      'SELECT version FROM schema_migrations WHERE version = ?',
-      [file]
+      "SELECT version FROM schema_migrations WHERE version = ?",
+      [file],
     );
     if (existing) continue; // skip
 
     // Apply the migration
-    const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+    const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
     await db.exec(sql);
 
     // Record it
     const now = new Date().toISOString();
     await db.run(
-      'INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)',
-      [file, now]
+      "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+      [file, now],
     );
     applied.push(file);
   }

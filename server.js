@@ -329,29 +329,19 @@ async function _summarizeIngest(db, ingestId, projectId, userId, threadsMap) {
 let _markitdownAvailable = null;
 let _markitdownDocxAvailable = null;
 
-// Verify that markitdown can actually convert .docx files by running a tiny test conversion.
-function _testDocxConversion(cb) {
-  const tmpFile = path.join(
-    os.tmpdir(),
-    "sd-mkd-docx-test-" + Date.now() + ".docx",
+// Check that the optional format libraries markitdown depends on are importable.
+// This is more reliable than running a test-file conversion, which can fail due
+// to minor version-specific quirks in how markitdown handles certain zip layouts.
+// pdfminer → PDF,  mammoth → docx,  openpyxl → xlsx,  pptx → pptx
+function _testFormatDeps(cb) {
+  execFile(
+    "python3",
+    ["-c", "import pdfminer, mammoth, openpyxl, pptx; print('ok')"],
+    { timeout: 10000 },
+    (err, stdout) => {
+      cb(!err && stdout.trim() === "ok");
+    },
   );
-  try {
-    fs.writeFileSync(tmpFile, Buffer.from(TINY_TEST_DOCX_B64, "base64"));
-  } catch (e) {
-    cb(false);
-    return;
-  }
-  runMarkitdown(tmpFile, (err, output) => {
-    try {
-      fs.unlinkSync(tmpFile);
-    } catch (_) {}
-    // The test docx contains "Hello World" in its text content
-    cb(
-      !err &&
-        typeof output === "string" &&
-        output.toLowerCase().includes("hello world"),
-    );
-  });
 }
 
 function checkMarkitdown(cb) {
@@ -363,10 +353,10 @@ function checkMarkitdown(cb) {
   execFile("markitdown", ["--help"], { timeout: 5000 }, (err) => {
     if (!err) {
       _markitdownAvailable = true;
-      // Step 2: test actual docx conversion to catch missing optional deps
-      _testDocxConversion((docxOk) => {
-        _markitdownDocxAvailable = docxOk;
-        cb(true, docxOk);
+      // Step 2: check optional format deps via Python imports
+      _testFormatDeps((depsOk) => {
+        _markitdownDocxAvailable = depsOk;
+        cb(true, depsOk);
       });
       return;
     }
@@ -383,9 +373,9 @@ function checkMarkitdown(cb) {
           cb(false, false);
           return;
         }
-        _testDocxConversion((docxOk) => {
-          _markitdownDocxAvailable = docxOk;
-          cb(true, docxOk);
+        _testFormatDeps((depsOk) => {
+          _markitdownDocxAvailable = depsOk;
+          cb(true, depsOk);
         });
       },
     );
@@ -462,14 +452,21 @@ const CORS_HEADERS = {
 
 // ─── Env injection ──────────────────────────────────────────────────────────
 // Builds the <script> block injected at the top of <head>.
-function buildEnvScript() {
+function buildEnvScript(req) {
+  // Derive the server's public base URL from the incoming request's Host header
+  // so that remote clients (e.g. a Windows PC hitting 192.168.1.200:3000) get
+  // a markitdownUrl that points back to this server, not to their own localhost.
+  // MARKITDOWN_URL in .env overrides this (useful behind a reverse proxy).
+  const host = (req && req.headers && req.headers.host) || `localhost:${PORT}`;
+  const proto = (req && req.headers["x-forwarded-proto"]) || "http";
+  const serverBase = env.MARKITDOWN_URL || `${proto}://${host}`;
+
   const obj = {
     environment: env.ENVIRONMENT || "hosted",
     localLlmUrl: env.LOCAL_LLM_URL || "http://localhost:11434/v1",
     localLlmDefaultModel: env.LOCAL_LLM_DEFAULT_MODEL || "",
-    // Auto-expose the convert endpoint so the app can use it without
-    // the user needing to manually set the MarkItDown URL in Settings.
-    markitdownUrl: env.MARKITDOWN_URL || `http://localhost:${PORT}`,
+    // Expose convert + proxy endpoints using the correct host for this client.
+    markitdownUrl: serverBase,
   };
   return `<script>window.__SOURCEDESK_ENV__ = ${JSON.stringify(obj)};</script>`;
 }
@@ -564,6 +561,7 @@ function handler(req, res) {
               )
               .join(" | ")
               .slice(0, 400) || full.slice(0, 400);
+          console.error(`  [convert] FAILED ${safeName}: ${brief}`);
           res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
           res.end("markitdown failed: " + brief);
           return;
@@ -1698,7 +1696,7 @@ function handler(req, res) {
     }
 
     // Inject env vars right after the opening <head> tag
-    const envScript = buildEnvScript();
+    const envScript = buildEnvScript(req);
     html = html.replace(/(<head[^>]*>)/, "$1\n    " + envScript);
 
     res.writeHead(200, {

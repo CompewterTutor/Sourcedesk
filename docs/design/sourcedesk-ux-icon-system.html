@@ -1,0 +1,1587 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SourceDesk UX and Icon System</title>
+    <style>
+      :root {
+        --bg: #0f0e0c;
+        --surface: #191816;
+        --surface-2: #22201e;
+        --surface-3: #292621;
+        --border: #34312b;
+        --border-soft: rgba(232, 228, 220, 0.08);
+        --text: #e8e4dc;
+        --text-dim: #aaa49a;
+        --text-muted: #736f68;
+        --accent: #c9a84c;
+        --accent-2: #e4c86a;
+        --accent-soft: rgba(201, 168, 76, 0.13);
+        --blue: #74a7d8;
+        --blue-soft: rgba(116, 167, 216, 0.14);
+        --teal: #69c0b5;
+        --teal-soft: rgba(105, 192, 181, 0.13);
+        --green: #6faf83;
+        --green-soft: rgba(111, 175, 131, 0.14);
+        --red: #c96048;
+        --red-soft: rgba(201, 96, 72, 0.14);
+        --violet: #a891dd;
+        --violet-soft: rgba(168, 145, 221, 0.13);
+        --radius: 6px;
+        --radius-lg: 10px;
+        --shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 18% 0%, rgba(201, 168, 76, 0.08), transparent 34rem),
+          linear-gradient(180deg, #14120f 0%, var(--bg) 28rem);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        line-height: 1.45;
+      }
+
+      svg {
+        display: block;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .page {
+        width: min(1440px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 28px 0 48px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+        gap: 28px;
+        align-items: end;
+        margin-bottom: 28px;
+      }
+
+      .brand-lockup {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        border: 1px solid rgba(201, 168, 76, 0.55);
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        color: var(--accent-2);
+        background: linear-gradient(145deg, rgba(201, 168, 76, 0.2), rgba(255, 255, 255, 0.02));
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        max-width: 720px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(44px, 6vw, 76px);
+        line-height: 0.96;
+        letter-spacing: 0;
+      }
+
+      .hero-copy {
+        max-width: 760px;
+        color: var(--text-dim);
+        font-size: 16px;
+        margin-top: 18px;
+      }
+
+      .meta-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 20px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 28px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.025);
+        color: var(--text-dim);
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 11px;
+      }
+
+      .pill svg {
+        width: 14px;
+        height: 14px;
+        color: var(--accent);
+      }
+
+      .summary-card {
+        background: rgba(25, 24, 22, 0.76);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 18px;
+        box-shadow: var(--shadow);
+      }
+
+      .summary-card h2 {
+        font-size: 15px;
+        margin-bottom: 12px;
+      }
+
+      .summary-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .summary-list div {
+        display: grid;
+        grid-template-columns: 26px 1fr;
+        gap: 10px;
+        color: var(--text-dim);
+        font-size: 13px;
+      }
+
+      .summary-list svg {
+        width: 18px;
+        height: 18px;
+        color: var(--accent);
+        margin-top: 1px;
+      }
+
+      .section {
+        margin-top: 24px;
+      }
+
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: end;
+        margin: 0 0 12px;
+      }
+
+      .section-head h2 {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: 0;
+      }
+
+      .section-head p {
+        max-width: 560px;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .mock-window {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+        min-height: 780px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+
+      .mock-topbar {
+        height: 54px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(34, 32, 30, 0.76);
+      }
+
+      .mock-logo {
+        font-family: Georgia, "Times New Roman", serif;
+        color: var(--accent);
+        font-size: 19px;
+        margin-right: auto;
+      }
+
+      .mock-logo span {
+        color: var(--text-dim);
+        font-style: italic;
+      }
+
+      .icon-button,
+      .text-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 32px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text-dim);
+        background: rgba(255, 255, 255, 0.02);
+        padding: 6px 9px;
+        font-size: 12px;
+      }
+
+      .icon-button svg,
+      .text-button svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      .text-button.primary {
+        background: var(--accent);
+        color: var(--bg);
+        border-color: var(--accent);
+        font-weight: 700;
+      }
+
+      .text-button.success {
+        color: var(--green);
+        border-color: rgba(111, 175, 131, 0.35);
+        background: var(--green-soft);
+      }
+
+      .mock-grid {
+        display: grid;
+        grid-template-columns: 238px minmax(0, 1fr) 292px;
+        min-height: 726px;
+      }
+
+      .mock-sidebar {
+        border-right: 1px solid var(--border);
+        background: rgba(15, 14, 12, 0.5);
+        padding: 12px 10px;
+      }
+
+      .sidebar-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--text-muted);
+        font-size: 10px;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        padding: 10px 8px 6px;
+      }
+
+      .nav-row,
+      .project-row,
+      .chat-row,
+      .doc-row {
+        display: grid;
+        grid-template-columns: 24px 1fr auto;
+        align-items: center;
+        gap: 8px;
+        border-radius: var(--radius);
+        padding: 7px 8px;
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+
+      .nav-row svg,
+      .project-row svg,
+      .chat-row svg,
+      .doc-row svg {
+        width: 16px;
+        height: 16px;
+        color: var(--text-muted);
+      }
+
+      .nav-row.active,
+      .project-row.active {
+        color: var(--accent);
+        background: var(--accent-soft);
+        box-shadow: inset 2px 0 0 var(--accent);
+      }
+
+      .nav-row.active svg,
+      .project-row.active svg {
+        color: var(--accent);
+      }
+
+      .count {
+        min-width: 22px;
+        text-align: center;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 1px 6px;
+        color: var(--text-muted);
+        font-size: 10px;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .mock-main {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-width: 0;
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.015), transparent 28%),
+          var(--bg);
+      }
+
+      .project-header {
+        border-bottom: 1px solid var(--border);
+        padding: 16px 18px 13px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .project-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .project-title-row h2 {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 25px;
+        font-weight: 600;
+        margin-right: auto;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 23px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        font-size: 10px;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .tag.gold {
+        color: var(--accent);
+        border-color: rgba(201, 168, 76, 0.35);
+        background: var(--accent-soft);
+      }
+
+      .tag.teal {
+        color: var(--teal);
+        border-color: rgba(105, 192, 181, 0.3);
+        background: var(--teal-soft);
+      }
+
+      .workflow-tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .workflow-tabs .text-button {
+        min-height: 30px;
+      }
+
+      .chat-feed {
+        padding: 20px 18px;
+        overflow: hidden;
+        display: grid;
+        gap: 14px;
+        align-content: start;
+      }
+
+      .message {
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 12px;
+        max-width: 840px;
+      }
+
+      .avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        color: var(--accent);
+        border: 1px solid rgba(201, 168, 76, 0.32);
+        background: var(--accent-soft);
+      }
+
+      .message.user .avatar {
+        color: var(--blue);
+        border-color: rgba(116, 167, 216, 0.32);
+        background: var(--blue-soft);
+      }
+
+      .bubble {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: rgba(25, 24, 22, 0.72);
+        padding: 13px 14px;
+        color: var(--text-dim);
+        font-size: 13px;
+      }
+
+      .bubble strong {
+        color: var(--text);
+      }
+
+      .source-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+
+      .compose {
+        border-top: 1px solid var(--border);
+        padding: 12px 14px;
+        display: grid;
+        gap: 8px;
+        background: rgba(25, 24, 22, 0.58);
+      }
+
+      .compose-row {
+        display: grid;
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .fake-input {
+        min-height: 40px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: var(--surface-2);
+        color: var(--text-muted);
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+
+      .meter-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-muted);
+        font-size: 10px;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .meter-track {
+        height: 4px;
+        background: var(--surface-2);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .meter-fill {
+        width: 46%;
+        height: 100%;
+        background: linear-gradient(90deg, var(--green), var(--accent));
+        border-radius: 999px;
+      }
+
+      .mock-context {
+        border-left: 1px solid var(--border);
+        background: rgba(25, 24, 22, 0.9);
+        padding: 12px;
+        display: grid;
+        align-content: start;
+        gap: 12px;
+      }
+
+      .panel-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--text-muted);
+        font-size: 10px;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .context-card,
+      .extension-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: rgba(255, 255, 255, 0.02);
+        padding: 10px;
+      }
+
+      .context-card h3,
+      .extension-card h3 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+
+      .context-card h3 svg,
+      .extension-card h3 svg {
+        width: 16px;
+        height: 16px;
+        color: var(--accent);
+      }
+
+      .qna-strip {
+        margin-top: 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: rgba(34, 32, 30, 0.7);
+        overflow: hidden;
+      }
+
+      .qna-toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
+      }
+
+      .qna-toolbar strong {
+        margin-right: auto;
+        font-size: 13px;
+      }
+
+      .qna-table {
+        display: grid;
+        gap: 1px;
+        background: var(--border);
+      }
+
+      .qna-row {
+        display: grid;
+        grid-template-columns: 88px minmax(0, 1fr) 124px 108px;
+        gap: 0;
+        background: var(--surface);
+      }
+
+      .qna-row > div {
+        padding: 9px 10px;
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+
+      .qna-row.header > div {
+        color: var(--text-muted);
+        font-size: 10px;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .extension-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 18px;
+        align-items: stretch;
+      }
+
+      .extension-panel {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        overflow: hidden;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .extension-top {
+        height: 50px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface-2);
+      }
+
+      .extension-body {
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .action-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .action-card {
+        min-height: 78px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: rgba(255, 255, 255, 0.02);
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+        align-content: start;
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+
+      .action-card svg {
+        width: 20px;
+        height: 20px;
+        color: var(--accent);
+      }
+
+      .icon-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
+        gap: 10px;
+      }
+
+      .icon-card {
+        min-height: 92px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: rgba(25, 24, 22, 0.72);
+        padding: 11px;
+        display: grid;
+        grid-template-columns: 36px 1fr;
+        gap: 10px;
+        align-content: start;
+      }
+
+      .icon-box {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(201, 168, 76, 0.25);
+        border-radius: 8px;
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      .icon-box svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .icon-card b {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 3px;
+      }
+
+      .icon-card code {
+        color: var(--text-muted);
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 10px;
+        word-break: break-word;
+      }
+
+      .icon-card small {
+        display: block;
+        color: var(--text-muted);
+        font-size: 11px;
+        margin-top: 5px;
+      }
+
+      .group-block {
+        margin-top: 18px;
+      }
+
+      .group-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+
+      .group-title svg {
+        width: 18px;
+        height: 18px;
+        color: var(--accent);
+      }
+
+      .ux-ledger {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .ux-note {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: rgba(25, 24, 22, 0.72);
+        padding: 13px;
+      }
+
+      .ux-note svg {
+        width: 19px;
+        height: 19px;
+        color: var(--accent);
+        margin-bottom: 10px;
+      }
+
+      .ux-note b {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 13px;
+      }
+
+      .ux-note p {
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+
+      @media (max-width: 1120px) {
+        .hero,
+        .extension-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .mock-grid {
+          grid-template-columns: 210px minmax(0, 1fr);
+        }
+
+        .mock-context {
+          display: none;
+        }
+
+        .ux-ledger {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 780px) {
+        .page {
+          width: min(100vw - 20px, 720px);
+          padding-top: 18px;
+        }
+
+        .mock-window {
+          min-height: 0;
+        }
+
+        .mock-topbar {
+          flex-wrap: wrap;
+          height: auto;
+          padding: 10px;
+        }
+
+        .mock-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .mock-sidebar {
+          display: none;
+        }
+
+        .qna-row {
+          grid-template-columns: 72px minmax(0, 1fr);
+        }
+
+        .qna-row > div:nth-child(n + 3) {
+          display: none;
+        }
+
+        .ux-ledger {
+          grid-template-columns: 1fr;
+        }
+
+        .section-head {
+          display: grid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+      <defs>
+        <symbol id="i-logo" viewBox="0 0 24 24">
+          <path d="M5 4.5h10.8a3.2 3.2 0 0 1 3.2 3.2v11.8H8.2A3.2 3.2 0 0 1 5 16.3V4.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M8.5 8.2h6.8M8.5 12h7.8M8.5 15.8h4.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <path d="M17.2 4.2v3.6h3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-save" viewBox="0 0 24 24">
+          <path d="M5 4h11.2L19 6.8V20H5V4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M8 4v6h7V4M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-autosave" viewBox="0 0 24 24">
+          <path d="M7.2 18.5H17a4.2 4.2 0 0 0 .5-8.4A6 6 0 0 0 6.1 8.3 4.8 4.8 0 0 0 7.2 18.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="m9.2 13.4 2.1 2.1 4.2-4.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-diff" viewBox="0 0 24 24">
+          <path d="M5 5h6v14H5V5Zm8 0h6v14h-6V5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M7.5 9h2M7.5 13h2M15.5 9h1.8M15.5 13h1.8M15.5 16.2h1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-project" viewBox="0 0 24 24">
+          <path d="M3.8 6.2h6l1.8 2.2h8.6v9.4a2 2 0 0 1-2 2H5.8a2 2 0 0 1-2-2V6.2Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-message" viewBox="0 0 24 24">
+          <path d="M5 5h14v10H9l-4 4V5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M8.5 8.7h7M8.5 12h4.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-memory" viewBox="0 0 24 24">
+          <path d="M8.2 18.4a3.3 3.3 0 0 1-1.4-6.2A3.8 3.8 0 0 1 10 5.8a3.6 3.6 0 0 1 6.9 1.5 3.8 3.8 0 0 1 .3 7.4 3.6 3.6 0 0 1-5.8 3.2 3.4 3.4 0 0 1-3.2.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+          <path d="M10.4 7.7v8.4M14.4 8.1v7.6M8.3 11.2h8.6M8.6 14.5h7.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-chat" viewBox="0 0 24 24">
+          <path d="M4.5 6.5h10.5v8H9l-4.5 3.8V6.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M10.5 15.5h4.7l4.3 3.2V8.8h-3.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-list" viewBox="0 0 24 24">
+          <path d="M8 6.5h12M8 12h12M8 17.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <path d="M4.2 6.5h.1M4.2 12h.1M4.2 17.5h.1" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-load" viewBox="0 0 24 24">
+          <path d="M12 4v10M8.5 10.6 12 14l3.5-3.4M5 18.8h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-template" viewBox="0 0 24 24">
+          <path d="M4.5 5h15v14h-15V5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M4.5 9.5h15M9 9.5V19M12.2 13h4.4M12.2 16h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-duplicate" viewBox="0 0 24 24">
+          <path d="M8 8h11v11H8V8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M5 16H4V5h11v1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-doc-add" viewBox="0 0 24 24">
+          <path d="M6 4h8l4 4v12H6V4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M14 4v4h4M12 11.5v5M9.5 14h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-vars" viewBox="0 0 24 24">
+          <path d="M8 5.5H6.7c-1 0-1.7.7-1.7 1.7v2.2c0 1-.6 1.8-1.5 2.1.9.3 1.5 1.1 1.5 2.1v2.2c0 1 .7 1.7 1.7 1.7H8M16 5.5h1.3c1 0 1.7.7 1.7 1.7v2.2c0 1 .6 1.8 1.5 2.1-.9.3-1.5 1.1-1.5 2.1v2.2c0 1-.7 1.7-1.7 1.7H16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <path d="M10 15.5 14 8.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-delete" viewBox="0 0 24 24">
+          <path d="M5 7h14M9 7V5h6v2M8 10v8M12 10v8M16 10v8M7 7l1 13h8l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-fill" viewBox="0 0 24 24">
+          <path d="m5 18 3.2-.8 8.7-8.7-2.4-2.4-8.7 8.7L5 18Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="m13.7 6.9 2.4 2.4M17.4 4.7l1.9 1.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-view" viewBox="0 0 24 24">
+          <path d="M3.5 12s3.2-5.5 8.5-5.5S20.5 12 20.5 12 17.3 17.5 12 17.5 3.5 12 3.5 12Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <circle cx="12" cy="12" r="2.4" fill="none" stroke="currentColor" stroke-width="1.8" />
+        </symbol>
+        <symbol id="i-constants" viewBox="0 0 24 24">
+          <path d="M5 7h14M5 12h14M5 17h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <path d="M8 5v14M16 5v14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" opacity=".65" />
+        </symbol>
+        <symbol id="i-settings" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M12 3.8v2.1M12 18.1v2.1M4.9 4.9l1.5 1.5M17.6 17.6l1.5 1.5M3.8 12h2.1M18.1 12h2.1M4.9 19.1l1.5-1.5M17.6 6.4l1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-models" viewBox="0 0 24 24">
+          <rect x="6" y="6" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M9.5 9.5h5v5h-5v-5ZM9 2.8v3.2M15 2.8v3.2M9 18v3.2M15 18v3.2M2.8 9h3.2M2.8 15h3.2M18 9h3.2M18 15h3.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-clear" viewBox="0 0 24 24">
+          <path d="m4.5 15.5 8.8-8.8a2 2 0 0 1 2.8 0l3.4 3.4a2 2 0 0 1 0 2.8l-6.6 6.6H8.5l-4-4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M11.2 19.5H21M9.2 10.8l4.9 4.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-doc" viewBox="0 0 24 24">
+          <path d="M6 4h8l4 4v12H6V4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M14 4v4h4M9 12h6M9 15h6M9 18h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-database" viewBox="0 0 24 24">
+          <ellipse cx="12" cy="6" rx="7" ry="3" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-export" viewBox="0 0 24 24">
+          <path d="M12 15V4M8.5 7.5 12 4l3.5 3.5M5 13v6h14v-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-import" viewBox="0 0 24 24">
+          <path d="M12 4v11M8.5 11.5 12 15l3.5-3.5M5 13v6h14v-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-style" viewBox="0 0 24 24">
+          <path d="m5 19 3.2-.8L19 7.4 16.6 5 5.8 15.8 5 19Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M9 18c2 1.8 4.3 2.2 7 1.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-analyze" viewBox="0 0 24 24">
+          <circle cx="10.5" cy="10.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="m15 15 4.5 4.5M17.5 4.3l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6.6-1.5ZM6.3 17.2l.4 1 .9.4-.9.4-.4.9-.4-.9-.9-.4.9-.4.4-1Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-status" viewBox="0 0 24 24">
+          <path d="M4 13h3l2-6 3.6 11 2-5h5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-drive" viewBox="0 0 24 24">
+          <path d="M8.5 5h7l5 8.7-3.5 5.3H7l-3.5-5.3L8.5 5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M8.5 5 12 13.7h8.5M15.5 5 12 13.7 7 19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-token" viewBox="0 0 24 24">
+          <circle cx="8.5" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M12.5 12H21M17 12v3M14.5 12v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-disconnect" viewBox="0 0 24 24">
+          <path d="M8.8 8.8 6.4 11.2a3 3 0 1 0 4.2 4.2l1.5-1.5M15.2 15.2l2.4-2.4a3 3 0 1 0-4.2-4.2l-1.5 1.5M4 4l16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-backup" viewBox="0 0 24 24">
+          <path d="M5 6h14v14H5V6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M8 6V4h8v2M8 10h8M8 14h8M8 17h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-note" viewBox="0 0 24 24">
+          <path d="M6 4h12v12.5L14.5 20H6V4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M14.5 20v-3.5H18M9 8h6M9 11.5h6M9 15h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-filter" viewBox="0 0 24 24">
+          <path d="M5 6h14l-5.4 6.1V18l-3.2 1.5v-7.4L5 6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-search" viewBox="0 0 24 24">
+          <circle cx="10.5" cy="10.5" r="5.8" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="m15 15 4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-pin" viewBox="0 0 24 24">
+          <path d="M9 4h6l-.8 5.2 3.4 3.4v1.8H6.4v-1.8l3.4-3.4L9 4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M12 14.4V21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-question" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M9.5 9a2.7 2.7 0 0 1 5.2.9c0 2-2.7 2.1-2.7 4.1M12 17.2h.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-answer" viewBox="0 0 24 24">
+          <path d="M5 5h14v10H9l-4 4V5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="m8.3 11.2 2.2 2.2 5-5.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-batch" viewBox="0 0 24 24">
+          <path d="M7 5h10v5H7V5ZM5 11h14v5H5v-5ZM8 17h8v2H8v-2Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="m13.5 6.2-2 2.8h2.2l-2 3.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-publish" viewBox="0 0 24 24">
+          <path d="M4 12 20 5l-6.4 15-2.4-6.4L4 12Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="m11.2 13.6 4.2-4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-private" viewBox="0 0 24 24">
+          <path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v10H6V10Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M12 14v2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-public" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M4.5 12h15M12 4a12 12 0 0 1 0 16M12 4a12 12 0 0 0 0 16" fill="none" stroke="currentColor" stroke-width="1.5" />
+        </symbol>
+        <symbol id="i-comment" viewBox="0 0 24 24">
+          <path d="M5 5h14v10H9l-4 4V5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M8.5 9h7M8.5 12h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-json" viewBox="0 0 24 24">
+          <path d="M8 5.5H6.8c-1.1 0-1.8.7-1.8 1.8v2c0 1-.6 1.8-1.5 2.2.9.4 1.5 1.2 1.5 2.2v2c0 1.1.7 1.8 1.8 1.8H8M16 5.5h1.2c1.1 0 1.8.7 1.8 1.8v2c0 1 .6 1.8 1.5 2.2-.9.4-1.5 1.2-1.5 2.2v2c0 1.1-.7 1.8-1.8 1.8H16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-csv" viewBox="0 0 24 24">
+          <path d="M5 5h14v14H5V5Z" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M5 10h14M5 15h14M10 5v14M15 5v14" fill="none" stroke="currentColor" stroke-width="1.5" />
+        </symbol>
+        <symbol id="i-attach" viewBox="0 0 24 24">
+          <path d="m19 11.3-7.5 7.5a5 5 0 0 1-7.1-7.1l8.1-8.1a3.3 3.3 0 0 1 4.7 4.7l-8.2 8.2a1.7 1.7 0 1 1-2.4-2.4l7.5-7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-meter" viewBox="0 0 24 24">
+          <path d="M5 17a7 7 0 0 1 14 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <path d="m12 17 3.2-5.2M7.8 17h8.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-stream" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-warning" viewBox="0 0 24 24">
+          <path d="M12 4 21 20H3L12 4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M12 9.2v5M12 17.3h.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-limit" viewBox="0 0 24 24">
+          <path d="M8 3.8h8l4.2 4.2v8L16 20.2H8L3.8 16V8L8 3.8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M12 7.5v5.5M12 16.5h.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-prompt" viewBox="0 0 24 24">
+          <path d="M6 4h12v16l-6-3-6 3V4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M9 8h6M9 11h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-add" viewBox="0 0 24 24">
+          <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-edit" viewBox="0 0 24 24">
+          <path d="m5 18.6 3.4-.7L18.6 7.7l-2.3-2.3L6.1 15.6 5 18.6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="m15.3 6.4 2.3 2.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-favorite" viewBox="0 0 24 24">
+          <path d="m12 4 2.4 5 5.4.8-3.9 3.8.9 5.4-4.8-2.5L7.2 19l.9-5.4-3.9-3.8 5.4-.8L12 4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-task" viewBox="0 0 24 24">
+          <path d="M5 5h14v14H5V5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="m8.2 11.8 2.2 2.2 5.4-5.8M8 17h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-calendar" viewBox="0 0 24 24">
+          <path d="M5 6h14v14H5V6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M5 10h14M8 4v4M16 4v4M8.5 13.5h2M13.5 13.5h2M8.5 16.5h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-markdown" viewBox="0 0 24 24">
+          <rect x="4" y="6" width="16" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M7.2 15V9l2.2 3 2.2-3v6M15.5 9v5M13.5 12.5l2 2 2-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-planner" viewBox="0 0 24 24">
+          <path d="M5 5h14v14H5V5Z" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M8 8h3v8H8V8ZM13 8h3v4h-3V8ZM13 14h3v2h-3v-2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-rfp" viewBox="0 0 24 24">
+          <path d="M8 5h8l1 2h2v13H5V7h2l1-2Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M9 11h6M9 14h6M9 17h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-eval" viewBox="0 0 24 24">
+          <path d="M12 4v16M6 7h12M7 7l-3 6h6L7 7ZM17 7l-3 6h6l-3-6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-sop" viewBox="0 0 24 24">
+          <path d="M5 5.5A3.5 3.5 0 0 1 8.5 2H19v17H8.5A3.5 3.5 0 0 0 5 22V5.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M9 6.5h6.5M9 10h6.5M9 13.5H14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-master" viewBox="0 0 24 24">
+          <path d="M12 4 4.5 8l7.5 4 7.5-4L12 4ZM4.5 12l7.5 4 7.5-4M4.5 16l7.5 4 7.5-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-criterion" viewBox="0 0 24 24">
+          <path d="M5 7h14M5 12h14M5 17h14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+          <circle cx="9" cy="7" r="1.7" fill="var(--bg)" stroke="currentColor" stroke-width="1.6" />
+          <circle cx="15" cy="12" r="1.7" fill="var(--bg)" stroke="currentColor" stroke-width="1.6" />
+          <circle cx="11.5" cy="17" r="1.7" fill="var(--bg)" stroke="currentColor" stroke-width="1.6" />
+        </symbol>
+        <symbol id="i-scorecard" viewBox="0 0 24 24">
+          <path d="M5 5h14v14H5V5Z" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M5 10h14M10 5v14M13.5 14l1.1 1.1 2.2-2.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-crawl" viewBox="0 0 24 24">
+          <path d="M6 17c5-8 7-2 12-10M6 17h5M6 17v-5M18 7h-5M18 7v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-agent" viewBox="0 0 24 24">
+          <rect x="5" y="7" width="14" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M12 7V4M9.2 12h.1M14.7 12h.1M9 16c1.8 1.2 4.2 1.2 6 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-suggestion" viewBox="0 0 24 24">
+          <path d="M8.5 16.2h7M9 19h6M8 11.4a4 4 0 1 1 8 0c0 2.2-1.7 3.1-2.3 4H10.3c-.6-.9-2.3-1.8-2.3-4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-heading" viewBox="0 0 24 24">
+          <path d="M6 6v12M6 12h9M15 6v12M18 18h1.5M18 15.5l1.5-1v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-bold" viewBox="0 0 24 24">
+          <path d="M8 5h5a3.3 3.3 0 0 1 0 6.6H8V5Zm0 6.6h6a3.7 3.7 0 0 1 0 7.4H8v-7.4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-italic" viewBox="0 0 24 24">
+          <path d="M10 5h8M6 19h8M14 5l-4 14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-underline" viewBox="0 0 24 24">
+          <path d="M7 5v6.2a5 5 0 0 0 10 0V5M6 20h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-link" viewBox="0 0 24 24">
+          <path d="M9.8 14.2a3.2 3.2 0 0 1 0-4.5l2.5-2.5a3.2 3.2 0 1 1 4.5 4.5l-1.1 1.1M14.2 9.8a3.2 3.2 0 0 1 0 4.5l-2.5 2.5a3.2 3.2 0 1 1-4.5-4.5l1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-quote" viewBox="0 0 24 24">
+          <path d="M8 7h4v4c0 3-1.4 4.8-4 6M16 7h4v4c0 3-1.4 4.8-4 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-code" viewBox="0 0 24 24">
+          <path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 6.5 10.5 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-bullets" viewBox="0 0 24 24">
+          <path d="M9 7h11M9 12h11M9 17h11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <circle cx="5" cy="7" r="1" fill="currentColor" />
+          <circle cx="5" cy="12" r="1" fill="currentColor" />
+          <circle cx="5" cy="17" r="1" fill="currentColor" />
+        </symbol>
+        <symbol id="i-numbered" viewBox="0 0 24 24">
+          <path d="M10 7h10M10 12h10M10 17h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <path d="M4.5 6h1v2M4 8h2M4 11.5h2l-2 2h2M4 16h2v2H4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-indent" viewBox="0 0 24 24">
+          <path d="M4 7h16M12 12h8M12 17h8M4 11l4 3-4 3v-6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-unindent" viewBox="0 0 24 24">
+          <path d="M4 7h16M12 12h8M12 17h8M8 11l-4 3 4 3v-6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-raw" viewBox="0 0 24 24">
+          <path d="M4 5h16v14H4V5Z" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="m9 10-2 2 2 2M15 10l2 2-2 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-preview" viewBox="0 0 24 24">
+          <path d="M3.5 12s3.2-5.5 8.5-5.5 8.5 5.5 8.5 5.5-3.2 5.5-8.5 5.5S3.5 12 3.5 12Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          <path d="M9.2 12.3 11.1 14l3.8-4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-convert" viewBox="0 0 24 24">
+          <path d="M7 7h10l-2-2M17 17H7l2 2M17 7H7v5M7 17h10v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-category" viewBox="0 0 24 24">
+          <path d="M5 7.5h6v4H5v-4ZM13 7.5h6v4h-6v-4ZM5 13.5h6v3H5v-3ZM13 13.5h6v3h-6v-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+        </symbol>
+        <symbol id="i-chrome" viewBox="0 0 24 24">
+          <rect x="4" y="4" width="16" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M8 15.5c1 .9 2.3 1.4 4 1.4 2.8 0 4.9-1.8 4.9-4.4S14.8 8.1 12 8.1c-1.7 0-3 .5-4 1.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <path d="M9.4 12.5h5.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-side-panel" viewBox="0 0 24 24">
+          <path d="M4.5 5h15v14h-15V5Z" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M14 5v14M7 8h4M7 11h4M7 14h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <div class="page">
+      <section class="hero">
+        <div>
+          <div class="brand-lockup">
+            <div class="brand-mark"><svg width="22" height="22"><use href="#i-logo"></use></svg></div>
+            <div>
+              <div class="mock-logo">Source<span>Desk</span></div>
+              <div style="color: var(--text-muted); font-size: 12px">UX pass and reusable icon language</div>
+            </div>
+          </div>
+          <h1>Strategic sourcing command center, styled for dense project work.</h1>
+          <p class="hero-copy">
+            This mockup keeps the existing SourceDesk architecture, then normalizes the visual system:
+            calmer navigation, stronger active states, consistent line icons, and status color only where users need to make a decision.
+          </p>
+          <div class="meta-strip">
+            <span class="pill"><svg><use href="#i-project"></use></svg>Single-file app friendly</span>
+            <span class="pill"><svg><use href="#i-chrome"></use></svg>Chrome extension covered</span>
+            <span class="pill"><svg><use href="#i-memory"></use></svg>Hindsight memory state</span>
+            <span class="pill"><svg><use href="#i-template"></use></svg>Semantic icon ids</span>
+          </div>
+        </div>
+        <aside class="summary-card">
+          <h2>UX direction</h2>
+          <div class="summary-list">
+            <div><svg><use href="#i-list"></use></svg><span>Use icons as recognition aids, not replacements for important labels. Dense toolbars can use icon-only buttons with titles.</span></div>
+            <div><svg><use href="#i-status"></use></svg><span>Reserve color for system state: saved, warning, destructive, generation, and provider/connector readiness.</span></div>
+            <div><svg><use href="#i-side-panel"></use></svg><span>Make the extension action-first: page extraction, CSV load, batch answering, visibility, and publish actions stay one thumb-scan apart.</span></div>
+            <div><svg><use href="#i-database"></use></svg><span>Keep dangerous data operations visually grouped and separated from everyday project commands.</span></div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <h2>Application Mockup</h2>
+            <p>Directly based on the existing app shell: topbar, sidebar projects, chat, context panel, supplier questions, working docs, and connector commands.</p>
+          </div>
+        </div>
+        <div class="mock-window">
+          <div class="mock-topbar">
+            <div class="mock-logo">Source<span>Desk</span></div>
+            <button class="text-button"><svg><use href="#i-drive"></use></svg>Drive</button>
+            <button class="text-button"><svg><use href="#i-template"></use></svg>Templates</button>
+            <button class="text-button"><svg><use href="#i-suggestion"></use></svg>Suggest</button>
+            <button class="text-button"><svg><use href="#i-settings"></use></svg>Settings</button>
+            <button class="text-button"><svg><use href="#i-list"></use></svg>Context</button>
+          </div>
+          <div class="mock-grid">
+            <aside class="mock-sidebar">
+              <div class="sidebar-title">Projects <span>+</span></div>
+              <div class="project-row active"><svg><use href="#i-rfp"></use></svg><span>Food Services RFP</span><span class="count">9</span></div>
+              <div class="project-row"><svg><use href="#i-eval"></use></svg><span>ERP Evaluation</span><span class="count">4</span></div>
+              <div class="project-row"><svg><use href="#i-sop"></use></svg><span>IT SOP Refresh</span><span class="count">6</span></div>
+              <div class="sidebar-title">Workspace</div>
+              <div class="nav-row active"><svg><use href="#i-chat"></use></svg><span>Chat</span><span></span></div>
+              <div class="nav-row"><svg><use href="#i-template"></use></svg><span>Templates</span><span></span></div>
+              <div class="nav-row"><svg><use href="#i-question"></use></svg><span>Supplier Q&A</span><span class="count">42</span></div>
+              <div class="nav-row"><svg><use href="#i-doc"></use></svg><span>Working Docs</span><span></span></div>
+              <div class="nav-row"><svg><use href="#i-task"></use></svg><span>Tasks</span><span class="count">11</span></div>
+              <div class="nav-row"><svg><use href="#i-sop"></use></svg><span>Guidelines</span><span></span></div>
+              <div class="nav-row"><svg><use href="#i-search"></use></svg><span>Research</span><span></span></div>
+              <div class="sidebar-title">Chats <span>+</span></div>
+              <div class="chat-row"><svg><use href="#i-message"></use></svg><span>Evaluation matrix draft</span><span></span></div>
+              <div class="chat-row"><svg><use href="#i-load"></use></svg><span>Load risk review</span><span></span></div>
+            </aside>
+            <main class="mock-main">
+              <div class="project-header">
+                <div class="project-title-row">
+                  <h2>Food Services RFP 2026</h2>
+                  <span class="tag gold"><svg width="13" height="13"><use href="#i-rfp"></use></svg>RFP</span>
+                  <span class="tag teal"><svg width="13" height="13"><use href="#i-memory"></use></svg>Memory on</span>
+                </div>
+                <div class="workflow-tabs">
+                  <button class="text-button success"><svg><use href="#i-autosave"></use></svg>Autosaved</button>
+                  <button class="text-button"><svg><use href="#i-save"></use></svg>Save chat</button>
+                  <button class="text-button"><svg><use href="#i-diff"></use></svg>Diff</button>
+                  <button class="text-button"><svg><use href="#i-doc"></use></svg>Working doc</button>
+                  <button class="text-button"><svg><use href="#i-export"></use></svg>Export</button>
+                </div>
+              </div>
+              <div class="chat-feed">
+                <div class="message user">
+                  <div class="avatar"><svg width="18" height="18"><use href="#i-message"></use></svg></div>
+                  <div class="bubble">Use the project docs, notes, and prior sourcing decisions to draft a supplier clarification response for questions 12 through 18.</div>
+                </div>
+                <div class="message">
+                  <div class="avatar"><svg width="18" height="18"><use href="#i-logo"></use></svg></div>
+                  <div class="bubble">
+                    <strong>Drafted 7 answers with review flags.</strong> Three questions need confirmation from Dining Services, and one should stay private until legal reviews the insurance requirement.
+                    <div class="source-strip">
+                      <span class="tag"><svg width="12" height="12"><use href="#i-doc"></use></svg>RFP draft</span>
+                      <span class="tag"><svg width="12" height="12"><use href="#i-note"></use></svg>Stakeholder notes</span>
+                      <span class="tag"><svg width="12" height="12"><use href="#i-memory"></use></svg>2 memories</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="qna-strip">
+                  <div class="qna-toolbar">
+                    <strong>Supplier Questions</strong>
+                    <button class="text-button primary"><svg><use href="#i-batch"></use></svg>Batch answer</button>
+                    <button class="text-button"><svg><use href="#i-analyze"></use></svg>Analyze</button>
+                    <button class="text-button"><svg><use href="#i-publish"></use></svg>Publish</button>
+                    <button class="text-button"><svg><use href="#i-private"></use></svg>Private</button>
+                    <button class="text-button"><svg><use href="#i-csv"></use></svg>CSV</button>
+                  </div>
+                  <div class="qna-table">
+                    <div class="qna-row header"><div>Question</div><div>Summary</div><div>Status</div><div>Visibility</div></div>
+                    <div class="qna-row"><div>#12</div><div>Meal plan transition services and incumbent data request.</div><div><span class="tag gold">Review</span></div><div><span class="tag">Private</span></div></div>
+                    <div class="qna-row"><div>#13</div><div>Food allergen process details and reporting cadence.</div><div><span class="tag teal">Answered</span></div><div><span class="tag">Public</span></div></div>
+                  </div>
+                </div>
+              </div>
+              <div class="compose">
+                <div class="compose-row">
+                  <button class="icon-button" title="Attach"><svg><use href="#i-attach"></use></svg></button>
+                  <button class="icon-button" title="Prompt library"><svg><use href="#i-prompt"></use></svg></button>
+                  <div class="fake-input">Ask about this project...</div>
+                  <button class="text-button primary"><svg><use href="#i-publish"></use></svg>Send</button>
+                </div>
+                <div class="meter-row">
+                  <div class="meter-track"><div class="meter-fill"></div></div>
+                  <span>46k / 100k</span>
+                </div>
+              </div>
+            </main>
+            <aside class="mock-context">
+              <div class="panel-title">Context <span>8 docs</span></div>
+              <div class="context-card">
+                <h3><svg><use href="#i-template"></use></svg>Template</h3>
+                <div class="doc-row"><svg><use href="#i-rfp"></use></svg><span>Standard RFP Response</span><span></span></div>
+              </div>
+              <div class="context-card">
+                <h3><svg><use href="#i-doc"></use></svg>Project docs</h3>
+                <div class="doc-row"><svg><use href="#i-doc"></use></svg><span>Scope draft.md</span><span class="count">on</span></div>
+                <div class="doc-row"><svg><use href="#i-sop"></use></svg><span>Dining SOP.pdf</span><span class="count">on</span></div>
+                <div class="doc-row"><svg><use href="#i-csv"></use></svg><span>Questions.csv</span><span class="count">on</span></div>
+              </div>
+              <div class="context-card">
+                <h3><svg><use href="#i-memory"></use></svg>Hindsight</h3>
+                <div class="doc-row"><svg><use href="#i-status"></use></svg><span>Insurance threshold</span><span></span></div>
+                <div class="doc-row"><svg><use href="#i-status"></use></svg><span>Campus dining tone</span><span></span></div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <h2>Chrome Extension Mockup</h2>
+            <p>Action icons for the BidNet helper should stay compact, but never cryptic. Primary flow starts with extraction, moves to CSV load, then batch answer/publish.</p>
+          </div>
+        </div>
+        <div class="extension-layout">
+          <div class="summary-card">
+            <h2>Extension UX priorities</h2>
+            <div class="summary-list">
+              <div><svg><use href="#i-question"></use></svg><span>Use question-specific verbs: Extract, Answer, Comment, Publish, Private, Public.</span></div>
+              <div><svg><use href="#i-batch"></use></svg><span>Batch operations get filled icons and gold emphasis; one-off row actions stay quieter.</span></div>
+              <div><svg><use href="#i-json"></use></svg><span>File outputs use distinct document shapes so JSON and CSV are not both generic download icons.</span></div>
+              <div><svg><use href="#i-warning"></use></svg><span>Visibility changes should show lock/globe semantics before any destructive publish action.</span></div>
+            </div>
+          </div>
+          <aside class="extension-panel">
+            <div class="extension-top">
+              <div class="brand-mark" style="width: 30px; height: 30px"><svg width="18" height="18"><use href="#i-chrome"></use></svg></div>
+              <strong style="margin-right: auto">SourceDesk</strong>
+              <span class="tag gold">BidNet</span>
+            </div>
+            <div class="extension-body">
+              <div class="extension-card">
+                <h3><svg><use href="#i-question"></use></svg>Page actions</h3>
+                <div class="action-grid">
+                  <div class="action-card"><svg><use href="#i-search"></use></svg><span>Extract questions from page</span></div>
+                  <div class="action-card"><svg><use href="#i-csv"></use></svg><span>Extract Q&A to CSV</span></div>
+                </div>
+              </div>
+              <div class="extension-card">
+                <h3><svg><use href="#i-batch"></use></svg>Batch actions</h3>
+                <div class="action-grid">
+                  <div class="action-card"><svg><use href="#i-answer"></use></svg><span>Batch answer questions</span></div>
+                  <div class="action-card"><svg><use href="#i-publish"></use></svg><span>Publish questions</span></div>
+                  <div class="action-card"><svg><use href="#i-private"></use></svg><span>Make private</span></div>
+                  <div class="action-card"><svg><use href="#i-public"></use></svg><span>Make public</span></div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <h2>Icon Inventory</h2>
+            <p>The semantic names below are the handoff contract. Multiple semantic icons may share a base symbol with different labels or color states in implementation.</p>
+          </div>
+        </div>
+        <div id="icon-groups"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <h2>UX Implementation Notes</h2>
+            <p>Small styling changes with outsized usability impact for the existing SourceDesk codebase.</p>
+          </div>
+        </div>
+        <div class="ux-ledger">
+          <div class="ux-note"><svg><use href="#i-template"></use></svg><b>Unify icon calls</b><p>Replace emoji/plain arrows with one helper that emits SVG by semantic id. Keep existing inline SVG until each view is touched.</p></div>
+          <div class="ux-note"><svg><use href="#i-list"></use></svg><b>Stable side nav</b><p>Group module links under Workspace, keep Projects and Chats separate, and use counts only for actionable items.</p></div>
+          <div class="ux-note"><svg><use href="#i-warning"></use></svg><b>Clear risk states</b><p>Context limit warning, reached, private/public, and clear data need persistent color and icon patterns.</p></div>
+          <div class="ux-note"><svg><use href="#i-bold"></use></svg><b>Editor toolbar</b><p>Use compact icon-only rich editor controls with titles; labels like H1/H2/H3 are acceptable because they are the standard glyph.</p></div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const groups = [
+        {
+          title: "Core app shell",
+          icon: "i-logo",
+          items: [
+            ["sd-icon-save", "i-save", "Save"],
+            ["sd-icon-diff", "i-diff", "Diff"],
+            ["sd-icon-autosave", "i-autosave", "Autosave"],
+            ["sd-icon-project", "i-project", "Project"],
+            ["sd-icon-messages", "i-message", "Messages"],
+            ["sd-icon-memory-hindsight", "i-memory", "Memory / Hindsight"],
+            ["sd-icon-chat", "i-chat", "Chat"],
+            ["sd-icon-save-chat", "i-save", "Save chat"],
+            ["sd-icon-chat-list", "i-list", "Chat list"],
+            ["sd-icon-load-chat", "i-load", "Load chat"]
+          ]
+        },
+        {
+          title: "Templates and projects",
+          icon: "i-template",
+          items: [
+            ["sd-icon-template", "i-template", "Template"],
+            ["sd-icon-duplicate-template", "i-duplicate", "Duplicate template"],
+            ["sd-icon-create-template-from-doc", "i-doc-add", "Create template from doc"],
+            ["sd-icon-extract-template-vars", "i-vars", "Extract variables"],
+            ["sd-icon-delete-project", "i-delete", "Delete project"],
+            ["sd-icon-fill-template", "i-fill", "Fill template"],
+            ["sd-icon-view-template-content", "i-view", "View template content"],
+            ["sd-icon-parse-constants", "i-constants", "Parse constants"]
+          ]
+        },
+        {
+          title: "Settings, data, and providers",
+          icon: "i-settings",
+          items: [
+            ["sd-icon-open-settings", "i-settings", "Open settings"],
+            ["sd-icon-save-settings", "i-save", "Save settings"],
+            ["sd-icon-fetch-local-models", "i-models", "Fetch local LLM models"],
+            ["sd-icon-clear-chat-history", "i-clear", "Clear chat history"],
+            ["sd-icon-open-working-doc", "i-doc", "Open working doc"],
+            ["sd-icon-save-working-doc", "i-save", "Save working doc"],
+            ["sd-icon-export-database", "i-export", "Export database"],
+            ["sd-icon-import-database", "i-import", "Import database"],
+            ["sd-icon-clear-all-data", "i-delete", "Clear all data"],
+            ["sd-icon-database-selection", "i-database", "Database selection"]
+          ]
+        },
+        {
+          title: "Writing style and Google Drive",
+          icon: "i-style",
+          items: [
+            ["sd-icon-capture-writing-style", "i-style", "Capture writing style"],
+            ["sd-icon-analyze-writing", "i-analyze", "Analyze writing"],
+            ["sd-icon-save-writing-style", "i-save", "Save writing style"],
+            ["sd-icon-clear-writing-style-profile", "i-clear", "Clear writing style"],
+            ["sd-icon-update-writing-style-status", "i-status", "Writing style status"],
+            ["sd-icon-google-drive-connector", "i-drive", "Google Drive connector"],
+            ["sd-icon-google-drive-token", "i-token", "Google Drive token"],
+            ["sd-icon-clear-token", "i-clear", "Clear token"],
+            ["sd-icon-disconnect-drive", "i-disconnect", "Disconnect Drive"],
+            ["sd-icon-import-from-drive", "i-import", "Import from Drive"],
+            ["sd-icon-backup-to-drive", "i-backup", "Backup to Drive"]
+          ]
+        },
+        {
+          title: "Notes, prompts, and context",
+          icon: "i-note",
+          items: [
+            ["sd-icon-notes-view", "i-note", "Notes view"],
+            ["sd-icon-create-note", "i-add", "Create note"],
+            ["sd-icon-read-note", "i-view", "Read note"],
+            ["sd-icon-edit-note", "i-edit", "Edit note"],
+            ["sd-icon-delete-note", "i-delete", "Delete note"],
+            ["sd-icon-filter-notes", "i-filter", "Filter notes"],
+            ["sd-icon-search-notes", "i-search", "Search notes"],
+            ["sd-icon-search-all-notes", "i-search", "Search all notes"],
+            ["sd-icon-toggle-note-pin", "i-pin", "Toggle note pin"],
+            ["sd-icon-temp-file-attachment", "i-attach", "Temp file attachment"],
+            ["sd-icon-context-meter", "i-meter", "Context meter"],
+            ["sd-icon-streaming-meter", "i-stream", "Streaming meter"],
+            ["sd-icon-show-streaming", "i-stream", "Show streaming indicator"],
+            ["sd-icon-hide-streaming", "i-stream", "Hide streaming indicator"],
+            ["sd-icon-context-limit-warning", "i-warning", "Context limit warning"],
+            ["sd-icon-context-limit-reached", "i-limit", "Context limit reached"],
+            ["sd-icon-prompt-library", "i-prompt", "Prompt library"],
+            ["sd-icon-add-prompt", "i-add", "Add prompt"],
+            ["sd-icon-remove-prompt", "i-delete", "Remove prompt"],
+            ["sd-icon-edit-prompt", "i-edit", "Edit prompt"],
+            ["sd-icon-toggle-favorite-prompt", "i-favorite", "Toggle favorite"]
+          ]
+        },
+        {
+          title: "Supplier questions and extension actions",
+          icon: "i-question",
+          items: [
+            ["sd-icon-vendor-questions", "i-question", "Vendor Q&A mode"],
+            ["sd-icon-ai-generation", "i-agent", "AI generation"],
+            ["sd-icon-analyze-question", "i-analyze", "Analyze question"],
+            ["sd-icon-batch-analyze-questions", "i-batch", "Batch analyze"],
+            ["sd-icon-extract-questions-page", "i-search", "Extract questions from page"],
+            ["sd-icon-batch-answer-questions", "i-answer", "Batch answer questions"],
+            ["sd-icon-publish-questions", "i-publish", "Publish questions"],
+            ["sd-icon-make-private", "i-private", "Make private"],
+            ["sd-icon-make-public", "i-public", "Make public"],
+            ["sd-icon-answer-question", "i-answer", "Answer question"],
+            ["sd-icon-comment", "i-comment", "Comment"],
+            ["sd-icon-json", "i-json", "JSON"],
+            ["sd-icon-csv", "i-csv", "CSV"]
+          ]
+        },
+        {
+          title: "Tasks, guidelines, evaluation, and research",
+          icon: "i-task",
+          items: [
+            ["sd-icon-tasks", "i-task", "Tasks"],
+            ["sd-icon-create-task", "i-add", "Create task"],
+            ["sd-icon-read-edit-task", "i-edit", "Read / edit task"],
+            ["sd-icon-filter-tasks", "i-filter", "Filter tasks"],
+            ["sd-icon-import-export-task", "i-export", "Import / export task"],
+            ["sd-icon-task-calendar-toggle", "i-calendar", "Task calendar toggle"],
+            ["sd-icon-export-tasks-csv", "i-csv", "Export tasks to CSV"],
+            ["sd-icon-export-calendar", "i-calendar", "Export to calendar"],
+            ["sd-icon-export-ms-tasks", "i-task", "Export to MS Tasks"],
+            ["sd-icon-export-ms-planner", "i-planner", "Export to MS Planner"],
+            ["sd-icon-rfp", "i-rfp", "RFP"],
+            ["sd-icon-evaluation", "i-eval", "Evaluation"],
+            ["sd-icon-sop", "i-sop", "SOP"],
+            ["sd-icon-guidelines", "i-sop", "Guidelines"],
+            ["sd-icon-add-sop", "i-doc-add", "Add SOP"],
+            ["sd-icon-delete-sop", "i-delete", "Delete SOP"],
+            ["sd-icon-analyze-sop", "i-analyze", "Analyze SOP"],
+            ["sd-icon-analyze-all-sops", "i-batch", "Analyze all SOPs"],
+            ["sd-icon-master-sop", "i-master", "Master SOP"],
+            ["sd-icon-create-master-sop", "i-master", "Create Master SOP"],
+            ["sd-icon-load-evaluation", "i-load", "Load evaluation"],
+            ["sd-icon-open-new-criterion", "i-criterion", "New criterion"],
+            ["sd-icon-evaluate-candidate", "i-eval", "Evaluate candidate"],
+            ["sd-icon-export-scorecard", "i-scorecard", "Export scorecard"],
+            ["sd-icon-research-mode", "i-search", "Research mode"],
+            ["sd-icon-brave-search", "i-search", "Brave Search"],
+            ["sd-icon-crawl4ai", "i-crawl", "crawl4ai"],
+            ["sd-icon-research-agent", "i-agent", "Research agent"],
+            ["sd-icon-open-edit-research-item", "i-edit", "Edit research item"],
+            ["sd-icon-export-research-md", "i-markdown", "Export research Markdown"],
+            ["sd-icon-export-research-csv", "i-csv", "Export research CSV"],
+            ["sd-icon-open-suggestion-box", "i-suggestion", "Open suggestion box"],
+            ["sd-icon-submit-suggestion", "i-publish", "Submit suggestion"]
+          ]
+        },
+        {
+          title: "Rich editor and modes",
+          icon: "i-heading",
+          items: [
+            ["sd-icon-h1", "i-heading", "H1"],
+            ["sd-icon-h2", "i-heading", "H2"],
+            ["sd-icon-h3", "i-heading", "H3"],
+            ["sd-icon-bullet-list", "i-bullets", "Bullet list"],
+            ["sd-icon-numbered-list", "i-numbered", "Numbered list"],
+            ["sd-icon-bold", "i-bold", "Bold"],
+            ["sd-icon-underline", "i-underline", "Underline"],
+            ["sd-icon-italic", "i-italic", "Italic"],
+            ["sd-icon-link", "i-link", "Link"],
+            ["sd-icon-quote", "i-quote", "Quote"],
+            ["sd-icon-code", "i-code", "Code"],
+            ["sd-icon-indent", "i-indent", "Indent"],
+            ["sd-icon-unindent", "i-unindent", "Unindent"],
+            ["sd-icon-markdown-mode", "i-markdown", "Markdown mode"],
+            ["sd-icon-raw-view", "i-raw", "Raw view"],
+            ["sd-icon-preview-markdown", "i-preview", "Preview markdown"],
+            ["sd-icon-convert-markdown", "i-convert", "Convert markdown"],
+            ["sd-icon-converting", "i-stream", "Converting indicator"],
+            ["sd-icon-category-pill", "i-category", "Category pill"]
+          ]
+        },
+        {
+          title: "Chrome extension chrome",
+          icon: "i-chrome",
+          items: [
+            ["sd-icon-chrome-extension-main", "i-chrome", "Extension main icon"],
+            ["sd-icon-chrome-extension-action", "i-publish", "Extension action icon"],
+            ["sd-icon-chrome-side-panel", "i-side-panel", "Side panel icon"],
+            ["sd-icon-load-all-questions", "i-search", "Load all questions"],
+            ["sd-icon-refresh-page-questions", "i-convert", "Refresh page questions"],
+            ["sd-icon-load-csv", "i-csv", "Load CSV"],
+            ["sd-icon-clear-csv", "i-clear", "Clear CSV"],
+            ["sd-icon-start-fill", "i-answer", "Start filling answers"],
+            ["sd-icon-stop-fill", "i-limit", "Stop fill"],
+            ["sd-icon-visibility-public", "i-public", "Public visibility"],
+            ["sd-icon-visibility-private", "i-private", "Private visibility"]
+          ]
+        }
+      ];
+
+      function renderIcon(symbol) {
+        return `<svg aria-hidden="true"><use href="#${symbol}"></use></svg>`;
+      }
+
+      function renderGroups() {
+        const root = document.getElementById("icon-groups");
+        root.innerHTML = groups
+          .map((group) => {
+            const items = group.items
+              .map(([id, symbol, label]) => `
+                <div class="icon-card">
+                  <div class="icon-box">${renderIcon(symbol)}</div>
+                  <div>
+                    <b>${label}</b>
+                    <code>${id}</code>
+                    <small>base: #${symbol}</small>
+                  </div>
+                </div>`)
+              .join("");
+            return `
+              <div class="group-block">
+                <div class="group-title">${renderIcon(group.icon)}<span>${group.title}</span></div>
+                <div class="icon-grid">${items}</div>
+              </div>`;
+          })
+          .join("");
+      }
+
+      renderGroups();
+    </script>
+  </body>
+</html>
