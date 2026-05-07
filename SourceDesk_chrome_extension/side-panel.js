@@ -284,12 +284,14 @@ function parseCSV(text) {
 
   // Find column indices (flexible — tolerate extra columns)
   const colIdx = {
-    question_number: headers.indexOf("question_number"),
+    question_id: headers.indexOf("question_id"), // numeric BidNet row ID
+    question_number: headers.indexOf("question_number"), // display label e.g. "Q1"
     answer: headers.indexOf("answer"),
     visibility: headers.indexOf("visibility"),
     comment: headers.indexOf("comment"),
   };
   // Fallback: positional if names don't match
+  // question_id has no positional fallback — it is optional (only present in exported CSVs)
   if (colIdx.question_number === -1) colIdx.question_number = 0;
   if (colIdx.answer === -1) colIdx.answer = 1;
   if (colIdx.visibility === -1) colIdx.visibility = 2;
@@ -300,6 +302,10 @@ function parseCSV(text) {
     if (!line) continue; // skip blank lines
     const fields = tokeniseLine(lines[i]);
     const row = {
+      question_id:
+        colIdx.question_id >= 0
+          ? (fields[colIdx.question_id] || "").trim()
+          : "",
       question_number: (fields[colIdx.question_number] || "").trim(),
       answer: (fields[colIdx.answer] || "").trim(),
       visibility: (fields[colIdx.visibility] || "").trim().toLowerCase(),
@@ -490,11 +496,30 @@ async function startFilling() {
 
     updateProgress(i - rangeFrom + 1, rangeCount, "Q#" + row.question_number);
 
+    // Resolve the numeric BidNet question ID.
+    // Priority: (1) question_id column in CSV, (2) id from refreshed page data.
+    let resolvedId = row.question_id;
+    if (!resolvedId) {
+      const pq = pageQMap[String(row.question_number).trim()];
+      if (pq) resolvedId = String(pq.id || "").trim();
+    }
+    if (!resolvedId) {
+      appendLog(
+        "Q#" +
+          row.question_number +
+          " — no question_id available. Add a question_id column to your CSV" +
+          ' or click "Refresh Questions" first. Skipped.',
+        "error",
+      );
+      errorCount++;
+      continue;
+    }
+
     try {
       const resp = await sendToContentScript({
         action: "fillAnswer",
         payload: {
-          questionId: row.question_number,
+          questionId: resolvedId,
           answer: row.answer,
           visibility: vis,
           comment: row.comment,
@@ -815,7 +840,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 function handleExtractedQA(data) {
   appendLog("Received " + data.length + " extracted Q&A rows.", "success");
   pageQuestions = data.map((row) => ({
-    id: String(row.question_number || row.id || ""),
+    id: String(row.question_id || row.id || ""),
     number: String(row.question_number || row.number || ""),
     text: row.question || row.text || "",
     answered: !!(row.answer || row.answered),
@@ -927,12 +952,15 @@ async function testNextQuestion() {
   const onlyUpdate = document.getElementById("chk-only-update").checked;
   const blankVisSkip = document.getElementById("chk-blank-vis-skip").checked;
 
+  // Build page question map (keyed by display number → question object).
+  // Used for both the answered-status filter AND numeric ID resolution below.
+  const pageQMap = {};
+  pageQuestions.forEach((q) => {
+    pageQMap[String(q.number || q.id || "").trim()] = q;
+  });
+
   // ── answered-status filter ─────────────────────────────────────
   if (pageQuestions.length > 0 && (skipAnswered || onlyUpdate)) {
-    const pageQMap = {};
-    pageQuestions.forEach((q) => {
-      pageQMap[String(q.number || q.id || "").trim()] = q;
-    });
     const pageQ = pageQMap[String(row.question_number).trim()];
     if (pageQ) {
       if (skipAnswered && pageQ.answered) {
@@ -976,6 +1004,26 @@ async function testNextQuestion() {
     "info",
   );
 
+  // Resolve the numeric BidNet question ID.
+  // Priority: (1) question_id column in CSV, (2) id from refreshed page data.
+  let resolvedId = row.question_id;
+  if (!resolvedId) {
+    const pq = pageQMap[String(row.question_number).trim()];
+    if (pq) resolvedId = String(pq.id || "").trim();
+  }
+  if (!resolvedId) {
+    appendLog(
+      "[TEST] Q#" +
+        row.question_number +
+        " — no question_id available. Add a question_id column to your CSV" +
+        ' or click "Refresh Questions" first.',
+      "error",
+    );
+    testFillIndex++;
+    _updateTestStatus();
+    return;
+  }
+
   const btn = document.getElementById("btn-test-next");
   if (btn) btn.disabled = true;
 
@@ -983,7 +1031,7 @@ async function testNextQuestion() {
     const resp = await sendToContentScript({
       action: "testFillAnswer",
       payload: {
-        questionId: row.question_number,
+        questionId: resolvedId,
         answer: row.answer,
         visibility: vis,
         comment: row.comment,
