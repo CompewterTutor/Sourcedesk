@@ -104,6 +104,7 @@
             /* ─── Panel Body ────────────────────────────────────────────────── */
             #panel-body {
                 flex: 1;
+                min-height: 0; /* required: lets the flex item shrink below its content size so .view can scroll */
                 overflow: hidden;
                 position: relative;
             }
@@ -881,6 +882,55 @@
                                 <div id="progress-bar-track">
                                     <div id="progress-bar-fill"></div>
                                 </div>
+                            </div>
+
+                            <hr class="divider" style="margin-top: 12px" />
+
+                            <!-- Test Mode sub-section -->
+                            <div class="subsection-title">
+                                🧪 Test Mode (no save)
+                            </div>
+                            <p
+                                style="
+                                    font-size: 11px;
+                                    color: var(--text-muted);
+                                    margin-bottom: 8px;
+                                "
+                            >
+                                Steps one question at a time: finds the
+                                <em>Edit Answer</em> / <em>Answer</em> button on
+                                the Q&amp;A list (or navigates directly), sets
+                                visibility, pastes the answer — but
+                                <strong>does not click Save</strong>. The Save
+                                button is highlighted in orange so you can
+                                verify targeting.
+                            </p>
+                            <div class="form-row-inline" style="gap: 8px">
+                                <button
+                                    class="btn btn-accent btn-full"
+                                    id="btn-test-next"
+                                    style="flex: 2"
+                                >
+                                    🧪 Test Next Question
+                                </button>
+                                <button
+                                    class="btn btn-sm"
+                                    id="btn-test-reset"
+                                    title="Reset test index to row 1"
+                                >
+                                    ↩ Reset
+                                </button>
+                            </div>
+                            <div
+                                id="test-status-label"
+                                class="form-label"
+                                style="
+                                    margin-top: 6px;
+                                    color: var(--text-muted);
+                                    font-style: italic;
+                                "
+                            >
+                                No CSV loaded
                             </div>
 
                             <hr class="divider" />
