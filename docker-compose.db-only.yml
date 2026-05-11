@@ -1,0 +1,50 @@
+version: "3.8"
+
+# Standalone PostgreSQL 16 + pgvector
+#
+# Joins your 'mediastack' homelab network so any container on that network
+# can connect as:  postgres://sourcedesk:<PW>@sourcedesk-db:5432/<dbname>
+#
+# Host access (non-Docker processes on 192.168.1.205):
+#   postgres://sourcedesk:<PW>@192.168.1.205:5432/<dbname>
+#
+# Usage:
+#   cp .env.db .env               # fill in POSTGRES_PASSWORD
+#   docker network create mediastack   # skip if it exists
+#   docker compose up -d
+#
+# Or one-liner (no .env file):
+#   POSTGRES_PASSWORD=yourpassword docker compose up -d
+
+networks:
+  mediastack:
+    external: true
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: sourcedesk-db
+    restart: unless-stopped
+    networks:
+      mediastack:
+        aliases:
+          - sourcedesk-db         # other containers: host=sourcedesk-db port=5432
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER:     sourcedesk
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"
+      POSTGRES_DB:       sourcedesk
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d:ro   # runs once on fresh volume
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sourcedesk -d sourcedesk"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+volumes:
+  db_data:
+    name: sourcedesk_db_data

@@ -1,38 +1,106 @@
 version: "3.8"
-# SourceDesk — External PostgreSQL variant
+# SourceDesk — External PostgreSQL + Hindsight (local LM Studio) variant
 #
 # Use this when you already have a PostgreSQL server running outside Docker
 # (on the host, another container, or a cloud provider like Supabase / Railway).
 #
-# Required: set DATABASE_URL in your .env file before running.
-# Example:
-#   DATABASE_URL=postgres://user:pass@host.docker.internal:5432/sourcedesk
+# Required .env variables:
+#   POSTGRESQL_USERNAME    — postgres user
+#   POSTGRESQL_PASSWORD    — postgres password
+#   POSTGRESQL_HOST        — hostname (default: db — the db-only container alias on mediastack)
+#   POSTGRESQL_PORT        — port     (default: 5432)
+#
+# Network note: this compose file joins 'mediastack' (the homelab external network)
+# so that the 'db' alias defined by docker-compose.db-only.yml is resolvable.
+# If you are NOT using db-only.yml set POSTGRESQL_HOST=host.docker.internal instead.
+#
+# The sourcedesk_hindsight database must exist before first run:
+#   psql $DATABASE_URL -c "CREATE DATABASE sourcedesk_hindsight;"
+#   psql postgresql://<user>:<pass>@<host>:5432/sourcedesk_hindsight \
+#     -c "CREATE EXTENSION IF NOT EXISTS vector;"
+# (If you used docker-compose.db-only.yml, it was already created for you.)
 #
 # Usage: docker-compose -f docker-compose.pgsql-local.yml up -d --build
 #        (or: make compose-up-pgsql-local)
 #
-# Linux note: add DOCKER_EXTRA_HOSTS=host.docker.internal:host-gateway to .env
-# if your host Postgres is on localhost.
+# Linux note: host.docker.internal is added via extra_hosts on both services.
+
+networks:
+  # The homelab shared network — db-only.yml puts the Postgres container here
+  # with alias 'db'.  web + hindsight join it so DATABASE_URL can use host=db.
+  mediastack:
+    external: true
+  # Internal network so web can reach hindsight by service name
+  sourcedesk_internal:
+    driver: bridge
 
 services:
   web:
     build: .
     ports:
       - "${PORT:-3000}:3000"
+    networks:
+      - mediastack
+      - sourcedesk_internal
     environment:
       PORT: 3000
-      DATABASE_URL: "${DATABASE_URL}"
+      DATABASE_URL: "postgres://${POSTGRESQL_USERNAME}:${POSTGRESQL_PASSWORD}@${POSTGRESQL_HOST:-db}:${POSTGRESQL_PORT:-5432}/sourcedesk"
       LLM_PROVIDER: "${LLM_PROVIDER:-anthropic}"
       LLM_MODEL: "${LLM_MODEL:-claude-sonnet-4-6}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-      LOCAL_LLM_URL: "${LOCAL_LLM_URL:-http://localhost:11434/v1}"
+      LOCAL_LLM_URL: "${LOCAL_LLM_URL:-http://localhost:1234/api/v1}"
       LOCAL_LLM_DEFAULT_MODEL: "${LOCAL_LLM_DEFAULT_MODEL:-}"
-      # Optional: point at a Hindsight instance running separately
-      HINDSIGHT_API_URL: "${HINDSIGHT_API_URL:-}"
+      # When running in Docker, the proxy must rewrite 'localhost' URLs sent by
+      # the browser to 'host.docker.internal' so the server-side proxy can reach
+      # LM Studio / Ollama running on the host machine.
+      PROXY_REWRITE_LOCALHOST: "host.docker.internal"
+      # Hindsight memory service — points at the service defined below
+      HINDSIGHT_API_URL: "${HINDSIGHT_API_URL:-http://hindsight:8888}"
     volumes:
       - ./.private-documents:/app/.private-documents
       - ./backups:/app/backups
     extra_hosts:
-      # Linux: allows host.docker.internal to resolve to the host machine
-      - "host.docker.internal:host-gateway"
+      - "host.docker.internal:host-gateway" # Linux: resolve host machine
+    depends_on:
+      hindsight:
+        condition: service_started
+
+  # ─── Hindsight AI memory service ───────────────────────────────────────────────────
+  # Uses your external Postgres (sourcedesk_hindsight DB) and LM Studio for
+  # both fact-extraction LLM and embeddings.
+  # Defaults to google/gemma-4-26b-a4b (LLM) + text-embedding-qwen3-embedding-0.6b
+  # Override any default via .env — see .env.pgsql-lmstudio for the full list.
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:latest-slim
+    restart: unless-stopped
+    networks:
+      - mediastack
+      - sourcedesk_internal
+    ports:
+      - "${HINDSIGHT_PORT:-8888}:8888" # API
+      - "${HINDSIGHT_CTRL_PORT:-9999}:9999" # control plane
+    environment:
+      # LLM for fact extraction — LM Studio via OpenAI-compat
+      HINDSIGHT_API_LLM_PROVIDER: "${HINDSIGHT_LLM_PROVIDER:-openai}"
+      HINDSIGHT_API_LLM_API_KEY: "${HINDSIGHT_LLM_API_KEY:-lmstudio}"
+      HINDSIGHT_API_LLM_MODEL: "${HINDSIGHT_LLM_MODEL:-google/gemma-4-26b-a4b}"
+      HINDSIGHT_API_LLM_BASE_URL: "${HINDSIGHT_LLM_BASE_URL:-http://host.docker.internal:1234/v1}"
+      # Embeddings — LM Studio via OpenAI-compat
+      HINDSIGHT_API_EMBEDDINGS_PROVIDER: "${HINDSIGHT_EMBEDDINGS_PROVIDER:-openai}"
+      HINDSIGHT_API_EMBEDDINGS_API_KEY: "${HINDSIGHT_EMBEDDINGS_API_KEY:-lmstudio}"
+      HINDSIGHT_API_EMBEDDINGS_MODEL: "${HINDSIGHT_EMBEDDINGS_MODEL:-text-embedding-qwen3-embedding-0.6b}"
+      HINDSIGHT_API_EMBEDDINGS_BASE_URL: "${HINDSIGHT_EMBEDDINGS_BASE_URL:-http://host.docker.internal:1234/v1}"
+      # Reranker — rrf (Reciprocal Rank Fusion) needs no ML model or extra deps.
+      # The default 'local' reranker requires sentence-transformers which is not
+      # included in the slim image and will crash on startup.
+      HINDSIGHT_API_RERANKER_PROVIDER: "${HINDSIGHT_RERANKER_PROVIDER:-rrf}"
+      # Hindsight's own database (must exist — see header comment above)
+      HINDSIGHT_API_DATABASE_URL: "postgres://${POSTGRESQL_USERNAME}:${POSTGRESQL_PASSWORD}@${POSTGRESQL_HOST:-db}:${POSTGRESQL_PORT:-5432}/sourcedesk_hindsight"
+    volumes:
+      - hindsight_data:/home/hindsight/.pg0
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Linux: resolve host machine
+
+volumes:
+  hindsight_data:

@@ -1,0 +1,218 @@
+version: "3.8"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SourceDesk — Homelab Stack
+#
+# Two networks:
+#   sourcedesk_net   private bridge for all SourceDesk services to communicate
+#                    (web → db, web → hindsight, hindsight → db, pgadmin → db)
+#
+#   mediastack       your existing homelab Docker network (external)
+#                    services that join it are reachable by other containers
+#                    on that network (Nginx Proxy Manager, Traefik, other agents)
+#
+# Services and their network memberships:
+#   web              sourcedesk_net + mediastack  (alias: sourcedesk-web:3000)
+#   db               sourcedesk_net + mediastack  (alias: sourcedesk-db:5432)
+#   hindsight        sourcedesk_net only           (port-mapped to host :8888)
+#   pgadmin          sourcedesk_net + mediastack  (alias: sourcedesk-pgadmin:80)
+#
+# Three PostgreSQL databases are created (see init-db/01_databases.sql):
+#   sourcedesk            — SourceDesk application data
+#   sourcedesk_hindsight  — Hindsight AI memory service
+#   agents                — General-purpose pgvector DB for your other agent
+#                           harnesses; connect from mediastack containers as:
+#                           postgres://sourcedesk:<POSTGRES_PASSWORD>@sourcedesk-db:5432/agents
+#                           Or from the host at 192.168.1.205:
+#                           postgres://sourcedesk:<POSTGRES_PASSWORD>@192.168.1.205:5432/agents
+#
+# Quick start:
+#   cp .env.homelab .env          # fill in POSTGRES_PASSWORD and API keys
+#   docker network create mediastack   # skip if it already exists
+#   docker compose -f docker-compose.homelab.yml up -d --build
+#   docker compose -f docker-compose.homelab.yml exec web \
+#     node scripts/generate_api_token.js --user you@homelab.local
+#
+# pgAdmin: http://192.168.1.205:5050
+# SourceDesk: http://192.168.1.205:3000
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  # Private bridge — SourceDesk ecosystem only; not exposed to other homelab
+  # services. Internet access is available (needed for LLM API calls).
+  sourcedesk_net:
+    driver: bridge
+
+  # Your existing homelab Docker network. Attach services here so Nginx Proxy
+  # Manager / Traefik / other agent containers can reach them by name.
+  mediastack:
+    external: true
+
+services:
+
+  # ─── SourceDesk web app ─────────────────────────────────────────────────────
+  web:
+    build: .
+    container_name: sourcedesk-web
+    restart: unless-stopped
+    networks:
+      sourcedesk_net: {}
+      mediastack:
+        aliases:
+          - sourcedesk-web    # proxy_pass http://sourcedesk-web:3000
+    ports:
+      - "${PORT:-3000}:3000"  # direct access at http://192.168.1.205:3000
+    environment:
+      PORT: "3000"
+      DATABASE_URL: "postgres://sourcedesk:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/sourcedesk"
+
+      # Server-side LLM (email summarisation)
+      LLM_PROVIDER: "${LLM_PROVIDER:-anthropic}"
+      LLM_MODEL: "${LLM_MODEL:-claude-sonnet-4-6}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+
+      # Local LLM (injected into the browser app — point at your homelab host)
+      # e.g. http://192.168.1.205:11434/v1  (Ollama)  or
+      #      http://192.168.1.205:1234/v1   (LM Studio)
+      LOCAL_LLM_URL: "${LOCAL_LLM_URL:-}"
+      LOCAL_LLM_DEFAULT_MODEL: "${LOCAL_LLM_DEFAULT_MODEL:-}"
+
+      # Hindsight memory service (internal — web calls hindsight by service name)
+      HINDSIGHT_API_URL: "http://hindsight:8888"
+
+      # Per-token rate limits for Hindsight proxy endpoints (requests / minute)
+      RL_RETAIN_MAX: "${RL_RETAIN_MAX:-60}"
+      RL_RECALL_MAX: "${RL_RECALL_MAX:-120}"
+      RL_WINDOW_MS: "${RL_WINDOW_MS:-60000}"
+    volumes:
+      - ./.private-documents:/app/.private-documents  # API tokens + email ingests
+      - ./backups:/app/backups                         # server-side DB backups
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ─── PostgreSQL 16 + pgvector ───────────────────────────────────────────────
+  #
+  # Joins BOTH networks so:
+  #   • SourceDesk services reach it as  db:5432  on sourcedesk_net
+  #   • Homelab containers reach it as   sourcedesk-db:5432  on mediastack
+  #   • Non-Docker processes on the host reach it at  192.168.1.205:5432
+  #
+  # init-db/01_databases.sql runs ONCE on first start (fresh volume) and:
+  #   • Creates sourcedesk_hindsight and agents databases
+  #   • Enables vector, pg_trgm, and uuid-ossp in each database
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: sourcedesk-db
+    restart: unless-stopped
+    networks:
+      sourcedesk_net: {}
+      mediastack:
+        aliases:
+          - sourcedesk-db     # other mediastack containers: host=sourcedesk-db port=5432
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"  # host-level access at 192.168.1.205:5432
+    environment:
+      POSTGRES_USER: sourcedesk
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
+      POSTGRES_DB: sourcedesk
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d:ro  # runs once on fresh volume
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sourcedesk -d sourcedesk"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  # ─── Hindsight AI memory service ────────────────────────────────────────────
+  #
+  # Gives SourceDesk (and any other caller) persistent cross-session memory.
+  # Uses the slim image (~500 MB) — delegates embeddings to your provider.
+  # Hindsight manages its OWN database (sourcedesk_hindsight) — separate from
+  # the main SourceDesk schema.
+  #
+  # Only on sourcedesk_net by default (SourceDesk web proxies its endpoints).
+  # To expose Hindsight directly to other mediastack containers, uncomment the
+  # mediastack block and aliases below.
+  #
+  # Host access:  http://192.168.1.205:8888  (API)
+  #               http://192.168.1.205:9999  (control plane)
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:latest-slim
+    container_name: sourcedesk-hindsight
+    restart: unless-stopped
+    networks:
+      sourcedesk_net: {}
+      # Uncomment to let other mediastack containers call the Hindsight API directly:
+      # mediastack:
+      #   aliases:
+      #     - sourcedesk-hindsight    # http://sourcedesk-hindsight:8888
+    ports:
+      - "${HINDSIGHT_PORT:-8888}:8888"       # API
+      - "${HINDSIGHT_CTRL_PORT:-9999}:9999"  # control plane
+    environment:
+      # LLM for fact extraction. Defaults to Anthropic Haiku (cheap + fast).
+      # To use a local Ollama model instead, see .env.homelab for the override block.
+      HINDSIGHT_API_LLM_PROVIDER: "${HINDSIGHT_LLM_PROVIDER:-anthropic}"
+      HINDSIGHT_API_LLM_API_KEY:  "${HINDSIGHT_LLM_API_KEY:-}"
+      HINDSIGHT_API_LLM_MODEL:    "${HINDSIGHT_LLM_MODEL:-claude-haiku-4-5-20251001}"
+      HINDSIGHT_API_LLM_BASE_URL: "${HINDSIGHT_LLM_BASE_URL:-}"
+
+      # Embeddings. Defaults to OpenAI text-embedding-3-small.
+      # For local Ollama embeddings see .env.homelab for the override block.
+      HINDSIGHT_API_EMBEDDINGS_PROVIDER: "${HINDSIGHT_EMBEDDINGS_PROVIDER:-openai}"
+      HINDSIGHT_API_EMBEDDINGS_API_KEY:  "${HINDSIGHT_EMBEDDINGS_API_KEY:-}"
+      HINDSIGHT_API_EMBEDDINGS_MODEL:    "${HINDSIGHT_EMBEDDINGS_MODEL:-text-embedding-3-small}"
+      HINDSIGHT_API_EMBEDDINGS_BASE_URL: "${HINDSIGHT_EMBEDDINGS_BASE_URL:-}"
+
+      # Hindsight's own database — MUST be different from the SourceDesk DB name
+      HINDSIGHT_API_DATABASE_URL: "postgresql://sourcedesk:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/sourcedesk_hindsight"
+    volumes:
+      - hindsight_data:/home/hindsight/.pg0
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ─── pgAdmin 4 ──────────────────────────────────────────────────────────────
+  #
+  # Web UI for browsing and managing all three databases.
+  # Pre-loaded server list comes from pgadmin-servers.json.
+  # On first connect you'll be asked for the DB password — pgAdmin remembers it.
+  #
+  # Joins mediastack so a reverse proxy (NPM / Traefik) can expose it.
+  # Direct access: http://192.168.1.205:5050
+  #   Login: PGADMIN_EMAIL / PGADMIN_PASSWORD  (from .env)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: sourcedesk-pgadmin
+    restart: unless-stopped
+    networks:
+      sourcedesk_net: {}
+      mediastack:
+        aliases:
+          - sourcedesk-pgadmin  # proxy_pass http://sourcedesk-pgadmin:80
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"  # direct access at http://192.168.1.205:5050
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    "${PGADMIN_EMAIL:-admin@homelab.local}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_PASSWORD:?set PGADMIN_PASSWORD in .env}"
+      # Desktop mode — single user, no login screen inside pgAdmin itself
+      PGADMIN_CONFIG_SERVER_MODE:          "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin-servers.json:/pgadmin4/servers.json:ro  # pre-loads server list
+    depends_on:
+      - db
+
+# ─── Named volumes ─────────────────────────────────────────────────────────────
+volumes:
+  db_data:
+    name: sourcedesk_db_data          # find with: docker volume ls | grep sourcedesk
+  hindsight_data:
+    name: sourcedesk_hindsight_data
+  pgadmin_data:
+    name: sourcedesk_pgadmin_data

@@ -474,13 +474,27 @@ These limits are generous for normal interactive use. If you need higher limits,
 
 ### Running with Docker
 
-The fastest way to get the server running is with Docker Compose. SQLite is used by default; see `docker-compose.yml` to enable PostgreSQL.
+SourceDesk ships five Docker Compose configurations. Pick the one that matches your infrastructure:
+
+| Compose file | When to use | Make target |
+|---|---|---|
+| `docker-compose.yml` | **Default.** Self-contained Postgres + Hindsight. Recommended. | `make compose-up` |
+| `docker-compose.sqlite.yml` | Simplest local dev — no external services, SQLite only. | `make compose-up-sqlite` |
+| `docker-compose.pgsql-local.yml` | Existing Postgres (host / other container / homelab) + Hindsight + LM Studio. | `make compose-up-pgsql-local` |
+| `docker-compose.homelab.yml` | Full homelab: own Postgres+pgvector, Hindsight, pgAdmin. Dual-network. | `make compose-up-homelab` |
+| `docker-compose.db-only.yml` | Standalone Postgres+pgvector container only. Use alongside `pgsql-local`. | *(run directly)* |
+
+---
+
+#### Default stack (Postgres + Hindsight)
+
+The default `docker-compose.yml` starts a self-contained Postgres 16+pgvector database, a Hindsight memory service, and the SourceDesk web container — everything in one command. Requires an LLM API key (Anthropic or OpenAI) for Hindsight's fact-extraction and embeddings.
 
 ```sh
-# Build and start (SQLite, port 3000)
+# Build and start
 docker compose up -d --build
 
-# Generate your first API token inside the container
+# Generate your first API token
 docker compose exec web node scripts/generate_api_token.js --user you@example.com
 
 # Tail logs
@@ -490,15 +504,166 @@ docker compose logs -f web
 docker compose down
 ```
 
-Three directories are bind-mounted from the host so data survives container restarts:
+**SQLite-only** (no Postgres, no Hindsight — simplest possible):
+
+```sh
+docker compose -f docker-compose.sqlite.yml up -d --build
+# or: make compose-up-sqlite
+```
+
+Volumes that survive container restarts:
 
 | Host path | Container path | Contents |
 |---|---|---|
-| `data` (named volume) | `/app/data` | SQLite database file |
-| `./.private-documents/` | `/app/.private-documents` | API token store + raw email ingest files |
+| `db_data` (named volume) | `/var/lib/postgresql/data` | Postgres data directory |
+| `./.private-documents/` | `/app/.private-documents` | API token store + email ingest files |
 | `./backups/` | `/app/backups` | Server-side DB backups |
 
-To switch to PostgreSQL, uncomment the `db` service in `docker-compose.yml` and update `DATABASE_URL` to the Postgres connection string shown in that file.
+---
+
+#### External Postgres + Hindsight + LM Studio (`pgsql-local`)
+
+`docker-compose.pgsql-local.yml` connects to an existing PostgreSQL server rather than starting its own, and runs a Hindsight memory service that uses **LM Studio on the host machine** for both LLM fact-extraction and embeddings via the OpenAI-compatible API.
+
+**Use this when:**
+- Postgres lives in a separate Docker container managed by `docker-compose.db-only.yml`, another compose stack, or directly on the host.
+- You want Hindsight to use LM Studio (local) instead of a cloud API.
+
+**Prerequisites**
+
+1. **Postgres 16 + pgvector** reachable from Docker — two options:
+   - **`db-only` on `mediastack`**: Postgres lives in its own container on a shared external network. Create the network and start the DB once:
+     ```sh
+     docker network create mediastack
+     docker compose -f docker-compose.db-only.yml up -d
+     ```
+   - **Host Postgres**: set `POSTGRESQL_HOST=host.docker.internal` in `.env`.
+
+2. **`sourcedesk_hindsight` database** must exist before first run:
+   ```sh
+   # Replace PASSWORD and HOST as needed
+   psql "postgres://sourcedesk:PASSWORD@localhost:5432/sourcedesk" \
+     -c "CREATE DATABASE sourcedesk_hindsight;"
+   psql "postgres://sourcedesk:PASSWORD@localhost:5432/sourcedesk_hindsight" \
+     -c "CREATE EXTENSION IF NOT EXISTS vector;"
+   ```
+   > **Skip if using `db-only`** — its `init-db/` scripts create these databases automatically.
+
+3. **LM Studio**:
+   - Enable **Serve on local network** in LM Studio settings.
+   - Create an API key under **Developer → API Keys** and note it.
+   - Have an LLM model and an embedding model loaded (e.g. `google/gemma-4-26b-a4b` + `text-embedding-qwen3-embedding-0.6b`).
+
+**Configure `.env`**
+
+```ini
+# Postgres — must match the actual DB user password
+POSTGRESQL_USERNAME=sourcedesk
+POSTGRESQL_PASSWORD=your_db_password
+POSTGRESQL_HOST=db             # or host.docker.internal if Postgres is on the host
+POSTGRESQL_PORT=5432
+
+# LM Studio API key (LM Studio → Developer → API Keys)
+HINDSIGHT_LLM_API_KEY=lmstudio-xxxx
+HINDSIGHT_EMBEDDINGS_API_KEY=lmstudio-xxxx
+
+# Models that must be loaded in LM Studio
+HINDSIGHT_LLM_MODEL=google/gemma-4-26b-a4b
+HINDSIGHT_EMBEDDINGS_MODEL=text-embedding-qwen3-embedding-0.6b
+
+# Optional: server-side LLM for email summarisation
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+**Start**
+
+```sh
+docker compose -f docker-compose.pgsql-local.yml up -d --build
+# or: make compose-up-pgsql-local
+
+# Generate your first API token
+docker compose -f docker-compose.pgsql-local.yml exec web \
+  node scripts/generate_api_token.js --user you@example.com
+
+# Tail logs
+docker compose -f docker-compose.pgsql-local.yml logs -f web
+docker compose -f docker-compose.pgsql-local.yml logs -f hindsight
+
+# Stop
+docker compose -f docker-compose.pgsql-local.yml down
+# or: make compose-down-pgsql-local
+```
+
+**How the LM Studio proxy works**
+
+When the browser sends a request targeting `http://localhost:1234/...` (LM Studio), SourceDesk's server-side `/proxy` endpoint receives that URL. Inside Docker, `localhost` refers to the container itself — not the host — so a naive forward fails with `ECONNREFUSED`.
+
+The `PROXY_REWRITE_LOCALHOST=host.docker.internal` environment variable (already set in `docker-compose.pgsql-local.yml`) tells the proxy to transparently rewrite any `localhost` or `127.0.0.1` hostname before forwarding. The companion `extra_hosts: host.docker.internal:host-gateway` entry makes this alias work on Linux (Docker Desktop handles it automatically on macOS/Windows).
+
+**Verify LM Studio connectivity**
+
+```sh
+# A 401 means the proxy reached LM Studio but needs an API key — that's correct.
+# ECONNREFUSED or a timeout = networking issue.
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -X POST http://localhost:3000/proxy \
+  -H "Content-Type: application/json" \
+  -d '{"url":"http://localhost:1234/api/v1/models","method":"GET","headers":{}}'
+```
+
+**Common issues**
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `getaddrinfo ENOTFOUND db` | `web` container can't resolve the `db` alias | Create the `mediastack` network (`docker network create mediastack`) and ensure the `db-only` stack is running |
+| `password authentication failed` | `POSTGRESQL_PASSWORD` in `.env` doesn't match the DB user | Reset: `ALTER ROLE sourcedesk PASSWORD 'newpass';` in psql, then update `.env` |
+| `ECONNREFUSED` proxying to LM Studio | Proxy still forwarding to `localhost` inside the container | Verify `PROXY_REWRITE_LOCALHOST=host.docker.internal` is set; ensure LM Studio listens on `0.0.0.0` |
+| Hindsight crashes at startup | `latest-slim` image missing `sentence-transformers` | Ensure `HINDSIGHT_API_RERANKER_PROVIDER=rrf` is set (already the default in the compose file) |
+| LM Studio returns 401 | API key missing or wrong | Set `HINDSIGHT_LLM_API_KEY` and `HINDSIGHT_EMBEDDINGS_API_KEY` to a valid LM Studio API key |
+
+---
+
+#### Full homelab stack (`docker-compose.homelab.yml`)
+
+Self-contained homelab deployment: Postgres 16+pgvector, Hindsight, pgAdmin 4, and the SourceDesk web app — all in one stack. Joins the `mediastack` external network so Nginx Proxy Manager or Traefik can front it. Services advertise well-known aliases on `mediastack` (`sourcedesk-web`, `sourcedesk-db`, `sourcedesk-pgadmin`).
+
+```sh
+docker network create mediastack         # once — skip if it already exists
+cp .env.homelab .env                     # fill in POSTGRES_PASSWORD, API keys
+
+docker compose -f docker-compose.homelab.yml up -d --build
+# or: make compose-up-homelab
+
+# Generate your first API token
+docker compose -f docker-compose.homelab.yml exec web \
+  node scripts/generate_api_token.js --user you@homelab.local
+
+# Stop
+docker compose -f docker-compose.homelab.yml down
+# or: make compose-down-homelab
+```
+
+Default ports: SourceDesk `:3000`, pgAdmin `:5050`, Hindsight API `:8888` / control plane `:9999`.
+
+---
+
+#### Standalone PostgreSQL only (`docker-compose.db-only.yml`)
+
+Starts just a PostgreSQL 16+pgvector container on the `mediastack` network. Use this when you want Docker to manage the database while running the app layer separately (`pgsql-local` compose, bare-metal `npm run serve`, or another compose stack).
+
+```sh
+docker network create mediastack   # once — skip if it exists
+
+docker compose -f docker-compose.db-only.yml up -d
+
+# DB is reachable inside mediastack as:  host=sourcedesk-db  port=5432
+# And from the host at:                  localhost:5432
+
+docker compose -f docker-compose.db-only.yml down
+```
+
+The `init-db/` scripts run automatically on a fresh volume and create `sourcedesk`, `sourcedesk_hindsight`, and `agents` databases with pgvector enabled.
 
 ---
 

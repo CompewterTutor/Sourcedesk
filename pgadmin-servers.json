@@ -1,0 +1,34 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "SourceDesk (main)",
+      "Group": "SourceDesk Homelab",
+      "Host": "db",
+      "Port": 5432,
+      "MaintenanceDB": "sourcedesk",
+      "Username": "sourcedesk",
+      "SSLMode": "prefer",
+      "Comment": "Main SourceDesk application database. Migrations managed by server.js."
+    },
+    "2": {
+      "Name": "Agents (vector store)",
+      "Group": "SourceDesk Homelab",
+      "Host": "db",
+      "Port": 5432,
+      "MaintenanceDB": "agents",
+      "Username": "sourcedesk",
+      "SSLMode": "prefer",
+      "Comment": "General-purpose pgvector database for agent harnesses. Table: agent_memories."
+    },
+    "3": {
+      "Name": "Hindsight (memory)",
+      "Group": "SourceDesk Homelab",
+      "Host": "db",
+      "Port": 5432,
+      "MaintenanceDB": "sourcedesk_hindsight",
+      "Username": "sourcedesk",
+      "SSLMode": "prefer",
+      "Comment": "Hindsight AI memory service database. Schema managed by Hindsight."
+    }
+  }
+}

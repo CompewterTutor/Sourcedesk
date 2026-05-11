@@ -3,7 +3,7 @@ IMAGE := sourcedesk
 TAG := latest
 PORT ?= 3000
 
-.PHONY: help build docker-build docker-run compose-up compose-down compose-up-sqlite compose-down-sqlite compose-up-pgsql-local compose-down-pgsql-local serve dev gen-token logs clean
+.PHONY: help build docker-build docker-run compose-up compose-down compose-up-sqlite compose-down-sqlite compose-up-pgsql-local compose-down-pgsql-local compose-up-homelab compose-down-homelab serve dev gen-token logs clean
 
 help:
 	@echo "SourceDesk Makefile"
@@ -17,9 +17,11 @@ help:
 	@echo "  compose-up          Default: PostgreSQL + Hindsight (recommended)"
 	@echo "  compose-up-sqlite   SQLite only (simple local dev)"
 	@echo "  compose-up-pgsql-local  External/host PostgreSQL"
+	@echo "  compose-up-homelab  Homelab: Postgres+pgvector, Hindsight, pgAdmin, dual-network"
 	@echo "  compose-down        Stop default stack"
 	@echo "  compose-down-sqlite Stop SQLite stack"
 	@echo "  compose-down-pgsql-local  Stop external-PG stack"
+	@echo "  compose-down-homelab  Stop homelab stack"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  serve               Run local Node server"
@@ -61,6 +63,14 @@ compose-up-pgsql-local:
 
 compose-down-pgsql-local:
 	docker-compose -f docker-compose.pgsql-local.yml down
+
+# Homelab variant: Postgres+pgvector + Hindsight + pgAdmin, dual-network (mediastack)
+# Requires: cp .env.homelab .env  and  docker network create mediastack (if it doesn't exist)
+compose-up-homelab:
+	docker compose -f docker-compose.homelab.yml up -d --build
+
+compose-down-homelab:
+	docker compose -f docker-compose.homelab.yml down
 
 # Run the local server (node)
 serve:

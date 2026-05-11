@@ -100,10 +100,14 @@ Sourcedesk/
 ├── package-lock.json
 ├── Makefile                ← Common build/run targets
 ├── Dockerfile              ← Multi-stage builder + runtime; includes native module build tools
-├── docker-compose.yml      ← SQLite by default; pgvector Postgres service commented in
-├── docker-compose.sqlite.yml  ← SQLite-only variant (no db or hindsight services)
-├── docker-compose.pgsql-local.yml ← Connect to existing/host PostgreSQL
+├── docker-compose.yml      ← Default: Postgres 16+pgvector + Hindsight (self-contained)
+├── docker-compose.sqlite.yml  ← SQLite-only variant (no external services)
+├── docker-compose.pgsql-local.yml ← External Postgres + Hindsight + LM Studio (host/homelab)
+├── docker-compose.homelab.yml  ← Full homelab stack: own Postgres, Hindsight, pgAdmin, dual-network
+├── docker-compose.db-only.yml  ← Standalone Postgres+pgvector only (mediastack network)
 ├── .env.example            ← All configurable env variables documented
+├── .env.homelab            ← Env template for homelab stack
+├── .env.pgsql-lmstudio     ← Env template for pgsql-local stack with LM Studio
 ├── SourceDesk.html         ← Compiled output (committed; this is what users open)
 ├── CHANGELOG.md            ← Versioned changelog; 🗄️ marks IndexedDB changes; 🖥️ marks server additions
 ├── README.md               ← User-facing docs; roadmap as checkboxes
@@ -533,6 +537,21 @@ Key files to read for Hindsight work:
 ## Current State (as of last commit)
 
 **Current version: v1.1.0** (`src/flags.js` + `package.json`) — build output: `SourceDesk.html` committed at HEAD
+
+> **Session note (current — Docker Compose deployment docs: pgsql-local guide + networking fixes):**
+> Docs-only session — no source code changes.
+>
+> 1. **`README.md` expanded "Running with Docker" section** — replaced the single-variant block with a comprehensive multi-variant guide covering all five compose files. New content:
+>    - Overview table of all compose variants with `make` targets
+>    - **Default stack** (Postgres + Hindsight): corrected the section (was wrongly described as SQLite-by-default)
+>    - **`pgsql-local` variant** (primary new section): prerequisites (mediastack network, `sourcedesk_hindsight` DB creation, LM Studio setup); `.env` configuration table with all required vars; start/stop/log commands; explanation of how `PROXY_REWRITE_LOCALHOST=host.docker.internal` fixes the container-to-host LM Studio problem; connectivity verification `curl`; common-issues troubleshooting table
+>    - **Homelab stack** (`docker-compose.homelab.yml`): start/stop commands, default ports
+>    - **Standalone Postgres** (`docker-compose.db-only.yml`): start/stop commands, network alias info
+>
+> 2. **`AGENTS.md` repo structure** — fixed `docker-compose.yml` description (now correctly says "Default: Postgres + Hindsight"); added `docker-compose.homelab.yml`, `docker-compose.db-only.yml`, `.env.homelab`, `.env.pgsql-lmstudio` entries which were missing.
+>
+> 3. **`AGENTS.md` new gotchas** — added `### Docker networking and local LLM access` section covering five issues surfaced during the pgsql-local troubleshooting session: `localhost` inside containers, `PROXY_REWRITE_LOCALHOST` env var, `host.docker.internal` on Linux, cross-stack external networks, Hindsight slim-image `rrf` reranker requirement, and Postgres password sync across stacks.
+
 
 > **Session note (current — v1.1.0: Multiple Working Docs + Writing Style + Docker variants):**
 > All changes below are complete, documented, and built into `SourceDesk.html`.
@@ -1287,6 +1306,30 @@ See `_runAnalyze()` in `src/guidelines.js` and `evaluateCandidate()` in `src/eva
 - Token verification calls `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=TOKEN` — returns email + `expires_in` seconds.
 - Tokens expire in ~3600 seconds (1 hour). The UI shows the expiry but does not auto-refresh. Users must re-paste a new token after expiry.
 - If users serve `SourceDesk.html` from a local server (e.g. `python3 -m http.server`) and register `http://localhost:PORT` as an authorized JavaScript origin in their Google Cloud Console, a full GIS popup OAuth flow could replace the manual token approach.
+
+### Docker networking and local LLM access
+
+**`localhost` inside a container is not the host.** When a browser sends a request to `http://localhost:1234/...` (LM Studio) through SourceDesk's `/proxy` endpoint, the proxy receives that URL and tries to forward it. Inside Docker, `localhost` / `127.0.0.1` always points to the container itself — not the host machine — so the connection fails with `ECONNREFUSED`. The browser-configured URL is correct; it just cannot be used verbatim inside a container.
+
+**`PROXY_REWRITE_LOCALHOST` env var.** Set `PROXY_REWRITE_LOCALHOST=host.docker.internal` in the compose service environment. `server.js` reads this and transparently rewrites any `localhost` or `127.0.0.1` hostname in a proxied URL to `host.docker.internal` before making the outbound request. This is already set in `docker-compose.pgsql-local.yml` and `docker-compose.homelab.yml`. When absent (bare-metal `npm run serve`), no rewriting occurs.
+
+**`host.docker.internal` on Linux requires `extra_hosts`.** Docker Desktop on macOS and Windows automatically injects `host.docker.internal` as an alias for the host machine. On Linux, you must add it manually. All SourceDesk compose files that need it already include:
+```yaml
+extra_hosts:
+  - "host.docker.internal:host-gateway"
+```
+Without this, `host.docker.internal` does not resolve inside Linux containers and the proxy will fail with `ENOTFOUND host.docker.internal`.
+
+**Cross-stack Docker networks for shared Postgres.** If Postgres runs in one compose stack (`db-only`) and the app runs in another (`pgsql-local`), the two stacks cannot reach each other by default — each compose project creates its own isolated network. The solution is a named external network (`mediastack`). Create it once with `docker network create mediastack`, then attach both stacks to it. The `db-only` Postgres container then resolves as alias `sourcedesk-db` (or `db` with the `pgsql-local` default) from the app stack. Without the shared network you'll see `getaddrinfo ENOTFOUND db` in the web container logs.
+
+**Hindsight `latest-slim` image requires the `rrf` reranker.** The `latest-slim` Hindsight image (~500 MB) does NOT include `sentence-transformers`. Hindsight's default reranker (`local`) requires it and will crash immediately on the slim image with a Python import error. Always set `HINDSIGHT_API_RERANKER_PROVIDER=rrf` when using `latest-slim`. The `rrf` (Reciprocal Rank Fusion) reranker is a pure algorithmic combiner with no ML model dependency. All SourceDesk compose files already set this as the default.
+
+**Postgres password sync across compose stacks.** The `db-only` compose initialises the database using `POSTGRES_PASSWORD`. The `pgsql-local` compose connects using `POSTGRESQL_PASSWORD`. When these come from different `.env` files or were configured at different times, they can silently diverge. Symptom: `password authentication failed for user "sourcedesk"` in the web container. Fix: reset the role password to match the connection string:
+```sh
+docker exec -i sourcedesk-db psql -U postgres \
+  -c "ALTER ROLE sourcedesk PASSWORD 'newpass';"
+```
+Then update `POSTGRESQL_PASSWORD` in `.env` and restart the `web` container.
 
 ---
 

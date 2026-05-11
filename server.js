@@ -1608,6 +1608,19 @@ function handler(req, res) {
         return;
       }
 
+      // When running inside Docker, 'localhost' in a browser-provided URL refers
+      // to the user's host machine, not the container.  Rewrite it so the
+      // server-side proxy can actually reach the intended service (e.g. LM Studio
+      // or Ollama).  Activated by setting PROXY_REWRITE_LOCALHOST=host.docker.internal
+      // in the container environment (already done in docker-compose).
+      if (
+        process.env.PROXY_REWRITE_LOCALHOST &&
+        (parsedTarget.hostname === "localhost" ||
+          parsedTarget.hostname === "127.0.0.1")
+      ) {
+        parsedTarget.hostname = process.env.PROXY_REWRITE_LOCALHOST;
+      }
+
       const isHttps = parsedTarget.protocol === "https:";
       const lib = isHttps ? https : http;
 
@@ -1635,7 +1648,7 @@ function handler(req, res) {
       // CORS headers so browser accepts our proxy response
       Object.entries(CORS_HEADERS).forEach(([k, v]) => res.setHeader(k, v));
 
-      console.log(`  [proxy] → ${fwdMethod} ${targetUrl}`);
+      console.log(`  [proxy] → ${fwdMethod} ${parsedTarget.toString()}`);
 
       const proxyReq = lib.request(reqOptions, (proxyRes) => {
         const respHeaders = {};
