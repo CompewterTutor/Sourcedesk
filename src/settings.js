@@ -249,6 +249,28 @@ async function saveSettings() {
 
   const serverUrl =
     (document.getElementById("settings-server-url") || {}).value || "";
+  if (serverUrl) {
+    try {
+      new URL(serverUrl);
+    } catch {
+      const el = document.getElementById("settings-server-url");
+      if (el) {
+        el.style.outline = "2px solid var(--danger)";
+        el.title =
+          "Invalid URL — check for typos (e.g. bad IP octet or missing http://)";
+        el.focus();
+      }
+      alert(
+        'Server URL is not a valid URL.\nCheck for typos — e.g. "192.168.1.2000" has an invalid IP octet.',
+      );
+      return;
+    }
+    const el = document.getElementById("settings-server-url");
+    if (el) {
+      el.style.outline = "";
+      el.title = "";
+    }
+  }
   await dbPut("settings", { key: "serverUrl", value: serverUrl });
   state.settings.serverUrl = serverUrl;
 
@@ -1275,6 +1297,14 @@ async function testHindsightConnection() {
   if (!serverToken) {
     statusEl.textContent = "— API Token not configured";
     statusEl.style.color = "var(--text-muted)";
+    return;
+  }
+  try {
+    new URL(serverUrl);
+  } catch {
+    statusEl.textContent =
+      "✗ Invalid server URL — check for typos (e.g. bad IP octet or missing http://)";
+    statusEl.style.color = "var(--danger)";
     return;
   }
   statusEl.textContent = "Checking…";
