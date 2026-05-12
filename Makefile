@@ -25,7 +25,7 @@ help:
 	@echo ""
 	@echo "Utilities:"
 	@echo "  serve               Run local Node server"
-	@echo "  gen-token           Generate API token (USER=email)"
+	@echo "  gen-token           Generate API token (USER=email [LABEL=dev] [EXPIRES_IN=30d])"
 	@echo "  logs                Tail container logs"
 	@echo "  clean               Remove build artifacts"
 
@@ -80,14 +80,32 @@ serve:
 dev:
 	npm run dev
 
-# Generate an API token (convenience wrapper)
-# Usage: make gen-token USER=user@example.com [LABEL=dev]
+# Generate an API token
+# Automatically detects a running SourceDesk web container and runs the script
+# inside it so the DB (postgres) is reachable.  Falls back to host if no
+# container is running (file-based auth still works; DB persistence won't).
+#
+# Usage:
+#   make gen-token USER=user@example.com
+#   make gen-token USER=user@example.com LABEL=dev EXPIRES_IN=30d
+_GENTOKEN_ARGS = --user "$(USER)"$(if $(LABEL), --label "$(LABEL)")$(if $(EXPIRES_IN), --expires-in $(EXPIRES_IN))
+
 gen-token:
-	@echo "Generate API token for USER=$(USER)"
 	@if [ -z "$(USER)" ]; then \
-	  echo "Provide USER env var: make gen-token USER=user@example.com"; exit 1; \
+	  echo "Usage: make gen-token USER=user@example.com [LABEL=dev] [EXPIRES_IN=30d]"; exit 1; \
 	fi
-	node scripts/generate_api_token.js --user "$(USER)" --label "$(LABEL)"
+	@echo "Generating API token for $(USER)..."
+	@CONTAINER=$$(docker ps --filter "status=running" --format "{{.Names}}" \
+	  | grep -iE "sourcedesk" | grep -iE "web" | head -1); \
+	if [ -n "$$CONTAINER" ]; then \
+	  echo "  Container: $$CONTAINER — running inside container (DB access available)"; \
+	  docker exec "$$CONTAINER" node scripts/generate_api_token.js $(_GENTOKEN_ARGS); \
+	else \
+	  echo "  No running SourceDesk container detected — running on host."; \
+	  echo "  DB persistence will fail if DATABASE_URL targets a container hostname."; \
+	  echo "  Tip: start a stack first (e.g. make compose-up-pgsql-local) then re-run."; \
+	  node scripts/generate_api_token.js $(_GENTOKEN_ARGS); \
+	fi
 
 # Tail logs for the running container (by image name)
 logs:
